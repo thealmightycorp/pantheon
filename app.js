@@ -11,7 +11,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 let RECOVERY = /type=recovery/.test(location.hash || '');
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const icons = {chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
+const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
 const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[n]||icons.entities}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const TYPES = ['회사','브랜드','IP·유명인','기관','미디어·매체','미디어·OTT','판매 채널'];
@@ -25,7 +25,13 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) 
 let me = null, myName = '', isAdmin = false;
 let all = [];
 let page = 'home', filter = '전체', query = '', activeDetail = null, lastAnswer = '';
-const menus = [['home','대시보드'],['entities','엔티티 DB'],['contacts','연락처'],['chart','IP 차트'],['studio','제안서 스튜디오'],['admin','DB 관리']];
+// 한 원본에서 두 앱을 만든다 (11-01 · 이그드라실 PRD 10.4 궁니르 분리): ygg = 이그드라실(관계·엔티티·소싱) · gungnir = 제안서 스튜디오
+// build_web.py 가 <html data-app> 을 정한다. 이그드라실의 #studio 주소는 궁니르로 안내한다(슬랙에 붙인 링크 보호, 최소 1개월)
+const APP = document.documentElement.dataset.app === 'gungnir' ? 'gungnir' : 'ygg';
+const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
+const GUNGNIR_URL = 'https://thealmightycorp.github.io/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
+const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오']]
+  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['chart','소싱 · IP 차트'],['review','확인 대기'],['admin','DB 관리']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
 const byId = id => all.find(e => e.id === id);
 const isContact = e => e.type === '거래처 담당자';
@@ -49,6 +55,7 @@ function fromRow(r) {
   return {id:r.id, type:r.kind, name:r.name, en, aliases:r.aliases||[], parentId:r.parent_id, agencyText:r.agency||'',
     role:r.role||'', rel:r.rel||'', points:r.points||[], facts:r.facts||[], note:r.note, sides:r.sides||[], owners:r.owners||[],
     img:r.img||'', cardImg:r.card_img||'', createdBy:r.created_by||'', first:r.first_seen||'', last:r.last_seen||'', hidden:!!r.hidden, updated:r.updated_at||'',
+    pipeline:r.pipeline||'', contactDepth:r.contact_depth||null, depthEvent:r.depth_event||null, ownedIp:!!r.owned_ip, relOwner:r.rel_owner||null,
     color:COLOR[r.kind]||'', initial: en ? (w.length === 1 ? w[0].slice(0,3) : w.slice(0,3).map(x => x[0]).join('')).toUpperCase() : r.name.slice(0,1)};
 }
 // 등록한 직원 (10-28 홍석진 대표님 요청) — 누가 연락처·관계를 갖고 있는지. 웹·슬랙으로 등록한 사람
@@ -132,10 +139,11 @@ async function save(id, patch, isNew = false) {
   if (error) { toast(/permission|row-level|policy/i.test(error.message) ? '저장할 권한이 없습니다. 헤임달 승인이 필요합니다.' : '저장하지 못했습니다: ' + error.message); return null; }
   const e = fromRow(data), i = all.findIndex(x => x.id === id);
   if (i >= 0) all[i] = e; else all.push(e);
+  if (isContact(e) && APP === 'ygg') loadRel().then(rerender).catch(() => {});     // 사람 표·소속·명함은 DB 트리거가 따라 바꿈
   return e;
 }
 async function load() {
-  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers()]);
+  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), APP === 'ygg' ? loadRel().catch(() => {}) : null]);
   if (error) throw error;
   all = data.map(fromRow);
 }
@@ -143,11 +151,11 @@ async function load() {
 /* ---------- 화면 조각 ---------- */
 const avatar = e => { const s = imgSrc(e.img); return `<span class="entity-avatar ${s ? 'has-img' : e.color || ''}">${s ? `<img src="${s}" alt="">` : esc(e.initial)}</span>`; };
 function entityCard(e) { const c = contactsOf(e).length; return `<article class="entity-card" data-detail="${e.id}" tabindex="0" role="button" aria-label="${esc(e.name)} 상세 보기"><div class="entity-top">${avatar(e)}<div><b>${esc(e.name)}</b><small>${esc(e.en || agencyOf(e))}</small></div></div><span class="entity-category">${esc(e.type)}</span>${e.parentId && byId(e.parentId) ? ` <span class="entity-category">${esc(byId(e.parentId).name)}</span>` : ''}${e.hidden ? ' <span class="entity-category">숨김</span>' : ''}${e.rel ? `<p class="entity-rel">${esc(e.rel)}</p>` : `<p class="entity-rel none">${PILL_NOREL}</p>`}<div class="card-bottom"><span>${[c ? '담당자 ' + c + '명' : noContact(e) ? '담당자 없음' : '', kidsText(kidsOf(e)), registrar(e) && '등록 ' + registrar(e)].filter(Boolean).join(' · ')}</span><span>상세 보기 ↗</span></div></article>`; }
-function stats() { const es = entities(), cs = contacts(); return `<div class="stats"><div class="stat" data-stat="전체" role="button" tabindex="0" aria-label="엔티티 전체 보기"><div class="stat-label">${icon('entities')} 등록 엔티티</div><div class="stat-value">${es.length}<small>개</small></div><div class="stat-bottom"><span class="positive">판테온 DB</span> · 전 직원 공유</div></div><div class="stat" data-stat="contacts" role="button" tabindex="0" aria-label="연락처 보기"><div class="stat-label">${icon('contacts')} 거래처 담당자</div><div class="stat-value">${cs.length}<small>명</small></div><div class="stat-bottom">회사별로 연결해 관리</div></div><div class="stat" data-stat="IP·유명인" role="button" tabindex="0" aria-label="IP·유명인 보기"><div class="stat-label">${icon('up')} IP·유명인</div><div class="stat-value">${es.filter(e => e.type === 'IP·유명인').length}<small>명</small></div><div class="stat-bottom">계약·협업 중인 인물</div></div><div class="stat highlight" data-stat="담당자 연결" role="button" tabindex="0" aria-label="담당자 연결 회사 보기"><div class="stat-label">${icon('link')} 담당자 연결 회사</div><div class="stat-value">${es.filter(e => contactsOf(e).length).length}<small>곳</small></div><div class="stat-bottom">거래처 담당자가 등록된 회사</div></div></div>`; }
+function stats() { const es = entities(), cs = contacts(); return `<div class="stats"><div class="stat" data-stat="전체" role="button" tabindex="0" aria-label="엔티티 전체 보기"><div class="stat-label">${icon('entities')} 등록 엔티티</div><div class="stat-value">${es.length}<small>개</small></div><div class="stat-bottom"><span class="positive">이그드라실</span> · 전 직원 공유</div></div><div class="stat" data-stat="contacts" role="button" tabindex="0" aria-label="연락처 보기"><div class="stat-label">${icon('contacts')} 거래처 담당자</div><div class="stat-value">${cs.length}<small>명</small></div><div class="stat-bottom">회사별로 연결해 관리</div></div><div class="stat" data-stat="IP·유명인" role="button" tabindex="0" aria-label="IP·유명인 보기"><div class="stat-label">${icon('up')} IP·유명인</div><div class="stat-value">${es.filter(e => e.type === 'IP·유명인').length}<small>명</small></div><div class="stat-bottom">계약·협업 중인 인물</div></div><div class="stat highlight" data-stat="담당자 연결" role="button" tabindex="0" aria-label="담당자 연결 회사 보기"><div class="stat-label">${icon('link')} 담당자 연결 회사</div><div class="stat-value">${es.filter(e => contactsOf(e).length).length}<small>곳</small></div><div class="stat-bottom">거래처 담당자가 등록된 회사</div></div></div>`; }
 const EXAMPLES = ['골포스트가 협업한 리그·매체는?', '사운드스루 제작지원 브랜드 목록', '브이티코스메틱 담당자 누구야?', '포켓몬이랑 지금 뭐 하고 있어?'];
-function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK PANTHEON</small></div><p class="panel-caption">판테온 DB를 검색해 Claude가 답변합니다. 슬랙 「Pantheon」 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자 누구야?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
-function alerts() { const es = entities(); const noC = es.filter(noContact).length, nr = es.filter(e => !e.rel).length, ip = es.filter(e => e.type === 'IP·유명인').length; return `<div class="side-stack"><section class="panel"><div class="panel-head"><div class="panel-title">확인이 필요한 항목</div><span class="alert-count">2건</span></div><div class="alert-list"><button class="alert-row" data-state-go="담당자 없음"><span class="alert-symbol green">${icon('link')}</span><span class="alert-text">담당자 없음<small>${noC}곳 · 명함을 등록하면 연결됩니다</small></span></button><button class="alert-row" data-state-go="근거 없음"><span class="alert-symbol red">${icon('warning')}</span><span class="alert-text">관계 근거 없음<small>${nr}개 · 내부 담당자 확인이 필요합니다</small></span></button></div></section><section class="panel"><div class="alert-list"><button class="alert-row" data-filter-go="IP·유명인"><span class="alert-symbol">${icon('up')}</span><span class="alert-text">활용 가능한 IP·유명인<small>${ip}명 · 엔티티 DB에서 보기</small></span></button></div></section></div>`; }
-const STATES = ['전체', '담당자 있음', '담당자 없음', '근거 없음'];
+function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK YGGDRASIL</small></div><p class="panel-caption">이그드라실 DB를 검색해 Claude가 답변합니다. 슬랙 「Pantheon」 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자 누구야?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
+function alerts() { const es = entities(); const noC = es.filter(noContact).length, nr = es.filter(e => !e.rel).length, ip = es.filter(e => e.type === 'IP·유명인').length; return `<div class="side-stack"><section class="panel"><div class="panel-head"><div class="panel-title">확인이 필요한 항목</div><span class="alert-count">4건</span></div><div class="alert-list"><button class="alert-row" data-page-go="review"><span class="alert-symbol">${icon('review')}</span><span class="alert-text">확인 대기<small>${reviewCount()}건 · 시스템이 찾은 후보</small></span></button><button class="alert-row" data-state-go="장기 미접촉"><span class="alert-symbol red">${icon('clock')}</span><span class="alert-text">장기 미접촉<small>${es.filter(stale).length}곳 · 미팅 이상 관계 중 ${STALE_DAYS}일 넘게 접촉 없음</small></span></button><button class="alert-row" data-state-go="담당자 없음"><span class="alert-symbol green">${icon('link')}</span><span class="alert-text">담당자 없음<small>${noC}곳 · 명함을 등록하면 연결됩니다</small></span></button><button class="alert-row" data-state-go="근거 없음"><span class="alert-symbol red">${icon('warning')}</span><span class="alert-text">관계 근거 없음<small>${nr}개 · 내부 담당자 확인이 필요합니다</small></span></button></div></section><section class="panel"><div class="alert-list"><button class="alert-row" data-filter-go="IP·유명인"><span class="alert-symbol">${icon('up')}</span><span class="alert-text">활용 가능한 IP·유명인<small>${ip}명 · 엔티티 DB에서 보기</small></span></button></div></section></div>`; }
+const STATES = ['전체', '담당자 있음', '담당자 없음', '근거 없음', '장기 미접촉'];
 let entState = '전체', entSort = {k: 'name', d: 1}, entView = 'table';
 try { entView = localStorage.getItem('pt-ent-view') || 'table'; } catch {}
 function filters() { const types = TYPES.filter(t => entities().some(e => e.type === t)); return `<div class="filter-rows"><div class="tabs" role="group" aria-label="유형"><span class="filter-label">유형</span>${['전체', ...types].map(t => `<button class="tab ${filter === t ? 'active' : ''}" data-filter="${t}">${t}</button>`).join('')}</div><div class="tabs" role="group" aria-label="상태"><span class="filter-label">상태</span>${STATES.map(t => `<button class="tab ${entState === t ? 'active' : ''}" data-state="${t}">${t}</button>`).join('')}</div></div>`; }
@@ -155,16 +163,20 @@ const sideOf = e => e.sides.join(' · ');
 function entSorted(arr) { const {k, d} = entSort, v = e => k === 'type' ? e.type : k === 'side' ? sideOf(e) : k === 'contacts' ? contactsOf(e).length : k === 'updated' ? e.updated : e.name; return arr.slice().sort((a, b) => { const x = v(a), y = v(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * d || a.name.localeCompare(b.name, 'ko'); }); }
 function entityTable(arr) {
   const th = (k, t) => `<th aria-sort="${entSort.k === k ? (entSort.d > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-sort="${k}">${t}${entSort.k === k ? (entSort.d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
-  return `<div class="table-wrap"><table class="et"><thead><tr>${th('name', '이름')}${th('type', '유형')}${th('side', '관련 계열사')}<th>관계 근거</th>${th('contacts', '담당자')}${th('updated', '최근 수정')}</tr></thead><tbody>${entSorted(arr).map(e => { const c = contactsOf(e).length; return `<tr class="clickable" data-detail="${e.id}" tabindex="0"><td><span class="et-name">${avatar(e)}<span><b>${esc(e.name)}</b>${e.en && e.en !== e.name ? `<small>${esc(e.en)}</small>` : ''}</span></span></td><td><span class="pill">${esc(e.type)}</span>${e.hidden ? ' <span class="pill muted">숨김</span>' : ''}</td><td>${esc(sideOf(e) || '—')}</td><td class="et-rel">${e.rel ? esc(e.rel) : PILL_NOREL}</td><td>${c ? c + '명' : noContact(e) ? PILL_NOC : '—'}</td><td>${e.updated ? esc(ymd(e.updated)) : '—'}</td></tr>`; }).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="et"><thead><tr>${th('name', '이름')}${th('type', '유형')}${th('side', '관련 계열사')}<th>관계 근거</th><th>관계</th>${th('contacts', '담당자')}${th('updated', '최근 수정')}</tr></thead><tbody>${entSorted(arr).map(e => { const c = contactsOf(e).length; return `<tr class="clickable" data-detail="${e.id}" tabindex="0"><td><span class="et-name">${avatar(e)}<span><b>${esc(e.name)}</b>${e.en && e.en !== e.name ? `<small>${esc(e.en)}</small>` : ''}</span></span></td><td><span class="pill">${esc(e.type)}</span>${e.hidden ? ' <span class="pill muted">숨김</span>' : ''}</td><td>${esc(sideOf(e) || '—')}</td><td class="et-rel">${e.rel ? esc(e.rel) : PILL_NOREL}</td><td>${e.pipeline ? stagePill(e.pipeline) : ''}${rel.state[e.id] ? `<small class="et-score">${rel.state[e.id].rel_score}점 · ${dotDate(rel.state[e.id].last_touch)}</small>` : e.pipeline ? '' : '—'}</td><td>${c ? c + '명' : noContact(e) ? PILL_NOC : '—'}</td><td>${e.updated ? esc(ymd(e.updated)) : '—'}</td></tr>`; }).join('')}</tbody></table></div>`;
 }
 // 목록 안 검색 (②) — 입력하면 바로 거르고, 걸려 있으면 칩으로 알리고, 0건이면 지우기·등록 단추
 const localForm = ph => `<form class="table-tools local-form" id="local-form" role="search"><input class="local-search" id="local-q" type="search" placeholder="${ph} 검색" value="${esc(query)}" aria-label="이 목록에서 검색" autocomplete="off"></form>${query.trim() ? `<div class="q-chip">「${esc(query.trim())}」 검색 중 <button type="button" class="q-clear" aria-label="검색 해제">✕ 해제</button></div>` : ''}`;
 const noHits = (what, add) => `<div class="empty"><p><b>${query.trim() ? `「${esc(query.trim())}」에 맞는 ${what}가 없습니다.` : `조건에 맞는 ${what}가 없습니다.`}</b></p><p>${query.trim() ? '<button class="button q-clear" type="button">검색 지우기</button> ' : ''}<button class="button primary" type="button" data-add>${add}</button></p></div>`;
 const hay = e => [e.name, e.en, registrar(e), agencyOf(e), e.role, e.rel, e.note, ...e.aliases, ...e.sides, ...e.owners, ...e.facts, ...e.points, ...kidsOf(e).flatMap(k => [k.name, k.en, ...k.aliases])].join(' ').toLowerCase();
 const LINKED = '담당자 연결';   // 오버뷰 「담당자 연결 회사」 — 거래처 담당자가 연결된 회사만
-const stateOk = e => entState === '전체' || (entState === '담당자 있음' ? contactsOf(e).length > 0 : entState === '담당자 없음' ? noContact(e) : !e.rel);
+const stateOk = e => entState === '전체' || (entState === '담당자 있음' ? contactsOf(e).length > 0 : entState === '담당자 없음' ? noContact(e) : entState === '장기 미접촉' ? stale(e) : !e.rel);
 const match = e => (filter === '전체' || e.type === filter) && stateOk(e) && hay(e).includes(query.trim().toLowerCase());
-function contactTable(arr) { return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>회사 연결</th><th>직함</th><th>연락처(업무)</th><th>등록한 직원</th><th>명함</th></tr></thead><tbody>${arr.map(c => `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름">${esc(c.name)}</td><td data-label="회사">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="연락처">${c.points[0] ? `${esc(c.points[0])} ${contactLink(c.points[0])}` : '—'}</td><td data-label="등록한 직원">${esc(registrar(c) || '—')}</td><td data-label="명함">${c.cardImg ? '<span class="pill good">있음</span>' : '—'}</td></tr>`).join('') || `<tr><td colspan="6"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`; }
+// 주소록 (PRD R-09) — 사람 단위로 지금 소속 · 휴대폰 · 이메일 · 회사 관계 단계 · 마지막 접촉 · 담당 직원 (칸은 pt_directory)
+function contactTable(arr) {
+  const cell = (v, link) => v ? `${esc(v)} ${link}` : '—';
+  return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>지금 소속</th><th>직함</th><th>휴대폰</th><th>이메일</th><th>관계 단계</th><th>마지막 접촉</th><th>담당 직원</th></tr></thead><tbody>${arr.map(c => { const d = rel.dir[c.id] || {}, mob = d.mobile || '', mail = d.email || (c.points.find(p => /@/.test(p)) || ''); return `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름"><b>${esc(c.name)}</b>${c.cardImg ? ' <span class="pill muted" title="명함 있음">명함</span>' : ''}</td><td data-label="지금 소속">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="휴대폰">${cell(mob, mob ? contactLink(mob) : '')}</td><td data-label="이메일">${cell(mail, mail ? contactLink(mail) : '')}</td><td data-label="관계 단계">${d.pipeline ? stagePill(d.pipeline) : '—'}</td><td data-label="마지막 접촉">${d.last_touch ? touchText(d.last_touch) : '—'}</td><td data-label="담당 직원">${esc(c.owners[0] || registrar(c) || '—')}</td></tr>`; }).join('') || `<tr><td colspan="8"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`;
+}
 
 // 통합 검색 (10-26) — 어느 메뉴에서든 엔티티·거래처 담당자 전체에서 찾는다. Enter: 하나면 바로 상세
 const NOT_FOUND = '등록되지 않은 정보입니다. 다시 한 번 확인해 주세요.';
@@ -177,23 +189,26 @@ function searchView() {
        + (cs.length ? `<section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">거래처 담당자 <small>${cs.length}명</small></div></div>${contactTable(cs)}</section>` : '');
 }
 function render() {
-  if (page !== 'search' && !navMenus().some(m => m[0] === page)) page = 'home';
-  $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : ''}</a>`).join('');
-  const title = {home:['대시보드','거래처·IP·담당자 정보를 한곳에서 확인하세요.'], entities:['엔티티 DB','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['연락처','거래처 담당자의 연락처를 확인하고 바로 연락할 수 있습니다.'], chart:['IP 차트','요즘 뜨는 신규 IP와 전체 IP 순위입니다. 하루 4번 새로 매깁니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
-  $('#crumb').textContent = page === 'search' ? '검색 결과' : menus.find(m => m[0] === page)?.[1];
+  if (APP === 'ygg' && page === 'studio') page = 'moved';
+  if (page !== 'search' && page !== 'moved' && !navMenus().some(m => m[0] === page)) page = APP === 'gungnir' ? 'studio' : 'home';
+  $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('');
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['IP 차트','요즘 뜨는 신규 IP와 전체 IP 순위입니다. 하루 4번 새로 매깁니다.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
-  document.title = title[0] + ' · PANTHEON';
+  document.title = title[0] + ' · ' + BRAND;
   $('#page-subtitle').textContent = title[1];
   $('#export-btn').innerHTML = icon('download') + '내보내기';
   $('#add-btn').innerHTML = icon('plus') + (page === 'contacts' ? '연락처 등록' : page === 'studio' ? (studio.tab === 'refs' ? '레퍼런스 등록' : '새 프로젝트') : '엔티티 등록');
-  $('#export-btn').hidden = !['entities', 'contacts'].includes(page);          // 그 화면의 주 기능 단추만 (리뷰 7)
+  $('#export-btn').hidden = !isAdmin || !['entities', 'contacts'].includes(page);   // 내보내기는 DB 관리자만 · 기록 남김 (PRD 8.1)
   $('#add-btn').hidden = !['home', 'entities', 'contacts', 'studio'].includes(page);
   let html = '';
+  if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
+  if (page === 'review') html = reviewView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
-  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지도 함께 저장합니다. 거래처 담당자는 회사에 연결되어 회사 상세의 「등록된 담당자」에도 표시됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">연락처 <small>CONTACTS</small></div><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
+  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
-  if (page === 'studio') html = studioView();
+  if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 쓸 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
   if (page === 'chart') html = chartView();
   if (page === 'search') html = searchView();
   $('#content').innerHTML = html;
@@ -204,7 +219,7 @@ function render() {
 // 상세는 주소에 남긴다 #<화면>/<id> (10-31 대표님 UX 리뷰 ④) — 링크로 바로 열고, 뒤로가기로 닫는다
 let routed = false, ignoreHash = false, lastFocus = null;
 function setRoute(id) { const h = '#' + (page === 'search' ? 'entities' : page) + '/' + id; if (location.hash === h) return; try { if (location.hash.includes('/')) history.replaceState(null, '', h); else { history.pushState(null, '', h); routed = true; } } catch {} }
-async function openRoute(pg, id) { if (byId(id)) return openDetail(id); if (pg === 'studio') { if (!studio.list) await loadStudio(); return openProposal(id); } if (pg === 'chart') return openIp(id); }
+async function openRoute(pg, id) { if (byId(id)) return openDetail(id); if (pg === 'studio' && APP === 'gungnir') { if (!studio.list) await loadStudio(); return openProposal(id); } if (pg === 'chart') return openIp(id); }
 function hideDrawer() { $('#drawer').hidden = true; $('#overlay').hidden = true; activeDetail = null; ipc.open = null; document.body.style.overflow = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); lastFocus = null; }
 function closeDrawer() {
   if ($('#drawer').hidden) return;
@@ -220,7 +235,7 @@ function showDrawer(content, keepScroll, label = 'ENTITY') {
   const top = keepScroll ? $('#drawer').scrollTop : 0;
   if (!keepScroll && $('#drawer').hidden) lastFocus = document.activeElement;
   $('#drawer').classList.toggle('big', !drawerSide);
-  $('#drawer').innerHTML = `<div class="drawer-header"><span>PANTHEON / ${label}</span><span class="drawer-tools">${location.hash.includes('/') ? `<button class="icon-btn" id="drawer-link" title="링크 복사" aria-label="링크 복사">${icon('link')}</button>` : ''}${drawerModeBtn()}<button class="icon-btn" id="close-drawer" aria-label="닫기">${icon('close')}</button></span></div>${content}`;
+  $('#drawer').innerHTML = `<div class="drawer-header"><span>${BRAND} / ${label}</span><span class="drawer-tools">${location.hash.includes('/') ? `<button class="icon-btn" id="drawer-link" title="링크 복사" aria-label="링크 복사">${icon('link')}</button>` : ''}${drawerModeBtn()}<button class="icon-btn" id="close-drawer" aria-label="닫기">${icon('close')}</button></span></div>${content}`;
   const flip = () => { drawerSide = !drawerSide; try { localStorage.setItem('pt-drawer', drawerSide ? 'side' : 'big'); } catch {} $('#drawer').classList.toggle('big', !drawerSide); $('#drawer-mode').outerHTML = drawerModeBtn(); $('#drawer-mode').onclick = flip; };
   $('#drawer-mode').onclick = flip;
   $('#drawer-link')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); toast('링크를 복사했습니다. 슬랙에 붙여넣으면 이 화면이 바로 열립니다.'); } catch { toast(location.href); } });
@@ -269,17 +284,204 @@ function openDetail(id, keep) {
   if (!keep) setRoute(id);
   if (isContact(e)) return openContact(e, keep);
   const cs = contactsOf(e), parent = e.parentId && byId(e.parentId);
-  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div><div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
-  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id);
+  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + timelineBlock(evOf(e.id)) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
+  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e);
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
-  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div><div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 크게 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
-  bindNote(c); bindAdminTools(c); loadOwnerHistory(c.id);
+  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 크게 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
+  bindNote(c); bindAdminTools(c); loadOwnerHistory(c.id); bindRel(byId(c.parentId) || c, c); loadCard(c);
+  $('#card-where')?.addEventListener('click', () => cardWhereModal(c));
   $('#link-company').onclick = () => linkModal(c);
   $('#edit-contact').onclick = () => contactEditModal(c);
   $('#card-view')?.addEventListener('click', () => modal(`<h2>${esc(c.name)} 명함</h2><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border-radius:7px;margin-top:10px"><div class="modal-actions"><button class="button primary" data-cancel>닫기</button></div>`));
   $('#card-replace').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const r = await resize(f, 1600, .82); const path = await upload(r.blob, 'cards'); if (await save(c.id, {cardImg: path})) { openDetail(c.id); toast('명함 이미지를 저장했습니다.'); } } catch { toast('이미지를 업로드하지 못했습니다.'); } };
+}
+
+/* ---------- 관계 레이어 (이그드라실 PRD v2 CL-2 · 11-01 · sql/014) ----------
+   사람 = pt_directory (거래처 담당자 행을 트리거가 옮겨 적은 pt_contact + 소속 + 마지막 접촉)
+   조직 = pt_entity.pipeline·contact_depth·rel_owner (사람이 정함, pt_set_* 함수로만) · 타임라인 = pt_rel_event
+   관계 점수·마지막 접촉 = pt_rel_state (DB 가 계산) · 확인 대기 = pt_review_queue + 승격 후보(화면에서 계산) */
+const rel = {dir: {}, state: {}, events: [], review: [], cards: {}};
+const STAGE = {R0: '접점 없음', R1: '첫 연락', R2: '미팅', R3: '제안 송부', R4: '협의 중', R5: '계약·실행', R6: '반복 협업'};
+const DEPTH = {1: '실무 팀장급', 2: '대표·의사결정권자', 3: '협업 이력·결과 양호', 4: '아티스트 본인 직접'};
+const EV = {card: '명함', introduced: '소개', reached: '첫 연락', mentioned: '미팅 언급', recommended: '경로 추천', meeting: '미팅', sent: '제안 송부', reply: '회신', deal: '딜', dead: '중단', note: '메모'};
+const EV_ADD = ['reached', 'meeting', 'sent', 'reply', 'introduced', 'deal', 'dead', 'note'];
+const SRC_KO = {manual: '', heimdall: '헤임달 미팅', gungnir: '궁니르', thor: '토르', core: '판테온 코어', slack: '슬랙'};
+const STALE_DAYS = 90;
+async function loadRel() {
+  const [d, s, ev, rq] = await Promise.all([SB.from('pt_directory').select('*'), SB.from('pt_rel_state').select('*'),
+    SB.from('pt_rel_event').select('*').order('occurred_on', {ascending: false}).order('id', {ascending: false}).limit(3000),
+    SB.from('pt_review_queue').select('*').eq('status', 'pending').order('created_at', {ascending: false}).limit(500)]);
+  rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
+  rel.events = ev.data || []; rel.review = rq.data || [];
+}
+const memberName = id => (MEMBERS || []).find(m => m.id === id)?.name || '';
+const nameOf = id => byId(id)?.name || rel.dir[id]?.name || '';
+const dayN = d => d ? Math.floor((Date.now() + 9 * 3600e3 - Date.parse(d + 'T00:00:00Z')) / 864e5) : null;
+const dotDate = d => d ? d.slice(2, 10).replace(/-/g, '.') : '';
+const touchText = d => { if (!d) return '—'; const n = dayN(d); return `${dotDate(d)} <small>${n <= 0 ? '오늘' : n + '일 전'}</small>`; };
+const evOf = id => rel.events.filter(x => x.entity_id === id);
+const evOfContact = id => rel.events.filter(x => x.contact_id === id || x.via_contact_id === id);
+const stagePill = s => `<span class="rl-stage ${s ? 's-' + s : ''}">${s ? `${s} · ${STAGE[s]}` : '단계 없음'}</span>`;
+const canRel = e => !e.relOwner || e.relOwner === me?.id || isAdmin;
+const stale = e => ['R2', 'R3', 'R4', 'R5', 'R6'].includes(e.pipeline) && dayN(rel.state[e.id]?.last_touch) > STALE_DAYS;
+// 승격 후보 — 시스템은 후보만, 확정은 관계 담당자 (PRD R-05). 기록 종류 → 그 기록이 뒷받침하는 단계
+const STAGE_HINT = {reached: 'R1', introduced: 'R1', meeting: 'R2', sent: 'R3', reply: 'R4', deal: 'R5'};
+function stageHint(e) {
+  const cur = e.pipeline || 'R0'; let best = null;
+  for (const x of evOf(e.id)) { const s = x.type === 'reply' && x.outcome !== 'positive' ? null : STAGE_HINT[x.type]; if (x.status === 'confirmed' && s && s > cur && (!best || s > best.s)) best = {s, ev: x}; }
+  return best;
+}
+const partsTable = st => !st?.parts?.parts ? '' : `<table class="rl-parts"><thead><tr><th>항목</th><th>비중</th><th>점수</th><th>근거</th></tr></thead><tbody>${st.parts.parts.map(p => `<tr><td>${esc(p.label)}</td><td>${p.weight}</td><td><b>${p.score}</b></td><td>${esc(p.basis)}</td></tr>`).join('')}</tbody></table><p class="rl-note">관계 점수 = 항목 점수 × 비중의 합 ÷ 100 · 기준 ${st.parts.version}판. 사람을 평가하는 점수가 아니라 회사와의 관계 상태입니다.</p>`;
+function relBlock(e) {
+  const st = rel.state[e.id], h = stageHint(e), dev = e.depthEvent && rel.events.find(x => x.id === e.depthEvent);
+  return `<div class="detail-block rl"><h3>관계</h3><div class="rl-grid">
+    <div class="rl-card"><small>관계 단계</small>${stagePill(e.pipeline)}${h && canRel(e) ? `<button type="button" class="rl-hint" data-rl-hint="${h.s}|${h.ev.id}">승격 후보 ${h.s} · ${esc(EV[h.ev.type])} ${dotDate(h.ev.occurred_on)}</button>` : ''}</div>
+    <div class="rl-card"><small>관계 점수</small><b>${st?.rel_score ?? '—'}${st ? '<em>/100</em>' : ''}</b>${st ? '<button type="button" class="text-btn" id="rl-why" aria-expanded="false">왜 이 점수인가</button>' : '<span>접촉 기록이 생기면 계산합니다</span>'}</div>
+    <div class="rl-card"><small>관계 깊이</small><b>${e.contactDepth ? e.contactDepth + '<em>/4</em>' : '—'}</b><span>${e.contactDepth ? esc(DEPTH[e.contactDepth]) + (dev ? '' : ' ' + PILL_NOREL) : '미입력'}${e.ownedIp ? ' <span class="pill good">당사 IP</span>' : ''}</span></div>
+    <div class="rl-card"><small>마지막 접촉</small><b class="rl-date">${touchText(st?.last_touch)}</b>${stale(e) ? '<span class="pill warn">장기 미접촉</span>' : ''}</div></div>
+    <div id="rl-parts" hidden>${partsTable(st)}</div>
+    <div class="detail-row"><span>관계 담당자</span><b>${e.relOwner ? esc(memberName(e.relOwner) || '이름 확인 불가') : '미지정'}</b></div>
+    ${canRel(e) ? `<div class="drawer-actions"><button class="button" type="button" id="rl-stage-btn">단계 변경</button><button class="button" type="button" id="rl-depth-btn">관계 깊이</button><button class="button" type="button" id="rl-owner-btn">${e.relOwner ? '관계 담당자 변경' : '관계 담당자 지정'}</button></div>` : '<p class="rl-note">관계 단계·깊이는 관계 담당자가 정합니다.</p>'}</div>`;
+}
+function timelineBlock(list, forContact) {
+  const li = x => { const org = forContact && x.entity_id && byId(x.entity_id), mine = x.created_by === me?.id || isAdmin;
+    return `<li class="tl-${x.type}${x.status === 'candidate' ? ' cand' : ''}"><time>${esc(dotDate(x.occurred_on))}</time><div><span class="tl-type">${esc(EV[x.type] || x.type)}</span>${x.outcome ? ` <span class="pill ${x.outcome === 'positive' ? 'good' : 'warn'}">${x.outcome === 'positive' ? '긍정' : '부정'}</span>` : ''}${x.status === 'candidate' ? ' <span class="pill muted">확인 대기</span>' : ''}${!forContact && x.contact_id ? ` <button class="ref" type="button" data-open="${x.contact_id}">${esc(nameOf(x.contact_id))}</button>` : ''}${org ? ` <button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button>` : ''}${x.via_contact_id ? ` <small>소개 ${esc(nameOf(x.via_contact_id))}</small>` : ''}${x.summary ? `<p>${esc(x.summary)}</p>` : ''}<small>${esc([SRC_KO[x.source_system], memberName(x.created_by)].filter(Boolean).join(' · '))}</small></div>${mine && x.source_system === 'manual' && x.type !== 'card' ? `<button type="button" class="text-btn" data-tl-del="${x.id}">삭제</button>` : ''}</li>`; };
+  return `<div class="detail-block"><div class="rl-head"><h3>관계 타임라인 <small>${list.length}건</small></h3><button class="button" type="button" id="tl-add">${icon('plus')} 접촉 기록</button></div>${list.length ? `<ol class="tl">${list.map(li).join('')}</ol>` : '<p>기록된 접점이 없습니다. 연락·미팅·제안을 기록하면 관계 점수와 마지막 접촉일에 반영됩니다.</p>'}</div>`;
+}
+async function relReload(id) { await Promise.all([load(), loadRel()]); render(); if (id) openDetail(id, true); }
+function bindRel(e, contact) {
+  $('#rl-why')?.addEventListener('click', ev => { const p = $('#rl-parts'); p.hidden = !p.hidden; ev.target.setAttribute('aria-expanded', String(!p.hidden)); });
+  $('#rl-stage-btn')?.addEventListener('click', () => stageModal(e));
+  $$('[data-rl-hint]').forEach(b => b.onclick = () => { const [s, ev] = b.dataset.rlHint.split('|'); stageModal(e, {s, ev: Number(ev)}); });
+  $('#rl-depth-btn')?.addEventListener('click', () => depthModal(e));
+  $('#rl-owner-btn')?.addEventListener('click', () => relOwnerModal(e));
+  $('#tl-add')?.addEventListener('click', () => eventModal(contact ? {contact} : {entity: e}));
+  $$('[data-tl-del]').forEach(b => b.onclick = async () => {
+    const x = rel.events.find(v => String(v.id) === b.dataset.tlDel); if (!x) return;
+    const { error } = await SB.from('pt_rel_event').delete().eq('id', x.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
+    await relReload(activeDetail);
+    toast('기록을 삭제했습니다.', {fn: async () => { const {id, created_at, created_by, ...row} = x; const r = await SB.from('pt_rel_event').insert(row); if (r.error) throw r.error; await relReload(activeDetail); toast('되돌렸습니다.'); }});
+  });
+}
+function eventModal({entity, contact}) {
+  const people = entity ? contactsOf(entity) : [], org = contact && contact.parentId && byId(contact.parentId);
+  const who = contact ? contact.name + ' 님' + (org ? ` (${org.name})` : '') : entity.name;
+  modal(`<form id="ev-form"><h2>접촉 기록</h2><p>${esc(who)}과(와)의 접점을 기록합니다. 전 직원에게 공유되고 관계 점수·마지막 접촉일에 반영됩니다.</p>
+    <label>종류<select id="ev-type">${EV_ADD.map(t => `<option value="${t}">${EV[t]}</option>`).join('')}</select></label>
+    <label>날짜<input id="ev-date" type="date" value="${today()}" max="${today()}" required></label>
+    ${contact ? '' : `<label>상대 담당자<select id="ev-contact"><option value="">(회사 전체)</option>${people.map(p => `<option value="${p.id}">${esc(p.name)}${p.role ? ' · ' + esc(p.role) : ''}</option>`).join('')}</select></label>`}
+    <label id="ev-via-f" hidden>소개해 준 사람<select id="ev-via"><option value="">(선택)</option>${contacts().filter(p => p.id !== contact?.id).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(p => `<option value="${p.id}">${esc(p.name)}${agencyOf(p) ? ' · ' + esc(agencyOf(p)) : ''}</option>`).join('')}</select></label>
+    <label id="ev-out-f" hidden>반응<select id="ev-out"><option value="">모름</option><option value="positive">긍정</option><option value="negative">부정·거절</option></select></label>
+    <label>내용<textarea id="ev-sum" rows="3" maxlength="500" placeholder="예: KREAM 협업 제안서 메일 발송"></textarea></label>
+    <div id="ev-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">기록 저장</button></div></form>`);
+  const sync = () => { const t = $('#ev-type').value; $('#ev-via-f').hidden = t !== 'introduced'; $('#ev-out-f').hidden = !['reply', 'sent', 'meeting'].includes(t); };
+  $('#ev-type').onchange = sync; sync();
+  $('#ev-form').onsubmit = async ev => {
+    ev.preventDefault(); const t = $('#ev-type').value, sum = $('#ev-sum').value.trim();
+    if (t === 'introduced' && !$('#ev-via').value) { $('#ev-err').textContent = '소개해 준 사람을 골라 주세요.'; return; }
+    if (['note', 'dead'].includes(t) && !sum) { $('#ev-err').textContent = '내용을 입력해 주세요.'; return; }
+    const row = {entity_id: entity?.id || org?.id || null, contact_id: contact?.id || $('#ev-contact')?.value || null, type: t, occurred_on: $('#ev-date').value || today(), summary: sum, outcome: $('#ev-out-f').hidden ? '' : $('#ev-out').value, via_contact_id: t === 'introduced' ? $('#ev-via').value : null};
+    const btn = ev.submitter; if (btn) btn.disabled = true;
+    const { data, error } = await SB.from('pt_rel_event').insert(row).select('id').single();
+    if (btn) btn.disabled = false;
+    if (error) { $('#ev-err').textContent = '저장하지 못했습니다: ' + error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); const back = (contact || entity).id; await relReload(back);
+    toast(`${EV[t]} 기록을 남겼습니다.`, {fn: async () => { const r = await SB.from('pt_rel_event').delete().eq('id', data.id); if (r.error) throw r.error; await relReload(back); toast('되돌렸습니다.'); }});
+  };
+}
+function stageModal(e, pre) {
+  const evs = evOf(e.id).filter(x => x.status === 'confirmed'), cur = e.pipeline || '', sel = pre?.s || cur;
+  modal(`<form id="st-form"><h2>관계 단계 변경</h2><p>${esc(e.name)} · 지금 ${cur ? cur + ' ' + STAGE[cur] : '단계 없음'}</p>
+    <div class="rl-opts" role="radiogroup" aria-label="관계 단계">${Object.entries(STAGE).map(([k, t]) => `<label class="rl-opt"><input type="radio" name="st" value="${k}" ${k === sel ? 'checked' : ''}><b>${k}</b><span>${t}</span></label>`).join('')}</div>
+    <label>근거 기록 <small>단계를 올릴 때 필요</small><select id="st-ev"><option value="">(선택 안 함)</option>${evs.map(x => `<option value="${x.id}" ${pre?.ev === x.id ? 'selected' : ''}>${dotDate(x.occurred_on)} · ${EV[x.type]}${x.summary ? ' · ' + esc(x.summary.slice(0, 40)) : ''}</option>`).join('')}</select></label>
+    ${evs.length ? '' : '<p class="rl-note">근거로 고를 기록이 없습니다. 상세의 「접촉 기록」으로 먼저 남겨 주세요.</p>'}
+    <label>메모<input id="st-note" maxlength="200" placeholder="예: 11/3 미팅에서 하반기 협업 합의"></label><div id="st-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">단계 변경</button></div></form>`);
+  $('#st-form').onsubmit = async ev => {
+    ev.preventDefault(); const to = $('[name=st]:checked')?.value; if (!to) { $('#st-err').textContent = '단계를 골라 주세요.'; return; }
+    if (to === cur) { $('#modal').close(); return; }
+    const evid = Number($('#st-ev').value) || null;
+    if (to > (cur || 'R0') && !evid) { $('#st-err').textContent = '단계를 올릴 때는 근거 기록을 골라 주세요.'; return; }
+    const { error } = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: to, p_event: evid, p_note: $('#st-note').value.trim()});
+    if (error) { $('#st-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
+    toast(`${e.name} 관계 단계를 ${to} ${STAGE[to]}(으)로 바꿨습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: cur || null, p_event: evid, p_note: '되돌리기'}); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }});
+  };
+}
+function depthModal(e) {
+  const evs = evOf(e.id).filter(x => x.status === 'confirmed'), ip = e.type === 'IP·유명인';
+  modal(`<form id="dp-form"><h2>관계 깊이</h2><p>${esc(e.name)}과(와)의 딜을 움직일 수 있는 접점 수준입니다. 근거가 되는 기록을 함께 골라 주세요.</p>
+    <div class="rl-opts" role="radiogroup" aria-label="관계 깊이"><label class="rl-opt"><input type="radio" name="dp" value="" ${!e.contactDepth ? 'checked' : ''}><b>—</b><span>미입력</span></label>${Object.entries(DEPTH).map(([k, t]) => `<label class="rl-opt"><input type="radio" name="dp" value="${k}" ${String(e.contactDepth) === k ? 'checked' : ''}><b>${k}</b><span>${t}</span></label>`).join('')}</div>
+    <label>근거 기록<select id="dp-ev"><option value="">(없음 · 「근거 없음」으로 표시)</option>${evs.map(x => `<option value="${x.id}" ${e.depthEvent === x.id ? 'selected' : ''}>${dotDate(x.occurred_on)} · ${EV[x.type]}${x.summary ? ' · ' + esc(x.summary.slice(0, 40)) : ''}</option>`).join('')}</select></label>
+    ${ip ? `<label class="check"><input type="checkbox" id="dp-own" ${e.ownedIp ? 'checked' : ''}> 당사 귀속 IP (예: 《MY FIRST DREAM》) — 최고점·최우선</label>` : ''}
+    <div id="dp-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 깊이 저장</button></div></form>`);
+  $('#dp-form').onsubmit = async ev => {
+    ev.preventDefault(); const v = $('[name=dp]:checked')?.value;
+    const { error } = await SB.rpc('pt_set_depth', {p_entity: e.id, p_depth: v ? Number(v) : null, p_event: Number($('#dp-ev').value) || null, p_owned: ip ? $('#dp-own').checked : null});
+    if (error) { $('#dp-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id); toast('관계 깊이를 저장했습니다.');
+  };
+}
+function relOwnerModal(e) {
+  const ms = (MEMBERS || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  modal(`<form id="ro-form"><h2>관계 담당자</h2><p>${esc(e.name)}과(와)의 관계를 책임지는 직원입니다. 관계 단계·깊이를 정하고, 오래 연락이 없으면 슬랙으로 알림을 받습니다.</p>
+    <label>직원<select id="ro-sel"><option value="">미지정</option>${ms.map(m => `<option value="${m.id}" ${m.id === e.relOwner ? 'selected' : ''}>${esc(m.name)}${memberSub(m) ? ' · ' + esc(memberSub(m)) : ''}</option>`).join('')}</select></label>
+    <div id="ro-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 담당자 저장</button></div></form>`);
+  $('#ro-form').onsubmit = async ev => {
+    ev.preventDefault(); const prev = e.relOwner || null, v = $('#ro-sel').value || null;
+    const { error } = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: v});
+    if (error) { $('#ro-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
+    toast(v ? `관계 담당자를 ${memberName(v)}(으)로 정했습니다.` : '관계 담당자를 비웠습니다.', prev !== v && (!prev || isAdmin || prev === me.id) ? {fn: async () => { const r = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: prev}); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }} : undefined);
+  };
+}
+// 사람 상세 — 소속(지금·이전) · 접촉 · 명함 받은 곳
+function personBlock(c) {
+  const d = rel.dir[c.id] || {}, past = d.past || [], card = rel.cards[c.id];
+  return `<div class="detail-block"><h3>소속 · 접촉</h3>
+    <div class="detail-row"><span>지금 소속</span><b>${esc(d.entity_name || agencyOf(c) || '—')}${c.role ? ` <small>${esc(c.role)}</small>` : ''}</b></div>
+    ${past.length ? `<div class="detail-row"><span>이전 소속</span><b>${past.map(p => `${esc(p.name || '')}${p.until ? ` <small>~${esc(dotDate(p.until))}</small>` : ''}`).join('<br>')}</b></div>` : ''}
+    <div class="detail-row"><span>첫 접촉</span><b>${d.first_touch ? esc(dotDate(d.first_touch)) : '—'}</b></div>
+    <div class="detail-row"><span>마지막 접촉</span><b class="rl-date">${touchText(d.last_touch)}</b></div>
+    ${d.pipeline ? `<div class="detail-row"><span>회사 관계 단계</span><b>${stagePill(d.pipeline)}</b></div>` : ''}
+    ${card ? `<div class="detail-row"><span>명함 받은 곳</span><b>${esc(card.received_where || '모름')} <button class="text-btn" type="button" id="card-where">수정</button></b></div>` : ''}</div>`;
+}
+async function loadCard(c) {
+  if (!c.cardImg) return; const { data } = await SB.from('pt_card').select('*').eq('contact_id', c.id).order('id', {ascending: false}).limit(1).maybeSingle();
+  if (data && (!rel.cards[c.id] || rel.cards[c.id].id !== data.id || rel.cards[c.id].received_where !== data.received_where)) { rel.cards[c.id] = data; if (activeDetail === c.id) openDetail(c.id, true); }
+}
+function cardWhereModal(c) {
+  const card = rel.cards[c.id]; if (!card) return;
+  modal(`<form id="cw-form"><h2>명함 받은 곳</h2><p>어디서 누구에게 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다.</p><label>받은 곳<input id="cw-where" maxlength="200" value="${esc(card.received_where)}" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">저장</button></div></form>`);
+  $('#cw-form').onsubmit = async ev => { ev.preventDefault(); const v = $('#cw-where').value.trim(); const { error } = await SB.from('pt_card').update({received_where: v}).eq('id', card.id); if (error) return toast('저장하지 못했습니다: ' + error.message); rel.cards[c.id] = {...card, received_where: v}; $('#modal').dataset.dirty = ''; $('#modal').close(); openDetail(c.id, true); toast('명함 받은 곳을 저장했습니다.'); };
+}
+
+/* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
+const RQ = {ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안'};
+const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
+const reviewCount = () => rel.review.length + hints().length;
+function reviewView() {
+  const hs = hints(), byKind = {};
+  rel.review.forEach(r => (byKind[r.kind] ||= []).push(r));
+  const card = r => `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
+  return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인하거나 제외한 항목은 목록에서 빠지고 기록에 남습니다.</div>
+    <section class="panel"><div class="panel-head"><div class="panel-title">관계 단계 승격 후보 <small>${hs.length}건</small></div></div>${hs.length ? `<ul class="rq-list">${hs.map(({e, h}) => `<li class="rq-item"><div><b>${esc(e.name)}</b> ${stagePill(e.pipeline)} → <span class="rl-stage s-${h.s}">${h.s} · ${STAGE[h.s]}</span><small>근거: ${esc(dotDate(h.ev.occurred_on))} ${esc(EV[h.ev.type])}${h.ev.summary ? ' · ' + esc(h.ev.summary.slice(0, 60)) : ''}</small></div><span class="rq-acts"><button class="button" type="button" data-detail="${e.id}">상세</button><button class="button primary" type="button" data-rq-stage="${e.id}|${h.s}|${h.ev.id}">단계 올리기</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>승격 후보가 없습니다. 접촉 기록이 쌓이면 시스템이 후보를 찾습니다.</p></div>'}</section>
+    <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${rel.review.length ? Object.keys(byKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 여기에 쌓입니다.</p></div>'}</section>`;
+}
+function bindReview() {
+  $$('[data-rq]').forEach(b => b.onclick = async () => {
+    const [id, st] = b.dataset.rq.split('|'); b.disabled = true;
+    const { error } = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: st, p_note: ''});
+    if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
+    await loadRel(); render();
+    toast(st === 'approved' ? '확인했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('되돌렸습니다.'); }});
+  });
+  $$('[data-rq-stage]').forEach(b => b.onclick = () => { const [id, s, ev] = b.dataset.rqStage.split('|'); const e = byId(id); if (e) stageModal(e, {s, ev: Number(ev)}); });
 }
 
 /* ---------- 내부 담당자 입력 (헤임달 참석자 입력과 같은 방식) ----------
@@ -472,7 +674,7 @@ async function waitAsk(id, onTick, limitSec = 120) {
 }
 function contactModal() {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
-  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 10/22 KREAM 미팅에서 받음"></label><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
+  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 받은 곳<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
   let cardPath = '';
   const setStatus = s => $('#c-status').textContent = s;
   const autoLink = (email, ...n) => { const m = matchCompany(...n) || matchByDomain(email); if (m) { $('#c-org').value = m.id; return m; } if (n.some(x => x && x.trim())) $('#c-org').value = '__new'; return null; };
@@ -503,6 +705,11 @@ function contactModal() {
     let orgId = $('#c-org').value, org = orgId && orgId !== '__new' ? byId(orgId) : null;
     const dup = contacts().find(x => (email && x.points.some(p => p.toLowerCase() === email.toLowerCase())) || (x.name === name && (!org || x.parentId === org.id)));
     if (dup && !$('#contact-form').dataset.dupOk) { $('#c-error').innerHTML = `동일 인물로 보이는 연락처가 이미 있습니다: <b>${esc(dup.name)}</b>${agencyOf(dup) ? ' (' + esc(agencyOf(dup)) + ')' : ''}. 그래도 등록하려면 「연락처 등록」을 한 번 더 눌러 주세요.`; $('#contact-form').dataset.dupOk = '1'; return; }
+    if (cardPath && !g('c-where') && !$('#contact-form').dataset.whereOk) {
+      const v = await confirmBox({title: '명함을 받은 곳을 적을까요?', body: '어디서 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다. 모르면 그대로 저장해도 됩니다.', ok: '모름으로 저장', cancel: '받은 곳 적기'});
+      if (v !== true) { $('#c-where').focus(); return; }
+      $('#contact-form').dataset.whereOk = '1';
+    }
     $('#c-save').disabled = true;
     try {
       if (orgId === '__new') {
@@ -514,7 +721,8 @@ function contactModal() {
         points: [email, g('c-mobile') && '휴대전화 ' + g('c-mobile'), g('c-phone') && '전화 ' + g('c-phone'), g('c-address'), g('c-web')].filter(Boolean),
         facts: [g('c-memo'), '명함 등록 ' + today()].filter(Boolean), cardImg: cardPath, first: today(), last: today()}, true);
       if (!c) return;
-      $('#modal').close(); go('contacts'); openDetail(c.id); toast(`${name} 님을 연락처에 등록했습니다.`);
+      if (cardPath) await SB.from('pt_card').update({received_where: g('c-where') || '모름'}).eq('contact_id', c.id).eq('image_path', cardPath);
+      $('#modal').dataset.dirty = ''; $('#modal').close(); await loadRel().catch(() => {}); go('contacts'); openDetail(c.id); toast(`${name} 님을 주소록에 등록했습니다.`);
     } finally { $('#c-save').disabled = false; }
   };
 }
@@ -550,7 +758,8 @@ async function ask() {
 }
 
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
-const FIELD_KO = {name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
+const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기'};
+const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 받은 곳', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
 const VIA_KO = {web: '웹', slack: '슬랙', server: '시스템 입력', sql: '시스템 입력'};
 const OP_KO = {insert: '등록', update: '수정', delete: '삭제'};
 const showVal = (k, v) => { if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return '(없음)'; if (k === 'img' || k === 'card_img') return '(이미지)'; if (k === 'parent_id') return byId(v)?.name || v; if (k === 'hidden') return v ? '숨김' : '보임'; if (Array.isArray(v)) return v.join(' / '); return String(v); };
@@ -572,18 +781,19 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
   if (admin.tab === 'quality') return tabs + qualityPanel();
   if (admin.tab === 'bot') return tabs + botPanel();
+  if (admin.tab === 'score') return tabs + scorePanel();
   const people = [...new Set(admin.changes.map(x => x.actor || '(화면 밖)'))];
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
   return tabs + `
   <section class="panel"><div class="panel-head"><div class="panel-title">변경 기록 <small>AUDIT LOG</small> <span class="nav-count">${admin.changes.length}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" type="button" id="log-reload">${icon('clock')} 새로고침</button><button class="button" type="button" id="log-export">${icon('download')} 기록 CSV</button></div></div>
   <div class="watch-toolbar"><div style="display:flex;gap:8px;flex-wrap:wrap"><select class="table-select" id="log-who" aria-label="사람으로 거르기"><option value="">전체 사용자</option>${people.map(p => `<option value="${esc(p)}" ${admin.who === p ? 'selected' : ''}>${esc(p === '(화면 밖)' ? '시스템 입력' : whoName(p))}</option>`).join('')}</select><input class="table-select" id="log-q" type="search" placeholder="엔티티 이름" value="${esc(admin.q)}" aria-label="엔티티 이름으로 거르기"></div></div>
-  <div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>엔티티</th><th>무엇을</th><th>변경 내용 (이전 → 이후)</th><th>조치</th></tr></thead><tbody>${list.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.actor ? esc(whoName(x.actor, x.actor_name)) : `<span class="pill">${esc(VIA_KO[x.via] || x.via)}</span>`}${x.reason ? `<small style="display:block;color:#9aa29d">${esc(x.reason)}</small>` : ''}</td><td><button class="text-btn" data-detail="${esc(x.entity_id)}">${esc(x.entity_name)}</button></td><td><span class="pill">${esc(OP_KO[x.op] || x.op)}</span></td><td style="font-size:12px;line-height:1.6">${x.op === 'insert' ? '<span style="color:#285541">새로 등록</span>' : (x.fields || []).map(k => `<div><b>${esc(FIELD_KO[k] || k)}</b>: <span style="color:#a0563a;text-decoration:line-through">${esc(showVal(k, x.before?.[k]))}</span> → <span style="color:#285541">${esc(showVal(k, x.after?.[k]))}</span></div>`).join('')}</td><td>${x.op === 'update' ? `<button class="text-btn" type="button" data-restore="${x.id}">이전 내용으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">기록이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+  <div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>엔티티</th><th>무엇을</th><th>변경 내용 (이전 → 이후)</th><th>조치</th></tr></thead><tbody>${list.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.actor ? esc(whoName(x.actor, x.actor_name)) : `<span class="pill">${esc(VIA_KO[x.via] || x.via)}</span>`}${x.reason ? `<small style="display:block;color:#9aa29d">${esc(x.reason)}</small>` : ''}</td><td>${TABLE_KO[x.table_name] ? `<span class="pill muted">${TABLE_KO[x.table_name]}</span> ` : ''}${byId(x.entity_id) ? `<button class="text-btn" data-detail="${esc(x.entity_id)}">${esc(x.entity_name)}</button>` : esc(x.entity_name)}</td><td><span class="pill">${esc(OP_KO[x.op] || x.op)}</span></td><td style="font-size:12px;line-height:1.6">${x.op === 'insert' ? '<span style="color:#285541">새로 등록</span>' : (x.fields || []).map(k => `<div><b>${esc(FIELD_KO[k] || k)}</b>: <span style="color:#a0563a;text-decoration:line-through">${esc(showVal(k, x.before?.[k]))}</span> → <span style="color:#285541">${esc(showVal(k, x.after?.[k]))}</span></div>`).join('')}</td><td>${x.op === 'update' ? `<button class="text-btn" type="button" data-restore="${x.id}">이전 내용으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">기록이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 function asksPanel() {
   const list = admin.asks.slice(0, 300);
@@ -628,9 +838,29 @@ async function restartBot() {
 }
 function qualityPanel() {
   const es = entities(), hidden = all.filter(e => e.hidden);
-  return `<div class="quality-grid"><div class="stat"><div class="stat-label">담당자 없음</div><div class="stat-value">${es.filter(noContact).length}<small>곳</small></div><div class="stat-bottom">회사·브랜드·매체 중 등록된 담당자가 없는 곳</div></div><div class="stat"><div class="stat-label">관계 근거 없음</div><div class="stat-value">${es.filter(e => !e.rel).length}<small>개</small></div><div class="stat-bottom">내부 담당자 확인 필요</div></div><div class="stat"><div class="stat-label">숨긴 항목</div><div class="stat-value">${hidden.length}<small>개</small></div><div class="stat-bottom">상세 화면에서 숨김 해제</div></div></div><section class="panel"><div class="panel-head"><div class="panel-title">데이터 점검</div><button class="button" id="admin-export">${icon('download')} 엔티티 CSV</button></div><div class="table-wrap"><table><thead><tr><th>엔티티</th><th>유형</th><th>관계 근거</th><th>등록된 담당자</th><th>조치</th></tr></thead><tbody>${[...es, ...hidden.filter(isContact)].sort((a, b) => ((!b.rel) + noContact(b)) - ((!a.rel) + noContact(a))).map(e => `<tr><td>${esc(e.name)}${e.hidden ? ' <span class="pill">숨김</span>' : ''}</td><td>${esc(e.type)}</td><td>${e.rel ? '<span class="pill good">입력됨</span>' : PILL_NOREL}</td><td>${contactsOf(e).length ? contactsOf(e).length + '명' : noContact(e) ? PILL_NOC : '—'}</td><td><button class="text-btn" data-detail="${e.id}">상세 확인 ↗</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  return `<div class="quality-grid"><div class="stat"><div class="stat-label">담당자 없음</div><div class="stat-value">${es.filter(noContact).length}<small>곳</small></div><div class="stat-bottom">회사·브랜드·매체 중 등록된 담당자가 없는 곳</div></div><div class="stat"><div class="stat-label">관계 근거 없음</div><div class="stat-value">${es.filter(e => !e.rel).length}<small>개</small></div><div class="stat-bottom">내부 담당자 확인 필요</div></div><div class="stat"><div class="stat-label">연락처 줄 확인 필요</div><div class="stat-value">${Object.values(rel.dir).filter(d => (d.other_points || []).length).length}<small>명</small></div><div class="stat-bottom">휴대폰·이메일 칸으로 읽지 못한 줄이 있는 사람</div></div><div class="stat"><div class="stat-label">숨긴 항목</div><div class="stat-value">${hidden.length}<small>개</small></div><div class="stat-bottom">상세 화면에서 숨김 해제</div></div></div><section class="panel"><div class="panel-head"><div class="panel-title">데이터 점검</div><button class="button" id="admin-export">${icon('download')} 엔티티 CSV</button></div><div class="table-wrap"><table><thead><tr><th>엔티티</th><th>유형</th><th>관계 근거</th><th>등록된 담당자</th><th>조치</th></tr></thead><tbody>${[...es, ...hidden.filter(isContact)].sort((a, b) => ((!b.rel) + noContact(b)) - ((!a.rel) + noContact(a))).map(e => `<tr><td>${esc(e.name)}${e.hidden ? ' <span class="pill">숨김</span>' : ''}</td><td>${esc(e.type)}</td><td>${e.rel ? '<span class="pill good">입력됨</span>' : PILL_NOREL}</td><td>${contactsOf(e).length ? contactsOf(e).length + '명' : noContact(e) ? PILL_NOC : '—'}</td><td><button class="text-btn" data-detail="${e.id}">상세 확인 ↗</button></td></tr>`).join('')}</tbody></table></div></section>`;
+}
+// 관계 점수 기준 (PRD 5.1.1) — 기본 규칙으로 시작, Claude 가 월 1회·어긋날 때 항목당 ±10 안에서 조정, DB 관리자가 한 번에 되돌림
+const W_KO = {recency: '최근성', frequency: '교신 빈도', outcome: '결과', stage: '관계 단계'};
+async function loadScore() {
+  const [c, l] = await Promise.all([SB.from('pt_rel_score_config').select('*').maybeSingle(), SB.from('pt_rel_score_config_log').select('*').order('id', {ascending: false}).limit(50)]);
+  admin.score = {cfg: c.data, log: l.data || [], err: c.error?.message || l.error?.message || ''};
+  if (page === 'admin' && admin.tab === 'score') render();
+}
+function scorePanel() {
+  if (!admin.score) { setTimeout(loadScore); return '<div class="empty"><p>기준을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  const {cfg, log, err} = admin.score; if (err || !cfg) return `<div class="notice">기준을 불러오지 못했습니다: ${esc(err)}</div>`;
+  const wl = w => Object.entries(w || {}).map(([k, v]) => `${W_KO[k] || k} ${v}`).join(' · ');
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">관계 점수 기준 <small>${cfg.version}판</small></div><p class="panel-caption">처음 기준에서 시작해 Claude가 월 1회, 또는 점수와 실제 결과가 어긋날 때 항목당 10점 안에서 조정합니다. 바뀌면 이유·근거와 함께 아래에 남고, 되돌리면 같은 방향으로 30일 동안 다시 바꾸지 않습니다.</p></div></div>
+    <div class="quality-grid">${Object.entries(cfg.weights).map(([k, v]) => `<div class="stat"><div class="stat-label">${W_KO[k] || k}</div><div class="stat-value">${v}<small>점</small></div></div>`).join('')}</div>
+    <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">되돌림</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 되돌리기</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 function bindAdmin() {
+  $$('[data-score-revert]').forEach(b => b.onclick = async () => {
+    const ok = await confirmBox({title: '이전 기준으로 되돌릴까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 같은 방향의 조정은 30일 동안 다시 하지 않습니다.', ok: '이전 기준으로 되돌리기'});
+    if (!ok) return; const { error } = await SB.rpc('pt_rel_config_revert', {p_log: Number(b.dataset.scoreRevert)});
+    if (error) return toast('되돌리지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 되돌렸습니다.');
+  });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
@@ -670,8 +900,8 @@ const pPill = p => `<span class="pill ${p.status === 'done' ? 'good' : p.status 
 const contactPoint = e => e ? '등록된 연락처 있음' : '등록된 연락처 없음';
 const ipChips = (host, initial, list) => chipInput(host, initial, {list, find: entityByName, badge: contactPoint,
   sub: e => [e.type, contactsOf(e).length ? `등록된 담당자 ${contactsOf(e).length}명` : ''].filter(Boolean).join(' · '),
-  title: e => e ? `판테온 엔티티 「${e.name}」` : '판테온 엔티티에 등록되지 않은 IP입니다',
-  note: '판테온 엔티티에 등록된 IP는 <b>등록된 연락처 있음</b>, <span class="err">빨간 칩</span>은 등록되지 않은 IP입니다.'});
+  title: e => e ? `이그드라실 엔티티 「${e.name}」` : '이그드라실 엔티티에 등록되지 않은 IP입니다',
+  note: '이그드라실 엔티티에 등록된 IP는 <b>등록된 연락처 있음</b>, <span class="err">빨간 칩</span>은 등록되지 않은 IP입니다.'});
 const entityByName = name => { const n = normCo(name); return n.length < 2 ? null : entities().find(e => [e.name, e.en, ...e.aliases].some(x => x && normCo(x) === n)) || null; };
 
 async function loadStudio() {
@@ -973,7 +1203,7 @@ async function checkVersion() {
     const v = (html.match(/app\.js\?v=([\w]+)/) || [])[1];
     if (v && v !== MY_VER) {
       const bar = document.createElement('div'); bar.id = 'new-ver';
-      bar.innerHTML = '판테온이 업데이트되었습니다. <button class="button primary small" type="button">새로고침</button>';
+      bar.innerHTML = (APP === 'gungnir' ? '궁니르' : '이그드라실') + '이 업데이트되었습니다. <button class="button primary small" type="button">새로고침</button>';
       bar.querySelector('button').onclick = () => location.reload();
       document.body.appendChild(bar);
     }
@@ -1753,7 +1983,7 @@ async function openProposal(id, keep) {
   // 추천 밖 IP 직접 입력 (10-28 홍석진 대표님)
   const own = $('#pb-own');
   if (own) {
-    own.oninput = () => { const v = own.value.trim(), e = entityByName(v); $('#pb-own-note').innerHTML = v ? (e ? `<b>등록된 연락처 있음</b> · 판테온 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 판테온 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
+    own.oninput = () => { const v = own.value.trim(), e = entityByName(v); $('#pb-own-note').innerHTML = v ? (e ? `<b>등록된 연락처 있음</b> · 이그드라실 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 이그드라실 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
     $('#pb-own-go').onclick = () => {
       const v = own.value.trim(); if (!v) { own.focus(); return; }
       const e = entityByName(v), name = e?.name || v, { partner_selected, ...rest } = d;
@@ -1808,7 +2038,7 @@ function studioProjectModal(p) {
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
   $('#sp-color').oninput = () => { $('input[name=sp-acc][value=pick]').checked = true; };
-  const note = (inp, out) => { const e = entityByName($(inp).value); $(out).innerHTML = $(inp).value.trim() ? (e ? `<b>등록된 연락처 있음</b> · 판테온 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 판테온 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
+  const note = (inp, out) => { const e = entityByName($(inp).value); $(out).innerHTML = $(inp).value.trim() ? (e ? `<b>등록된 연락처 있음</b> · 이그드라실 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 이그드라실 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
   ['#sp-a', '#sp-b'].forEach((s, i) => { $(s).oninput = () => note(s, i ? '#sp-b-note' : '#sp-a-note'); note(s, i ? '#sp-b-note' : '#sp-a-note'); });
   $('#sp-form').onsubmit = async ev => {
     ev.preventDefault();
@@ -1859,8 +2089,11 @@ function download(name, rows) {
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast(name + ' 파일을 내보냈습니다.');
 }
-function exportCSV() {
+async function exportCSV() {
+  if (!isAdmin) return toast('내보내기는 DB 관리자만 할 수 있습니다.');
   const arr = page === 'contacts' ? contacts() : entities().filter(match);
+  const { error } = await SB.from('pt_export_log').insert({member_id: me.id, what: page === 'contacts' ? 'contacts' : 'entities', row_count: arr.length});
+  if (error) return toast('내보내기 기록을 남기지 못해 내보내지 않았습니다: ' + error.message);
   download(page === 'contacts' ? 'pantheon-contacts.csv' : 'pantheon-entities.csv', [['이름', '영문 이름', '유형', '소속 / 회사 연결', '직함', '관계 근거', '등록된 담당자', '내부 담당자', '연락처(업무)'], ...arr.map(e => [e.name, e.en, e.type, agencyOf(e), e.role, e.rel, contactsOf(e).map(c => c.name).join(' / '), e.owners.join(' / '), e.points.join(' / ')])]);
 }
 function go(p) { page = p; filter = '전체'; entState = '전체'; query = ''; $('#global-search').value = ''; try { history.replaceState(null, '', '#' + p); } catch {} render(); window.scrollTo(0, 0); }
@@ -2029,7 +2262,7 @@ async function openIp(id, keep) {
     </div><aside class="ipc-side">
       <section class="ipc-card"><h3>소유사·관리사</h3><dl class="ipc-dl"><dt>소유사</dt><dd>${esc(ip.owner || '—')}</dd>${ip.manager ? `<dt>관리사</dt><dd>${esc(ip.manager)}</dd>` : ''}</dl></section>
       <section class="ipc-card"><h3>공식 문의처</h3>${c.email || c.phone || /^https?:/.test(c.url || '') ? `<ul class="ipc-contact">${c.email ? `<li><small>이메일</small><span id="ipc-mail">${esc(c.email)}</span><span class="ipc-act"><a class="point-go" href="mailto:${esc(c.email)}">메일</a><button class="point-go" data-copy="ipc-mail" type="button">복사</button></span></li>` : ''}${c.phone ? `<li><small>전화</small><span>${esc(c.phone)}</span><span class="ipc-act"><a class="point-go" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">전화</a></span></li>` : ''}${/^https?:/.test(c.url || '') ? `<li><small>문의 페이지</small><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url.replace(/^https?:\/\/(www\.)?/, ''))}</a></li>` : ''}</ul>${c.note ? `<p class="ipc-muted">${esc(c.note)}</p>` : ''}${/^https?:/.test(c.source || '') ? `<p class="ipc-muted">출처 <a href="${esc(c.source)}" target="_blank" rel="noopener">${esc(c.source.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60))}</a></p>` : ''}` : '<p class="ipc-muted">공개된 문의처를 아직 찾지 못했습니다.</p>'}</section>
-      <section class="ipc-card"><h3>등록된 담당자</h3>${people.length ? linkList(people.map(x => ({id: x.p.id, name: x.p.name, role: [x.e.name, x.p.role, x.p.points[0]].filter(Boolean).join(' · ')}))) : ents.length ? `${linkList(ents)}<p class="ipc-muted">이 회사에 등록된 담당자가 없습니다.</p>` : '<p class="ipc-muted">판테온에 등록된 담당자가 없습니다.</p>'}</section>
+      <section class="ipc-card"><h3>등록된 담당자</h3>${people.length ? linkList(people.map(x => ({id: x.p.id, name: x.p.name, role: [x.e.name, x.p.role, x.p.points[0]].filter(Boolean).join(' · ')}))) : ents.length ? `${linkList(ents)}<p class="ipc-muted">이 회사에 등록된 담당자가 없습니다.</p>` : '<p class="ipc-muted">이그드라실에 등록된 담당자가 없습니다.</p>'}</section>
       ${chans.length ? `<section class="ipc-card"><h3>공식 채널</h3><div class="ipc-chips">${chans.map(([u, t]) => linkA(u, t)).join('')}</div></section>` : ''}
     </aside></div>
   </div>`;
@@ -2055,17 +2288,18 @@ function bindContent() {
   // 목록 안 검색 (엔티티 DB·연락처) — 키워드만, 지금 보는 목록에서 거름
   $('#local-form')?.addEventListener('submit', ev => { ev.preventDefault(); query = $('#local-q').value.trim(); render(); $('#local-q')?.focus(); });
   $$('.q-clear').forEach(b => b.onclick = () => { query = ''; $('#global-search').value = ''; render(); $('#local-q')?.focus(); });
+  $$('[data-page-go]').forEach(b => b.onclick = () => go(b.dataset.pageGo));
   $$('[data-filter-go]').forEach(b => b.onclick = () => { go('entities'); filter = b.dataset.filterGo; render(); });
   $$('[data-stat]').forEach(b => { const open = () => { const v = b.dataset.stat; if (v === 'contacts') return go('contacts'); go('entities'); if (v === LINKED) entState = '담당자 있음'; else filter = v; render(); }; b.onclick = open; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } }; });
   $$('[data-detail]').forEach(b => { b.onclick = () => openDetail(b.dataset.detail); b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(b.dataset.detail); } }; });
   $('#admin-export')?.addEventListener('click', exportCSV);
-  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'studio') bindStudio(); if (page === 'chart') bindChart();
+  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'review') bindReview(); if (page === 'studio') bindStudio(); if (page === 'chart') bindChart();
 }
 
 /* ---------- 로그인 ---------- */
 function loginScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">Π</span>PANTHEON<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인이 가능합니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인이 가능합니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
   $('#login-form').onsubmit = async ev => {
     ev.preventDefault(); $('#lg-err').textContent = ''; $('#lg-err').style.color = '#ba775e';
     const { error } = await SB.auth.signInWithPassword({email: $('#lg-email').value.trim(), password: $('#lg-pw').value});
@@ -2085,7 +2319,7 @@ function loginScreen(msg) {
 // 메일 링크로 들어온 분 — 새 비밀번호. 헤임달과 같은 계정이라 헤임달 비밀번호도 이것으로 바뀐다
 function recoveryScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="np-form"><div class="brand"><span class="brand-mark">Π</span>PANTHEON<span class="brand-dot">®</span></div><p><b>새 비밀번호를 설정해 주세요.</b><br>헤임달과 같은 계정이므로, 여기서 변경하면 헤임달 비밀번호도 함께 변경됩니다.</p><label>새 비밀번호 (8자 이상)<input id="np1" type="password" autocomplete="new-password" required minlength="8"></label><label>새 비밀번호 다시 한 번<input id="np2" type="password" autocomplete="new-password" required minlength="8"></label><div id="np-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">비밀번호 변경</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="np-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p><b>새 비밀번호를 설정해 주세요.</b><br>헤임달과 같은 계정이므로, 여기서 변경하면 헤임달 비밀번호도 함께 변경됩니다.</p><label>새 비밀번호 (8자 이상)<input id="np1" type="password" autocomplete="new-password" required minlength="8"></label><label>새 비밀번호 다시 한 번<input id="np2" type="password" autocomplete="new-password" required minlength="8"></label><div id="np-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">비밀번호 변경</button></form>`;
   $('#np1').focus();
   $('#np-form').onsubmit = async ev => {
     ev.preventDefault(); const a = $('#np1').value, b = $('#np2').value;
@@ -2115,8 +2349,8 @@ async function start() {
     const img = `<img src="${esc(u)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
     $('.top-avatar').innerHTML = img; const a = $('#profile .avatar'); if (a) { a.innerHTML = img; a.style.overflow = 'hidden'; }
   });
-  try { await load(); } catch (e) { $('#content').innerHTML = `<div class="notice">판테온 DB를 불러오지 못했습니다: ${esc(e?.message || '')}</div>`; return; }
-  const [h, id] = location.hash.slice(1).split('/'); page = h && !h.includes('=') ? h : 'home'; render();
+  try { await load(); } catch (e) { $('#content').innerHTML = `<div class="notice">이그드라실 DB를 불러오지 못했습니다: ${esc(e?.message || '')}</div>`; return; }
+  const [h, id] = location.hash.slice(1).split('/'); page = h && !h.includes('=') ? h : APP === 'gungnir' ? 'studio' : 'home'; render();
   if (id) openRoute(page, id);
 }
 
