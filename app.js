@@ -29,7 +29,7 @@ let page = 'home', filter = '전체', query = '', activeDetail = null, lastAnswe
 // build_web.py 가 <html data-app> 을 정한다. 이그드라실의 #studio 주소는 궁니르로 안내한다(슬랙에 붙인 링크 보호, 최소 1개월)
 const APP = document.documentElement.dataset.app === 'gungnir' ? 'gungnir' : 'ygg';
 const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
-const GUNGNIR_URL = 'https://thealmightycorp.github.io/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
+const GUNGNIR_URL = 'https://thealmightycorp.github.io/pantheon/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
 const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오']]
   : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['chart','소싱 · IP 차트'],['review','확인 대기'],['admin','DB 관리']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
