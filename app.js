@@ -1923,7 +1923,11 @@ function ipProg() {
   if (r.status === 'wait' || !r.progress) return `<div id="ipc-prog" class="ipc-prog"><span class="bar indet"><i></i></span><small>순위를 새로 매길 준비를 하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
   return `<div id="ipc-prog" class="ipc-prog"><span class="row"><span class="bar"><i style="width:${r.progress}%"></i></span><b>${r.progress}%</b></span><small>순위 갱신 중 · ${esc(r.step || '')}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
 }
-const ipArt = (ip, cls = '') => { const s = imgSrc(ip.img_path); return `<span class="ipc-art ${cls}">${s ? `<img src="${s}" alt="" loading="lazy">` : `<b>${esc((ip.name_en || ip.name).slice(0, 2).toUpperCase())}</b>`}</span>`; };
+// 이미지가 없으면 종류 색 바탕에 이름 첫 글자
+const ipArt = (ip, cls = '') => { const s = imgSrc(ip.img_path); return `<span class="ipc-art k-${esc(ip.kind || 'other')} ${cls}">${s ? `<img src="${s}" alt="" loading="lazy">` : `<b>${esc([...String(ip.name || '?').trim()][0] || '?')}</b>`}</span>`; };
+const ipKind = ip => `<span class="ipc-kind k-${esc(ip.kind || 'other')}">${esc(IPK[ip.kind] || '기타')}</span>`;
+// 트렌드에 섞여 나온 작업 이야기는 보이지 않게 (봇 ipchart.TREND_META 와 같은 기준)
+const ipTrend = s => /검색 도구|검색 한도|사용 한도|도구 사용|확인하지 못|검증하지 못|찾지 못했|web_search|web_fetch/.test(s || '') ? '' : (s || '');
 function ipChg(r) {
   if (r.prev_pos == null) return r.has_prev ? '<span class="ipc-chg new">NEW</span>' : '<span class="ipc-chg">–</span>';
   const d = r.prev_pos - r.pos;
@@ -1935,12 +1939,24 @@ function chartView() {
   const rows = ipc.rows.filter(r => ipc.ips[r.ip] && !ipc.ips[r.ip].hidden && (ipc.kind === 'all' || ipc.ips[r.ip].kind === ipc.kind));
   const kinds = ['all', ...Object.keys(IPK).filter(k => k !== 'other' && ipc.rows.some(r => ipc.ips[r.ip]?.kind === k))];
   const basis = ipc.rows[0]?.basis, busy = ['wait', 'work'].includes(ipc.run?.status);
-  const head = `<div class="ipc-head"><div class="tabs">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => `<button class="tab ${ipc.chart === k ? 'active' : ''}" data-ipc-chart="${k}">${t}</button>`).join('')}</div><button class="button" id="ipc-refresh" ${busy ? 'disabled' : ''}>${icon('clock')} 지금 갱신</button></div>
-    <div class="ipc-periods">${IPP.map(([k, t]) => `<button class="ar-chip ${ipc.period === k ? 'on' : ''}" data-ipc-period="${k}">${t}</button>`).join('')}</div>${ipc.period === 'range' ? `<div class="ipc-range"><input type="date" id="ipc-from" value="${esc(ipc.from)}" aria-label="시작일"><span>~</span><input type="date" id="ipc-to" value="${esc(ipc.to)}" aria-label="종료일"><button class="button primary" id="ipc-range-go">보기</button></div>` : ''}
-    <div class="ar-kinds ipc-kinds">${kinds.map(k => `<button class="ar-chip ${ipc.kind === k ? 'on' : ''}" data-ipc-kind="${k}">${k === 'all' ? '전체' : IPK[k]}</button>`).join('')}</div>`;
-  const list = rows.length ? `<ol class="ipc-list">${rows.map(r => { const ip = ipc.ips[r.ip]; return `<li class="ipc-row" data-ip="${ip.id}" tabindex="0" role="button" aria-label="${esc(ip.name)} 상세보기"><div class="ipc-rank"><b>${r.pos}</b>${ipChg(r)}</div>${ipArt(ip)}<div class="ipc-main"><div class="ipc-name"><b>${esc(ip.name)}</b><span class="pill">${esc(IPK[ip.kind] || '기타')}</span></div><p>${esc(ip.summary)}</p><small>${esc([ip.owner, ip.since].filter(Boolean).join(' · '))}</small></div><span class="button ipc-more">상세보기</span></li>`; }).join('')}</ol>`
+  const seg = (items, cur, attr) => items.map(([k, t]) => `<button type="button" class="${cur === k ? 'on' : ''}" aria-pressed="${cur === k}" data-${attr}="${k}">${t}</button>`).join('');
+  // 1줄: 차트 고르기 · 기준 시각 · 지금 갱신 / 2줄: 기간 · 종류 / 순위 기준 / 표 머리 / 목록
+  const bar = `<div class="ipc-bar">
+      <div class="ipc-seg big" role="group" aria-label="차트">${seg([['new', '신규 IP'], ['all', '전체 IP']], ipc.chart, 'ipc-chart')}</div>
+      <div class="ipc-meta"><span>${basis ? `<b>${ipKst(basis)}</b> 기준` : ''}${rows.length ? ` · ${rows.length}위까지` : ''}</span><button class="button" id="ipc-refresh" ${busy ? 'disabled' : ''}>${icon('clock')} 지금 갱신</button></div>
+    </div>
+    <div class="ipc-filters">
+      <div class="ipc-fl"><span class="ipc-lab">기간</span><div class="ipc-seg" role="group" aria-label="기간">${seg(IPP, ipc.period, 'ipc-period')}</div>${ipc.period === 'range' ? `<div class="ipc-range"><input type="date" id="ipc-from" value="${esc(ipc.from)}" aria-label="시작일"><span>~</span><input type="date" id="ipc-to" value="${esc(ipc.to)}" aria-label="종료일"><button class="button primary" id="ipc-range-go">보기</button></div>` : ''}</div>
+      <div class="ipc-fl"><span class="ipc-lab">종류</span><div class="ipc-chips">${kinds.map(k => `<button type="button" class="ar-chip ${ipc.kind === k ? 'on' : ''}" aria-pressed="${ipc.kind === k}" data-ipc-kind="${k}">${k === 'all' ? '전체' : IPK[k]}</button>`).join('')}</div></div>
+    </div>${IP_HOW}`;
+  const thead = `<div class="ipc-thead" aria-hidden="true"><span>순위</span><span></span><span>IP</span><span>종류</span><span>소유사</span><span>데뷔·공개</span><span></span></div>`;
+  const list = rows.length ? `${thead}<ol class="ipc-list">${rows.map(r => { const ip = ipc.ips[r.ip]; return `<li class="ipc-row" data-ip="${ip.id}" tabindex="0" role="button" aria-label="${r.pos}위 ${esc(ip.name)} 상세보기">
+      <div class="ipc-rank"><b>${r.pos}</b>${ipChg(r)}</div>${ipArt(ip)}
+      <div class="ipc-main"><div class="ipc-name"><b>${esc(ip.name)}</b>${ipc.chart === 'all' && ip.is_new ? '<span class="ipc-new">신규</span>' : ''}</div><p>${esc(ip.summary || '')}</p><small class="ipc-sub">${ipKind(ip)} ${esc([ip.owner, ip.since].filter(Boolean).join(' · '))}</small></div>
+      <div class="ipc-c">${ipKind(ip)}</div><div class="ipc-c ipc-own" title="${esc(ip.owner || '')}">${esc(ip.owner || '—')}</div><div class="ipc-c ipc-since">${esc(ip.since || '—')}</div>
+      <span class="ipc-more">상세보기</span></li>`; }).join('')}</ol>`
     : `<div class="empty"><p>${ipc.period === 'range' && !(ipc.from && ipc.to) ? '시작일과 종료일을 고른 뒤 「보기」를 눌러 주세요.' : ipc.rows.length ? '이 종류의 IP가 아직 없습니다.' : busy ? '첫 순위를 매기고 있습니다. 끝나면 자동으로 나타납니다.' : '이 기간에 쌓인 순위가 없습니다. 순위는 하루 4번 새로 매기며, 기록이 쌓일수록 긴 기간 순위를 볼 수 있습니다.'}</p></div>`;
-  return `${ipc.err ? `<div class="notice">${esc(ipc.err)}</div>` : ''}${ipProg()}${IP_HOW}<section class="panel"><div class="panel-head"><div class="panel-title">${ipc.chart === 'new' ? '신규 IP 차트' : '전체 IP 차트'} <small>${esc(per[1])}${basis ? ' · ' + ipKst(basis) + ' 기준' : ''}</small></div><span class="ipc-note">순위 변동 · ${esc(per[2])}</span></div>${head}${list}</section>`;
+  return `${ipc.err ? `<div class="notice">${esc(ipc.err)}</div>` : ''}${ipProg()}<section class="panel ipc">${bar}${list}${rows.length ? `<p class="ipc-foot">순위 옆 ▲▼는 ${esc(per[2])} 변동입니다. NEW는 비교 기간에 순위에 없던 IP입니다.</p>` : ''}</section>`;
 }
 function bindChart() {
   $$('[data-ipc-chart]').forEach(b => b.onclick = () => { ipc.chart = b.dataset.ipcChart; ipc.rows = null; render(); });
@@ -1959,11 +1975,16 @@ function bindChart() {
 // 순위 기록 그래프 — 1위가 위 · 점에 마우스를 올리면 그때 순위
 function ipRankSvg(log) {
   if (log.length < 2) return '<p class="ipc-muted">기록이 두 번 이상 쌓이면 순위 그래프가 나옵니다.</p>';
-  const W = 640, H = 180, L = 40, R = 14, T = 14, B = 26, t0 = new Date(log[0].at).getTime(), t1 = new Date(log.at(-1).at).getTime();
-  const maxR = Math.max(10, ...log.map(x => x.rank)), x = t => L + (W - L - R) * ((new Date(t).getTime() - t0) / Math.max(t1 - t0, 1)), y = r => T + (H - T - B) * ((r - 1) / (maxR - 1));
-  const ticks = [1, Math.ceil(maxR / 2), maxR];
-  const pts = log.map(p => `${x(p.at).toFixed(1)},${y(p.rank).toFixed(1)}`).join(' ');
-  return `<svg class="ipc-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="순위 기록 그래프">${ticks.map(r => `<line x1="${L}" x2="${W - R}" y1="${y(r)}" y2="${y(r)}" class="g"/><text x="${L - 8}" y="${y(r) + 4}" text-anchor="end">${r}위</text>`).join('')}<text x="${L}" y="${H - 6}">${ipKst(log[0].at)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${ipKst(log.at(-1).at)}</text><polyline points="${pts}" class="l"/>${log.map(p => `<g class="pt"><circle cx="${x(p.at)}" cy="${y(p.rank)}" r="11" class="hit"/><circle cx="${x(p.at)}" cy="${y(p.rank)}" r="4" class="d"/><title>${ipKst(p.at)} · ${p.rank}위</title></g>`).join('')}</svg>`;
+  // 선은 늘어나는 SVG, 글자·점은 HTML — 창 너비가 달라도 글자 크기가 그대로
+  const t0 = new Date(log[0].at).getTime(), t1 = new Date(log.at(-1).at).getTime();
+  const maxR = Math.max(10, ...log.map(p => p.rank)), x = t => 100 * ((new Date(t).getTime() - t0) / Math.max(t1 - t0, 1)), y = r => 100 * ((r - 1) / (maxR - 1));
+  const ticks = [...new Set([1, Math.ceil(maxR / 2), maxR])];
+  const pts = log.map(p => `${x(p.at).toFixed(2)},${y(p.rank).toFixed(2)}`).join(' ');
+  return `<div class="ipc-graph" role="img" aria-label="순위 기록 그래프 — 최근 ${log.at(-1).rank}위">
+    <div class="ipc-gy">${ticks.map(r => `<span style="top:${y(r)}%">${r}위</span>`).join('')}</div>
+    <div class="ipc-gp"><svg viewBox="0 0 100 100" preserveAspectRatio="none">${ticks.map(r => `<line x1="0" x2="100" y1="${y(r)}" y2="${y(r)}" class="g"/>`).join('')}<polyline points="${pts}" class="l"/></svg>
+      ${log.map(p => `<i class="ipc-dot" style="left:${x(p.at)}%;top:${y(p.rank)}%" title="${ipKst(p.at)} · ${p.rank}위"></i>`).join('')}</div>
+    <div class="ipc-gx"><span>${ipKst(log[0].at)}</span><span>${ipKst(log.at(-1).at)}</span></div></div>`;
 }
 const ipNorm = s => String(s || '').toLowerCase().replace(/\(주\)|주식회사|㈜|inc\.?|co\.?,?\s*ltd\.?|corp\.?|entertainment|엔터테인먼트|[\s\W_]+/g, '');
 function ipEntities(ip) {
@@ -1987,18 +2008,30 @@ async function openIp(id, keep) {
   const linkA = (u, t) => u ? `<a class="ar-chip" href="${esc(u)}" target="_blank" rel="noopener">${t}</a>` : '';
   const nv = Array.isArray(s.naver) ? s.naver : null;
   const lg = by(tabC), table = lg.slice().reverse().slice(0, 12).map((p, i, a) => { const o = a[i + 1], d = o ? o.rank - p.rank : 0; return `<tr><td>${ipKst(p.at)}</td><td><b>${p.rank}위</b></td><td>${!o || !d ? '–' : d > 0 ? `<span class="ipc-chg up">▲${d}</span>` : `<span class="ipc-chg down">▼${-d}</span>`}</td></tr>`; }).join('');
+  const best = k => Math.min(...by(k).map(x => x.rank));
+  const trend = ipTrend(ip.trend);
+  const issues = (ip.issues || []).filter(x => x && (x.title || x.url));
+  const stats = [s.buzz != null && ['화제 크기', s.buzz + '<small>/100</small>'], s.momentum != null && ['상승 속도', s.momentum + '<small>/100</small>'], s.yt_subs && ['유튜브 구독자', Number(s.yt_subs).toLocaleString('ko-KR')], s.naver_x && ['네이버 검색', s.naver_x + '<small>배 (지난주 대비)</small>']].filter(Boolean);
+  const chans = [[url(L.site), '공식 사이트'], [url(L.youtube, 'https://www.youtube.com/', 1), '유튜브'], [url(L.instagram, 'https://www.instagram.com/'), '인스타그램'], [url(L.x, 'https://x.com/'), 'X'], [url(L.tiktok, 'https://www.tiktok.com/', 1), '틱톡']].filter(x => x[0]);
   const html = `<div class="ipc-detail">
-    <div class="ipc-top">${ipArt(ip, 'big')}<div><span class="pill">${esc(IPK[ip.kind] || '기타')}</span>${ip.is_new ? ' <span class="pill good">신규</span>' : ''}<h2>${esc(ip.name)}</h2><small>${esc([ip.name_en, ip.since && ip.since + ' 데뷔·공개'].filter(Boolean).join(' · '))}</small>
-      <div class="ipc-now">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => { const x = cur(k); return x ? `<span><small>${t}</small><b>${x.rank}위</b></span>` : ''; }).join('')}</div></div></div>
-    <section><h3>왜 뜨고 있나</h3><p class="ipc-why">${esc(ip.summary || '—')}</p></section>
-    <section><h3>지금 트렌드</h3><p>${esc(ip.trend || '—')}</p>${ip.updated_at ? `<small class="ipc-muted">${ipKst(ip.updated_at)} 갱신</small>` : ''}</section>
-    <section><div class="ipc-sec-head"><h3>순위 기록 <small>최근 30일</small></h3><div class="tabs">${[['new', '신규'], ['all', '전체']].filter(([k]) => by(k).length).map(([k, t]) => `<button class="tab ${tabC === k ? 'active' : ''}" data-ipo-chart="${k}">${t}</button>`).join('')}</div></div>${ipRankSvg(lg)}${table ? `<div class="table-wrap"><table class="ipc-log"><thead><tr><th>갱신</th><th>순위</th><th>변동</th></tr></thead><tbody>${table}</tbody></table></div>` : ''}</section>
-    ${(ip.issues || []).length ? `<section><h3>최근 이슈</h3><ul class="ipc-issues">${ip.issues.map(x => `<li><small>${esc(x.date || '')}</small> ${/^https?:/.test(x.url || '') ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>` : esc(x.title || '')}</li>`).join('')}</ul></section>` : ''}
-    <section><h3>수치</h3><div class="ipc-stats">${s.buzz != null ? `<span><small>화제 크기</small><b>${s.buzz}</b></span>` : ''}${s.momentum != null ? `<span><small>상승 속도</small><b>${s.momentum}</b></span>` : ''}${s.yt_subs ? `<span><small>유튜브 구독자</small><b>${Number(s.yt_subs).toLocaleString('ko-KR')}</b></span>` : ''}${s.naver_x ? `<span><small>네이버 검색 (지난주 대비)</small><b>${s.naver_x}배</b></span>` : ''}</div>${nv ? `<div class="ipc-spark" role="img" aria-label="최근 14일 네이버 검색 추이">${nv.map(v => `<i style="height:${Math.max(3, v)}%" title="${v}"></i>`).join('')}</div><small class="ipc-muted">최근 14일 네이버 검색 추이</small>` : ''}</section>
-    <section><h3>소유사·관리사</h3><dl class="ipc-dl"><dt>소유사</dt><dd>${esc(ip.owner || '—')}</dd>${ip.manager ? `<dt>관리사</dt><dd>${esc(ip.manager)}</dd>` : ''}</dl>
-      <h4>공식 문의처</h4>${c.email || c.phone || c.url ? `<dl class="ipc-dl">${c.email ? `<dt>이메일</dt><dd><span id="ipc-mail">${esc(c.email)}</span> <a class="point-go" href="mailto:${esc(c.email)}">메일</a> <button class="point-go" data-copy="ipc-mail" type="button">복사</button></dd>` : ''}${c.phone ? `<dt>전화</dt><dd>${esc(c.phone)} <a class="point-go" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">전화</a></dd>` : ''}${/^https?:/.test(c.url || '') ? `<dt>문의 페이지</dt><dd><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url)}</a></dd>` : ''}${c.note ? `<dt>비고</dt><dd>${esc(c.note)}</dd>` : ''}</dl>${/^https?:/.test(c.source || '') ? `<small class="ipc-muted">출처 <a href="${esc(c.source)}" target="_blank" rel="noopener">${esc(c.source)}</a></small>` : ''}` : '<p class="ipc-muted">공개된 문의처를 아직 찾지 못했습니다.</p>'}
-      <h4>등록된 담당자</h4>${people.length ? linkList(people.map(x => ({id: x.p.id, name: x.p.name, role: [x.e.name, x.p.role, x.p.points[0]].filter(Boolean).join(' · ')}))) : ents.length ? `${linkList(ents)}<p class="ipc-muted">이 회사에 등록된 담당자가 없습니다.</p>` : '<p class="ipc-muted">판테온에 등록된 담당자가 없습니다.</p>'}</section>
-    ${[L.site, L.youtube, L.instagram, L.x, L.tiktok].some(Boolean) ? `<section><h3>공식 채널</h3><div class="ar-kinds">${linkA(url(L.site), '공식 사이트')}${linkA(url(L.youtube, 'https://www.youtube.com/', 1), '유튜브')}${linkA(url(L.instagram, 'https://www.instagram.com/'), '인스타그램')}${linkA(url(L.x, 'https://x.com/'), 'X')}${linkA(url(L.tiktok, 'https://www.tiktok.com/', 1), '틱톡')}</div></section>` : ''}
+    <header class="ipc-hero">${ipArt(ip, 'big')}
+      <div class="ipc-hero-main"><div class="ipc-tags">${ipKind(ip)}${ip.is_new ? '<span class="ipc-new">신규</span>' : ''}</div>
+        <h2>${esc(ip.name)}</h2><p class="ipc-hero-sub">${esc([ip.name_en !== ip.name && ip.name_en, ip.since && ip.since + ' 데뷔·공개', ip.owner].filter(Boolean).join(' · '))}</p>
+        ${ip.summary ? `<p class="ipc-why">${esc(ip.summary)}</p>` : ''}</div>
+      <div class="ipc-now">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => { const x = cur(k); return x ? `<div><small>${t}</small><b>${x.rank}<em>위</em></b><span>30일 최고 ${best(k)}위</span></div>` : ''; }).join('')}</div>
+    </header>
+    <div class="ipc-cols"><div class="ipc-col">
+      <section><h3>지금 트렌드${trend && ip.updated_at ? ` <small>${ipKst(ip.updated_at)} 확인</small>` : ''}</h3>${trend ? `<p>${esc(trend)}</p>` : '<p class="ipc-muted">아직 정리된 트렌드가 없습니다. 다음 갱신 때 채워집니다.</p>'}</section>
+      <section><div class="ipc-sec-head"><h3>순위 기록 <small>최근 30일</small></h3>${by('new').length && by('all').length ? `<div class="ipc-seg" role="group" aria-label="차트">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => `<button type="button" class="${tabC === k ? 'on' : ''}" aria-pressed="${tabC === k}" data-ipo-chart="${k}">${t}</button>`).join('')}</div>` : ''}</div>
+        ${ipRankSvg(lg)}${table ? `<details class="ipc-loglist"><summary>갱신별 순위 보기</summary><table class="ipc-log"><thead><tr><th>갱신</th><th>순위</th><th>변동</th></tr></thead><tbody>${table}</tbody></table></details>` : ''}</section>
+      ${issues.length ? `<section><h3>최근 이슈</h3><ul class="ipc-issues">${issues.map(x => `<li><time>${esc(x.date || '')}</time>${/^https?:/.test(x.url || '') ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>` : `<span>${esc(x.title || '')}</span>`}</li>`).join('')}</ul></section>` : ''}
+      ${stats.length ? `<section><h3>수치</h3><div class="ipc-stats">${stats.map(([t, v]) => `<div><small>${t}</small><b>${v}</b></div>`).join('')}</div>${nv ? `<div class="ipc-spark" role="img" aria-label="최근 14일 네이버 검색 추이">${nv.map(v => `<i style="height:${Math.max(3, v)}%" title="${v}"></i>`).join('')}</div><small class="ipc-muted">최근 14일 네이버 검색 추이</small>` : ''}</section>` : ''}
+    </div><aside class="ipc-side">
+      <section class="ipc-card"><h3>소유사·관리사</h3><dl class="ipc-dl"><dt>소유사</dt><dd>${esc(ip.owner || '—')}</dd>${ip.manager ? `<dt>관리사</dt><dd>${esc(ip.manager)}</dd>` : ''}</dl></section>
+      <section class="ipc-card"><h3>공식 문의처</h3>${c.email || c.phone || /^https?:/.test(c.url || '') ? `<ul class="ipc-contact">${c.email ? `<li><small>이메일</small><span id="ipc-mail">${esc(c.email)}</span><span class="ipc-act"><a class="point-go" href="mailto:${esc(c.email)}">메일</a><button class="point-go" data-copy="ipc-mail" type="button">복사</button></span></li>` : ''}${c.phone ? `<li><small>전화</small><span>${esc(c.phone)}</span><span class="ipc-act"><a class="point-go" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">전화</a></span></li>` : ''}${/^https?:/.test(c.url || '') ? `<li><small>문의 페이지</small><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url.replace(/^https?:\/\/(www\.)?/, ''))}</a></li>` : ''}</ul>${c.note ? `<p class="ipc-muted">${esc(c.note)}</p>` : ''}${/^https?:/.test(c.source || '') ? `<p class="ipc-muted">출처 <a href="${esc(c.source)}" target="_blank" rel="noopener">${esc(c.source.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60))}</a></p>` : ''}` : '<p class="ipc-muted">공개된 문의처를 아직 찾지 못했습니다.</p>'}</section>
+      <section class="ipc-card"><h3>등록된 담당자</h3>${people.length ? linkList(people.map(x => ({id: x.p.id, name: x.p.name, role: [x.e.name, x.p.role, x.p.points[0]].filter(Boolean).join(' · ')}))) : ents.length ? `${linkList(ents)}<p class="ipc-muted">이 회사에 등록된 담당자가 없습니다.</p>` : '<p class="ipc-muted">판테온에 등록된 담당자가 없습니다.</p>'}</section>
+      ${chans.length ? `<section class="ipc-card"><h3>공식 채널</h3><div class="ipc-chips">${chans.map(([u, t]) => linkA(u, t)).join('')}</div></section>` : ''}
+    </aside></div>
   </div>`;
   showDrawer(html, keep, 'IP CHART');
   $$('#drawer [data-ipo-chart]').forEach(b => b.onclick = () => { ipc.openChart = b.dataset.ipoChart; openIp(id, true); });
