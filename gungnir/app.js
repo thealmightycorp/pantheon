@@ -286,8 +286,8 @@ function openDetail(id, keep) {
   if (!keep) setRoute(id);
   if (isContact(e)) return openContact(e, keep);
   const cs = contactsOf(e), parent = e.parentId && byId(e.parentId);
-  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
-  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e); bindKn(e);
+  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + pathBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
+  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e); bindKn(e); if (APP === 'ygg') loadPaths(e);
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
@@ -924,6 +924,43 @@ function healthPanel() {
     ${KH.map(([k, t]) => (it[k] || []).length ? `<section class="panel" style="margin-top:12px"><div class="panel-head"><div class="panel-title">${t} <small>${it[k].length}</small></div></div><ul class="rq-list">${it[k].map(x => `<li class="rq-item"><div><b>${esc(x.name)}</b>${x.why ? `<small>${esc(x.why)}</small>` : ''}</div><span class="rq-acts">${byId(x.id) ? `<button class="button" type="button" data-detail="${esc(x.id)}">상세</button>` : ''}</span></li>`).join('')}</ul></section>` : '').join('')}`;
 }
 
+/* ---------- Phase 5 (11-01 · sql/021) — 닿는 경로(R-12) · 사내 관심(S-12) · 민감 메모(R-13) · 운영 지표(12장) ---------- */
+const canSens = e => isAdmin || (!!e.relOwner && e.relOwner === me?.id);
+const PATH_KO = {direct: '등록된 담당자', owner: '관계 담당자', introduced: '소개', former: '예전 소속'};
+function pathBlock(e) {
+  return `<div class="detail-block"><h3>이 조직에 닿는 경로</h3><div id="kp-paths"><p class="rl-note">경로를 찾는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div><div id="kp-interest"></div></div>`
+    + (canSens(e) ? `<div class="detail-block"><h3>민감 메모 <span class="pill warn">관계 담당자·DB 관리자만</span></h3><textarea id="sens-note" placeholder="다른 직원과 질문 답변에는 보이지 않습니다." aria-label="민감 메모"></textarea><button class="button primary" id="sens-save" type="button">민감 메모 저장</button></div>` : '');
+}
+async function loadPaths(e) {
+  const [pr, ir, sr] = await Promise.all([SB.rpc('pt_paths', {p_entity: e.id}), SB.from('pt_internal_interest').select('*').eq('entity_id', e.id).maybeSingle(),
+    canSens(e) ? SB.from('pt_sensitive_note').select('note').eq('entity_id', e.id).maybeSingle() : Promise.resolve({data: null})]);
+  if (activeDetail !== e.id) return;
+  const host = $('#kp-paths'); if (!host) return;
+  const ps = pr.data || [], who = x => x.contact_id && byId(x.contact_id) ? `<button class="ref" type="button" data-open="${esc(x.contact_id)}">${esc(x.via)}</button>` : `<b>${esc(x.via || '—')}</b>`;
+  const ours = x => (x.our || []).length ? ` · 우리 쪽 ${esc(x.our.join(', '))}` : '';
+  host.innerHTML = ps.length ? `<ul class="kn-rel">${ps.map(x => `<li><span><span class="pill">${PATH_KO[x.kind] || x.kind}</span> ${x.kind === 'introduced' ? `우리 직원 → ${who(x)}(${esc(x.via_org || '소속 미상')}) → <b>${esc(e.name)}</b>` : x.kind === 'former' ? `${who(x)} — ${esc(dotDate(x.until))}까지 이 조직, 지금 ${esc(x.now_org || '소속 미상')}` : x.kind === 'owner' ? `<b>${esc(x.via)}</b>` : `${who(x)}${x.title ? ' · ' + esc(x.title) : ''}`}</span><small>${ours(x).replace(/^ · /, '')}</small></li>`).join('')}</ul>`
+    : '<p>아직 닿는 경로가 없습니다. 명함을 등록하거나, 소개받은 기록(접촉 기록 → 소개)을 남기면 경로가 생깁니다.</p>';
+  const it = ir.data; $('#kp-interest').innerHTML = it && it.n90 ? `<p class="rl-note">사내 관심 — 최근 30일 미팅 ${it.n30}건 · 90일 ${it.n90}건에서 언급(마지막 ${esc(dotDate(it.last_on))})</p>` : '';
+  const ta = $('#sens-note'); if (ta) { ta.value = sr.data?.note || ''; $('#sens-save').onclick = async () => {
+    const { error } = await SB.from('pt_sensitive_note').upsert({entity_id: e.id, note: ta.value}); if (error) return toast('저장하지 못했습니다: ' + error.message); toast('민감 메모를 저장했습니다.'); }; }
+  host.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openDetail(b.dataset.open));
+}
+async function loadMetrics() {
+  const [m, h] = await Promise.all([SB.rpc('pt_metrics'), SB.from('pt_metric_snapshot').select('week_of,data').order('week_of', {ascending: false}).limit(12)]);
+  admin.metrics = m.error ? {err: m.error.message} : {now: m.data, hist: h.data || []}; render();
+}
+function metricsPanel() {
+  if (!admin.metrics) { setTimeout(loadMetrics); return '<div class="empty"><p>운영 지표를 계산하는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  if (admin.metrics.err) return `<div class="notice">운영 지표를 불러오지 못했습니다: ${esc(admin.metrics.err)}</div>`;
+  const items = admin.metrics.now.items || [], hist = admin.metrics.hist;
+  const past = (name, w) => (w.data?.items || []).find(x => x.name === name)?.value;
+  return `<div class="notice">PRD 12장 성공 지표입니다. 매주 월요일 9시에 한 번씩 기록을 쌓아, 운영 3개월 뒤 단계 승격을 검토할 때 씁니다.</div>
+  <section class="panel"><div class="panel-head"><div class="panel-title">운영 지표 <small>${esc(kst(admin.metrics.now.at))} 기준</small></div><button class="button" type="button" id="metric-reload">${icon('clock')} 다시 계산</button></div>
+  <div class="table-wrap"><table><thead><tr><th>영역</th><th>지표</th><th>목표</th><th>지금</th><th>근거</th>${hist.slice(0, 4).map(w => `<th>${esc(dotDate(w.week_of))} 주</th>`).join('')}</tr></thead><tbody>
+  ${items.map(x => `<tr><td><span class="pill">${esc(x.area)}</span></td><td>${esc(x.name)}</td><td>${esc(x.target)}</td><td><b>${x.value ?? '—'}</b>${x.value != null ? esc(x.unit) : ''}</td><td><small>${esc(x.value == null && !x.base ? '측정할 기록 없음' : x.base || '')}</small></td>${hist.slice(0, 4).map(w => `<td>${past(x.name, w) ?? '—'}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div></section>`;
+}
+
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
 const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기'};
 const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 받은 곳', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
@@ -948,7 +985,7 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
@@ -956,6 +993,7 @@ function adminView() {
   if (admin.tab === 'bot') return tabs + botPanel();
   if (admin.tab === 'score') return tabs + scorePanel();
   if (admin.tab === 'knowledge') return tabs + healthPanel();
+  if (admin.tab === 'metrics') return tabs + metricsPanel();
   const people = [...new Set(admin.changes.map(x => x.actor || '(화면 밖)'))];
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
   return tabs + `
@@ -1030,6 +1068,7 @@ function bindAdmin() {
     if (error) return toast('되돌리지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 되돌렸습니다.');
   });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
+  $('#metric-reload')?.addEventListener('click', () => { admin.metrics = null; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
   $('#bot-restart')?.addEventListener('click', () => {
@@ -2389,11 +2428,11 @@ async function loadSrc() {
     q('pt_warning', '*', x => x.order('created_at', {ascending: false}).limit(100)), q('pt_watch', '*', x => x.order('created_at', {ascending: false}).limit(300)),
     q('pt_score_event', '*', x => x.order('occurred_at', {ascending: false}).limit(500)), q('pt_sourcing_config', '*'),
     q('pt_source', '*', x => x.order('id')), q('pt_signal', '*', x => x.in('source', ['community', 'x']).order('captured_at', {ascending: false}).limit(500)),
-    q('pt_collect_log', '*', x => x.order('at', {ascending: false}).limit(300))]);
+    q('pt_collect_log', '*', x => x.order('at', {ascending: false}).limit(300)), q('pt_collab_news', '*', x => x.order('happened_on', {ascending: false, nullsFirst: false}).limit(500))]);
   const bad = r.find(x => x.error);
   if (bad) { src.d = {err: bad.error.message}; return; }
-  const [pf, cal, al, cb, runs, warn, watch, sev, conf, sources, sig, clog] = r.map(x => x.data || []);
-  src.d = {pf: Object.fromEntries(pf.map(p => [p.entity_id, p])), cal, al, cb, runs, warn, watch, sev, conf: conf[0] || {}, sources, sig, clog};
+  const [pf, cal, al, cb, runs, warn, watch, sev, conf, sources, sig, clog, collab] = r.map(x => x.data || []);
+  src.d = {pf: Object.fromEntries(pf.map(p => [p.entity_id, p])), cal, al, cb, runs, warn, watch, sev, conf: conf[0] || {}, sources, sig, clog, collab};
 }
 const srcBadge = n => n ? ` <span class="nav-count">${n}</span>` : '';
 function srcView() {
@@ -2431,6 +2470,7 @@ function srcDetail(id) {
     <section><h4>별명 <small>${als.length}개</small></h4><div class="ipc-chips">${als.map(a => `<span class="ar-chip">${esc(a.text)} <small>${ALIAS_KO[a.kind] || ''}</small><button type="button" class="src-x" data-alias-del="${a.id}" aria-label="${esc(a.text)} 삭제">✕</button></span>`).join('') || '<span class="ipc-muted">없음</span>'}</div>
       <div class="src-row"><input id="alias-in" placeholder="별명 입력" aria-label="별명"><select id="alias-kind" class="table-select" aria-label="종류">${Object.entries(ALIAS_KO).map(([k, t]) => `<option value="${k}" ${k === 'nickname' ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="button" type="button" data-alias-add="${id}">추가</button></div></section>
     ${srcFandom(id)}
+    ${srcCollab(id)}
     <section><h4>권리구조 단순성</h4><p class="ipc-muted">권리 보유사가 한 곳이고 승인이 빠를수록 높게(0~100). 확인한 값만 넣어 주세요.</p><div class="src-row"><input id="rights-in" type="number" min="0" max="100" value="${p.rights_simplicity ?? ''}" placeholder="미입력" aria-label="권리구조 단순성"><input id="rights-src" value="${esc(p.rights_source || '')}" placeholder="근거 (예: 궁니르 검토, 권리사 회신)" aria-label="근거"><button class="button" type="button" data-rights="${id}">저장</button></div></section>
     <section><h4>스코어 기록</h4>${sev.length ? `<ul class="src-ul">${sev.map(s => `<li><time>${esc(ymd(s.occurred_at))}</time> ${s.before ?? '—'} → <b>${s.after}</b> <small>${esc(s.reason)}</small></li>`).join('')}</ul>` : '<p class="ipc-muted">아직 기록이 없습니다.</p>'}</section>
     <section><h4>조합 시뮬레이션 ${nCb ? `<small>지금까지 ${nCb}개</small>` : ''}</h4>${run ? srcRun(run) : `<div class="src-row"><input id="combo-ins" placeholder="요청 사항 (선택 · 예: 편의점 채널 위주, 2027 봄)" aria-label="요청 사항"><button class="button primary" type="button" data-combo-run="${id}">조합 만들기</button></div>`}${nCb ? `<p><button class="text-btn" type="button" data-src-tab="combos" data-cf="${id}">이 IP 조합 보기 ↗</button></p>` : ''}</section>
@@ -2536,6 +2576,10 @@ function bindSrc() {
 /* 팬덤 수집 (11-01 · Phase 4 · sql/020) — 수집 소스 목록(자동 점검 결과) · IP 별 팬덤 반응 */
 const CHK = [['robots', 'robots.txt'], ['login', '로그인'], ['terms', '약관'], ['rate', '빈도']];
 const srcSrcName = id => src.d.sources.find(x => x.id === id)?.name || '';
+function srcCollab(id) {
+  const cs = src.d.collab.filter(c => c.entity_id === id).slice(0, 8);
+  return `<section><h4>최근 다른 콜라보 <small>${cs.length}건</small></h4>${cs.length ? `<ul class="src-ul">${cs.map(c => `<li><time>${esc(c.happened_on ? dotDate(c.happened_on) : '날짜 미상')}</time> ${c.partner_entity_id && byId(c.partner_entity_id) ? `<button class="ref" type="button" data-open="${esc(c.partner_entity_id)}">${esc(c.partner)}</button>` : `<b>${esc(c.partner)}</b>`}${c.title ? ' · ' + esc(c.title) : ''} <a href="${esc(c.url)}" target="_blank" rel="noopener">출처</a></li>`).join('')}</ul>` : `<p class="ipc-muted">${src.d.pf[id]?.collab_checked_at ? '최근 12개월 안에 확인된 다른 콜라보가 없습니다.' : '일주일에 한 번 기사·공식 발표에서 찾습니다. 곧 채워집니다.'}</p>`}</section>`;
+}
 function srcFandom(id) {
   const d = src.d, latest = {};
   d.sig.filter(x => x.entity_id === id && x.metric === 'mentions').forEach(x => { if (!latest[x.source_id]) latest[x.source_id] = x; });
