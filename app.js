@@ -464,13 +464,16 @@ function cardWhereModal(c) {
 }
 
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
-const RQ = {ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안'};
+const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
 const reviewCount = () => rel.review.length + hints().length;
 function reviewView() {
   const hs = hints(), byKind = {};
   rel.review.forEach(r => (byKind[r.kind] ||= []).push(r));
-  const card = r => `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
+  const P = r => r.payload || {}, from = r => `<small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 「${esc(P(r).meeting || '')}」</small>`;
+  const card = r => r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id)}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
+    : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
+    : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
   return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인하거나 제외한 항목은 목록에서 빠지고 기록에 남습니다.</div>
     <section class="panel"><div class="panel-head"><div class="panel-title">관계 단계 승격 후보 <small>${hs.length}건</small></div></div>${hs.length ? `<ul class="rq-list">${hs.map(({e, h}) => `<li class="rq-item"><div><b>${esc(e.name)}</b> ${stagePill(e.pipeline)} → <span class="rl-stage s-${h.s}">${h.s} · ${STAGE[h.s]}</span><small>근거: ${esc(dotDate(h.ev.occurred_on))} ${esc(EV[h.ev.type])}${h.ev.summary ? ' · ' + esc(h.ev.summary.slice(0, 60)) : ''}</small></div><span class="rq-acts"><button class="button" type="button" data-detail="${e.id}">상세</button><button class="button primary" type="button" data-rq-stage="${e.id}|${h.s}|${h.ev.id}">단계 올리기</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>승격 후보가 없습니다. 접촉 기록이 쌓이면 시스템이 후보를 찾습니다.</p></div>'}</section>
     <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${rel.review.length ? Object.keys(byKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 여기에 쌓입니다.</p></div>'}</section>`;
@@ -482,6 +485,20 @@ function bindReview() {
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
     await loadRel(); render();
     toast(st === 'approved' ? '확인했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('되돌렸습니다.'); }});
+  });
+  $$('[data-rq-link]').forEach(b => b.onclick = async () => {
+    const id = Number(b.dataset.rqLink), ent = $(`[data-rq-ent="${id}"]`)?.value;
+    if (!ent) return toast('연결할 회사를 골라 주세요. 목록에 없으면 엔티티로 먼저 등록해 주세요.');
+    b.disabled = true;
+    const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
+    if (error) { b.disabled = false; return toast('연결하지 못했습니다: ' + error.message); }
+    await Promise.all([load(), loadRel()]); render();
+    toast(`${byId(ent)?.name || '회사'} 관계 타임라인에 미팅을 기록했습니다.`, {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await Promise.all([load(), loadRel()]); render(); toast('되돌렸습니다.'); }});
+  });
+  $$('[data-rq-person]').forEach(b => b.onclick = () => {
+    const r = rel.review.find(x => String(x.id) === b.dataset.rqPerson); if (!r) return; const p = r.payload || {};
+    contactModal({name: p.name || r.title, role: p.role, company: p.org, orgId: p.entity_id || r.target_id, where: `${dotDate(p.held_on)} 헤임달 미팅 「${p.meeting || ''}」`,
+      onSaved: async (c, org) => { const { error } = await SB.rpc('pt_review_decide', {p_id: r.id, p_status: 'approved', p_note: '', p_entity: org?.id || null, p_contact: c.id}); if (error) toast('연락처는 등록했지만 확인 대기 처리를 하지 못했습니다: ' + error.message); }});
   });
   $$('[data-rq-stage]').forEach(b => b.onclick = () => { const [id, s, ev] = b.dataset.rqStage.split('|'); const e = byId(id); if (e) stageModal(e, {s, ev: Number(ev)}); });
 }
@@ -674,9 +691,10 @@ async function waitAsk(id, onTick, limitSec = 120) {
   }
   return null;
 }
-function contactModal() {
+function contactModal(pre = {}) {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
   modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 받은 곳<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
+  if (pre.name) { [['c-name', pre.name], ['c-title', pre.role], ['c-company', pre.company], ['c-where', pre.where]].forEach(([id, v]) => { if (v) $('#' + id).value = v; }); const m = (pre.orgId && byId(pre.orgId)) || (pre.company && matchCompany(pre.company)); if (m) $('#c-org').value = m.id; else if (pre.company) $('#c-org').value = '__new'; }
   let cardPath = '';
   const setStatus = s => $('#c-status').textContent = s;
   const autoLink = (email, ...n) => { const m = matchCompany(...n) || matchByDomain(email); if (m) { $('#c-org').value = m.id; return m; } if (n.some(x => x && x.trim())) $('#c-org').value = '__new'; return null; };
@@ -724,7 +742,9 @@ function contactModal() {
         facts: [g('c-memo'), '명함 등록 ' + today()].filter(Boolean), cardImg: cardPath, first: today(), last: today()}, true);
       if (!c) return;
       if (cardPath) await SB.from('pt_card').update({received_where: g('c-where') || '모름'}).eq('contact_id', c.id).eq('image_path', cardPath);
-      $('#modal').dataset.dirty = ''; $('#modal').close(); await loadRel().catch(() => {}); go('contacts'); openDetail(c.id); toast(`${name} 님을 주소록에 등록했습니다.`);
+      $('#modal').dataset.dirty = ''; $('#modal').close();
+      if (pre.onSaved) { await pre.onSaved(c, org); await loadRel().catch(() => {}); render(); toast(`${name} 님을 주소록에 등록했습니다.`); return; }
+      await loadRel().catch(() => {}); go('contacts'); openDetail(c.id); toast(`${name} 님을 주소록에 등록했습니다.`);
     } finally { $('#c-save').disabled = false; }
   };
 }
