@@ -2374,7 +2374,7 @@ function bindChart() {
   });
 }
 /* ---------- 소싱 (11-01 · Phase 2 · sql/018 · 봇 sourcing.py) — IP 스코어 · 조합 · 워닝·감시. 공개 범위는 IP 차트와 같음 ---------- */
-const SRC_TABS = [['chart', 'IP 차트'], ['ips', 'IP 스코어'], ['combos', '조합'], ['warn', '워닝·감시']];
+const SRC_TABS = [['chart', 'IP 차트'], ['ips', 'IP 스코어'], ['combos', '조합'], ['warn', '워닝·감시'], ['sources', '수집 소스']];
 const CAL_KO = {comeback: '컴백', album: '앨범', anime: '애니 방영', movie: '영화 개봉', anniversary: '기념일', license_expiry: '라이선스 만료', enlist: '입대', discharge: '제대', renewal: '재계약', reunion: '완전체 복귀', sequel: '후속작', other: '기타'};
 const CERT_KO = {confirmed: '확정', planned: '예정', rumor: '루머'};
 const ALIAS_KO = {official: '공식', en: '영문', nickname: '애칭', slang: '팬덤 은어', typo: '오타', member: '멤버'};
@@ -2387,11 +2387,13 @@ async function loadSrc() {
     q('pt_alias', '*', x => x.order('id')), q('pt_combination', '*', x => x.order('combo_score', {ascending: false, nullsFirst: false}).limit(500)),
     q('pt_combo_run', 'id,ip_entity_id,status,progress,step,note,at', x => x.order('at', {ascending: false}).limit(20)),
     q('pt_warning', '*', x => x.order('created_at', {ascending: false}).limit(100)), q('pt_watch', '*', x => x.order('created_at', {ascending: false}).limit(300)),
-    q('pt_score_event', '*', x => x.order('occurred_at', {ascending: false}).limit(500)), q('pt_sourcing_config', '*')]);
+    q('pt_score_event', '*', x => x.order('occurred_at', {ascending: false}).limit(500)), q('pt_sourcing_config', '*'),
+    q('pt_source', '*', x => x.order('id')), q('pt_signal', '*', x => x.in('source', ['community', 'x']).order('captured_at', {ascending: false}).limit(500)),
+    q('pt_collect_log', '*', x => x.order('at', {ascending: false}).limit(300))]);
   const bad = r.find(x => x.error);
   if (bad) { src.d = {err: bad.error.message}; return; }
-  const [pf, cal, al, cb, runs, warn, watch, sev, conf] = r.map(x => x.data || []);
-  src.d = {pf: Object.fromEntries(pf.map(p => [p.entity_id, p])), cal, al, cb, runs, warn, watch, sev, conf: conf[0] || {}};
+  const [pf, cal, al, cb, runs, warn, watch, sev, conf, sources, sig, clog] = r.map(x => x.data || []);
+  src.d = {pf: Object.fromEntries(pf.map(p => [p.entity_id, p])), cal, al, cb, runs, warn, watch, sev, conf: conf[0] || {}, sources, sig, clog};
 }
 const srcBadge = n => n ? ` <span class="nav-count">${n}</span>` : '';
 function srcView() {
@@ -2399,7 +2401,7 @@ function srcView() {
   if (src.tab === 'chart') return tabs + chartView();
   if (!src.d) { setTimeout(async () => { await loadSrc(); if (page === 'chart') render(); }); return tabs + '<div class="empty"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   if (src.d.err) return tabs + `<div class="notice">소싱 정보를 불러오지 못했습니다: ${esc(src.d.err)}</div>`;
-  return tabs + (src.tab === 'ips' ? srcIps() : src.tab === 'combos' ? srcCombos() : srcWarn());
+  return tabs + (src.tab === 'ips' ? srcIps() : src.tab === 'combos' ? srcCombos() : src.tab === 'sources' ? srcSources() : srcWarn());
 }
 const srcScore = v => v == null ? '<span class="src-sc none">—</span>' : `<span class="src-sc ${v >= 70 ? 'hi' : v >= 40 ? 'mid' : 'lo'}">${v}</span>`;
 const srcName = id => byId(id)?.name || '';
@@ -2428,6 +2430,7 @@ function srcDetail(id) {
     <section><h4>다가오는 일정 <small>${evs.length}건</small></h4>${evs.length ? `<ul class="src-ul">${evs.map(e => `<li>${srcEv(e)} <a href="${esc(e.source_url)}" target="_blank" rel="noopener">출처</a> <button class="text-btn" type="button" data-cal-hide="${e.id}">틀린 일정 숨기기</button></li>`).join('')}</ul>` : `<p class="ipc-muted">${p.calendar_checked_at ? '찾은 일정이 없습니다.' : '하루 한 번 웹에서 일정을 찾습니다. 곧 채워집니다.'}</p>`}</section>
     <section><h4>별명 <small>${als.length}개</small></h4><div class="ipc-chips">${als.map(a => `<span class="ar-chip">${esc(a.text)} <small>${ALIAS_KO[a.kind] || ''}</small><button type="button" class="src-x" data-alias-del="${a.id}" aria-label="${esc(a.text)} 삭제">✕</button></span>`).join('') || '<span class="ipc-muted">없음</span>'}</div>
       <div class="src-row"><input id="alias-in" placeholder="별명 입력" aria-label="별명"><select id="alias-kind" class="table-select" aria-label="종류">${Object.entries(ALIAS_KO).map(([k, t]) => `<option value="${k}" ${k === 'nickname' ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="button" type="button" data-alias-add="${id}">추가</button></div></section>
+    ${srcFandom(id)}
     <section><h4>권리구조 단순성</h4><p class="ipc-muted">권리 보유사가 한 곳이고 승인이 빠를수록 높게(0~100). 확인한 값만 넣어 주세요.</p><div class="src-row"><input id="rights-in" type="number" min="0" max="100" value="${p.rights_simplicity ?? ''}" placeholder="미입력" aria-label="권리구조 단순성"><input id="rights-src" value="${esc(p.rights_source || '')}" placeholder="근거 (예: 궁니르 검토, 권리사 회신)" aria-label="근거"><button class="button" type="button" data-rights="${id}">저장</button></div></section>
     <section><h4>스코어 기록</h4>${sev.length ? `<ul class="src-ul">${sev.map(s => `<li><time>${esc(ymd(s.occurred_at))}</time> ${s.before ?? '—'} → <b>${s.after}</b> <small>${esc(s.reason)}</small></li>`).join('')}</ul>` : '<p class="ipc-muted">아직 기록이 없습니다.</p>'}</section>
     <section><h4>조합 시뮬레이션 ${nCb ? `<small>지금까지 ${nCb}개</small>` : ''}</h4>${run ? srcRun(run) : `<div class="src-row"><input id="combo-ins" placeholder="요청 사항 (선택 · 예: 편의점 채널 위주, 2027 봄)" aria-label="요청 사항"><button class="button primary" type="button" data-combo-run="${id}">조합 만들기</button></div>`}${nCb ? `<p><button class="text-btn" type="button" data-src-tab="combos" data-cf="${id}">이 IP 조합 보기 ↗</button></p>` : ''}</section>
@@ -2479,6 +2482,7 @@ function srcPoll() {
 function bindSrc() {
   $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
   if (src.tab === 'chart') return bindChart();
+  if (src.tab === 'sources') bindSources();
   srcPoll();
   $$('[data-src-open]').forEach(b => { const go = () => { src.open = src.open === b.dataset.srcOpen ? '' : b.dataset.srcOpen; render(); }; b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
   $('#cf-sel')?.addEventListener('change', e => { src.cf = e.target.value; render(); });
@@ -2529,6 +2533,53 @@ function bindSrc() {
     redo('확인했습니다.');
   });
 }
+/* 팬덤 수집 (11-01 · Phase 4 · sql/020) — 수집 소스 목록(자동 점검 결과) · IP 별 팬덤 반응 */
+const CHK = [['robots', 'robots.txt'], ['login', '로그인'], ['terms', '약관'], ['rate', '빈도']];
+const srcSrcName = id => src.d.sources.find(x => x.id === id)?.name || '';
+function srcFandom(id) {
+  const d = src.d, latest = {};
+  d.sig.filter(x => x.entity_id === id && x.metric === 'mentions').forEach(x => { if (!latest[x.source_id]) latest[x.source_id] = x; });
+  const temp = sid => d.sig.find(x => x.entity_id === id && x.metric === 'temperature' && x.source_id === sid)?.value;
+  const qs = d.clog.find(l => l.kind === 'fandom' && (l.entity_ids || []).includes(id) && (l.queries || []).length)?.queries || [];
+  const rows = Object.values(latest);
+  return `<section><h4>팬덤 반응 <small>커뮤니티·X · 최근 수집</small></h4>${rows.length ? `<ul class="src-ul">${rows.map(x => { const t = temp(x.source_id);
+      return `<li><time>${esc(ymd(x.captured_at))}</time> <b>${esc(srcSrcName(x.source_id) || x.source)}</b> 언급 ${Number(x.value) || 0}${t != null ? ` · 온도 <span class="pill ${t > 0 ? 'good' : t < 0 ? 'warn' : 'muted'}">${t > 0 ? '+' : ''}${t}</span>` : ''} <a href="${esc(x.source_url)}" target="_blank" rel="noopener">출처</a>${x.text_summary ? `<small>${esc(x.text_summary)}</small>` : ''}</li>`; }).join('')}</ul>`
+    : `<p class="ipc-muted">${d.sources.some(x => x.enabled) ? '하루 한 번 켜진 수집 소스에서 반응을 모읍니다. 곧 채워집니다.' : '켜진 수집 소스가 없습니다. 「수집 소스」에서 점검 결과를 확인해 주세요.'}</p>`}
+    ${qs.length ? `<p class="ipc-muted">검색어(별명 포함): ${qs.map(q => `<span class="ar-chip">${esc(q)}</span>`).join(' ')}</p>` : ''}</section>`;
+}
+const chkPill = c => !c ? '<span class="pill muted">—</span>' : c.ok ? '<span class="pill good">통과</span>' : '<span class="pill warn">걸림</span>';
+function srcSources() {
+  const list = src.d.sources, open = src.srcOpen;
+  const st = x => x.check_status === 'pending' || x.check_status === 'checking' ? `<span class="ipc-prog"><span class="bar indet"><i></i></span><small>자동 점검 ${x.check_status === 'checking' ? '진행 중' : '대기 중'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></span>`
+    : x.enabled ? `<span class="pill good">수집 중</span>${x.method === 'search' ? ' <small>검색 결과 집계</small>' : ''}` : x.check_status === 'fail' ? '<span class="pill warn">수집 안 함</span>' : '<span class="pill muted">꺼짐</span>';
+  const detail = x => { const r = x.check_result || {};
+    return `<tr class="src-open"><td colspan="7"><div class="src-detail">${CHK.map(([k, t]) => `<section><h4>${t} ${chkPill(r[k])}</h4><p class="ipc-muted">${esc(r[k]?.detail || '아직 점검하지 않았습니다.')}</p>${k === 'terms' && r.terms?.quote ? `<blockquote class="src-quote">${esc(r.terms.quote)}</blockquote>` : ''}${k === 'terms' && safeUrl(r.terms?.url) ? `<a href="${esc(r.terms.url)}" target="_blank" rel="noopener">약관 보기</a>` : ''}</section>`).join('')}
+      <section><h4>조치</h4>${x.check_status === 'fail' && x.alternative ? `<p class="ipc-muted">대체안: ${esc(x.alternative)}</p>` : ''}<div class="src-row">${x.check_status === 'fail' && x.method !== 'search' ? `<button class="button primary" type="button" data-srcsrc="${x.id}|use_search">검색 결과 집계로 수집</button>` : ''}${x.enabled ? `<button class="button" type="button" data-srcsrc="${x.id}|off">수집 끄기</button>` : x.check_status === 'pass' || (x.method === 'search' && x.alt_by) ? `<button class="button" type="button" data-srcsrc="${x.id}|on">수집 켜기</button>` : ''}<button class="button" type="button" data-srcsrc="${x.id}|recheck">다시 점검</button></div></section></div></td></tr>`; };
+  return `<div class="notice">소스를 추가하면 robots.txt·로그인·이용약관·수집 빈도를 자동으로 점검하고, 통과한 소스만 수집합니다. 걸린 소스는 대체안을 고르면 검색 결과만 집계합니다. 작성자·계정 정보는 저장하지 않습니다.</div>
+  <section class="panel"><div class="panel-head"><div class="panel-title">수집 소스 <small>${list.length}곳</small></div></div><div class="table-wrap"><table class="src-t"><thead><tr><th>이름</th><th>방식</th><th>점검일</th><th>점검 결과</th><th>수집 범위</th><th>빈도</th><th>상태</th></tr></thead><tbody>
+  ${list.map(x => `<tr class="${open === x.id ? 'on' : ''}" data-srcsrc-open="${x.id}" tabindex="0" style="cursor:pointer"><td><b>${esc(x.name)}</b><small>${esc(x.base_url.replace(/^https?:\/\//, ''))}</small></td><td>${x.method === 'search' ? '검색 결과 집계' : '공개 페이지 읽기'}</td><td>${x.check_at ? esc(ymd(x.check_at)) : '—'}</td><td>${CHK.map(([k, t]) => `<small>${t} ${(x.check_result || {})[k] ? (x.check_result[k].ok ? '○' : '×') : '—'}</small>`).join('')}</td><td>${esc(x.scope || '—')}</td><td><small>${x.interval_s}초 간격 · 하루 ${x.daily_cap}회</small></td><td>${st(x)}</td></tr>${open === x.id ? detail(x) : ''}`).join('')}
+  </tbody></table></div>
+  <form id="srcsrc-add" class="src-row" style="margin-top:12px"><input id="ss-name" placeholder="이름 (예: 네이트판)" aria-label="이름" required><input id="ss-base" type="url" placeholder="사이트 주소 https://…" aria-label="사이트 주소" required><input id="ss-search" type="url" placeholder="검색 주소 (검색어 자리에 {q})" aria-label="검색 주소"><button class="button primary" type="submit">소스 추가</button></form></section>`;
+}
+function bindSources() {
+  $$('[data-srcsrc-open]').forEach(b => { const go = () => { src.srcOpen = src.srcOpen === Number(b.dataset.srcsrcOpen) ? 0 : Number(b.dataset.srcsrcOpen); render(); }; b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
+  $$('[data-srcsrc]').forEach(b => b.onclick = async ev => {
+    ev.stopPropagation(); const [id, act] = b.dataset.srcsrc.split('|'); b.disabled = true;
+    const { error } = await SB.rpc('pt_source_set', {p_id: Number(id), p_action: act});
+    if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
+    await loadSrc(); render();
+    toast({recheck: '다시 점검합니다. 몇 분 안에 결과가 나옵니다.', use_search: '검색 결과 집계로 수집을 켰습니다.', off: '수집을 껐습니다.', on: '수집을 켰습니다.'}[act]);
+  });
+  $('#srcsrc-add')?.addEventListener('submit', async ev => {
+    ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
+    const { error } = await SB.rpc('pt_source_add', {p_name: $('#ss-name').value.trim(), p_base: $('#ss-base').value.trim(), p_search: $('#ss-search').value.trim()});
+    if (error) { if (btn) btn.disabled = false; return toast(/duplicate|unique/i.test(error.message) ? '같은 이름의 소스가 이미 있습니다.' : /check/i.test(error.message) ? '주소는 http로 시작해야 합니다.' : '추가하지 못했습니다: ' + error.message); }
+    await loadSrc(); render(); toast('소스를 추가했습니다. 자동 점검이 끝나면 결과가 나옵니다.');
+  });
+  clearTimeout(src.srcTimer);
+  if (src.d?.sources?.some(x => ['pending', 'checking'].includes(x.check_status))) src.srcTimer = setTimeout(async () => { if (page === 'chart' && src.tab === 'sources') { await loadSrc(); render(); } }, 5000);
+}
+
 // 순위 기록 그래프 — 1위가 위 · 점에 마우스를 올리면 그때 순위
 function ipRankSvg(log) {
   if (log.length < 2) return '<p class="ipc-muted">기록이 두 번 이상 쌓이면 순위 그래프가 나옵니다.</p>';

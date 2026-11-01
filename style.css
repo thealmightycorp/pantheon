@@ -22,6 +22,9 @@ sup.cite{display:inline-block;min-width:16px;height:16px;padding:0 4px;margin-le
 pre.kn-diff{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.6;max-height:360px;overflow:auto;background:#fafcfa;border:1px solid #e6ebe7;border-radius:8px;padding:10px;margin:8px 0 0}
 pre.kn-diff .add{background:#e3f1e8;color:#1f4a35;display:block}pre.kn-diff .del{background:#f6e9e4;color:#8a3d22;text-decoration:line-through;display:block}
 @media (max-width:760px){.kn-two{grid-template-columns:1fr}}
+/* 팬덤 수집 (11-01 · Phase 4) — 약관 근거 문장 */
+.src-quote{margin:6px 0;padding:8px 10px;border-left:3px solid #c9d6cd;background:#fafcfa;font-size:13px;line-height:1.6;color:#3d4842}
+.src-t td small+small{margin-left:0}
 /* 소싱 (11-01 · Phase 2) — IP 스코어 · 조합 · 워닝·감시 */
 .src-tabs{margin:0 0 14px}.src-tabs .nav-count{margin-left:6px}
 .src-sc{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:28px;padding:0 8px;border-radius:7px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;background:#eef1ee;color:#4a564f}
