@@ -1101,7 +1101,7 @@ function bindAdmin() {
    대표님 almighty-proposal-studio 의 흐름: IP 입력 → 인테이크 → (콜라보) 파트너 추천 → 리서치 → 컨셉 → 제안서 생성 → 이미지 계획 → 생성·삽입·QA
    사람은 게이트에서만 결정하고, 단계 작업은 pt_proposal_job 대기열에 넣어 판테온 봇(서버 PC)이 처리한다. 엔티티는 판테온 pt_entity 를 쓴다 */
 let studioCan = false, ipcCan = false;         // IP 차트 — 11-01 전 직원 공개 (sql/022 pt_ipchart_can = pt_can_use)
-const studio = {tab: 'projects', filter: 'all', list: null, refs: null, jobs: [], loading: false, err: ''};
+const studio = {tab: 'projects', filter: 'all', by: '', sort: {k: 'updated', d: -1}, list: null, refs: null, jobs: [], loading: false, err: ''};
 const STAGES = ['IP 입력', '기본 정보', '파트너 IP 추천', '리서치', '컨셉 설계', '제안서 생성', '이미지 계획', '생성·삽입·검수'];
 const GATES = {2: '기본 정보 확정', 3: '파트너 IP 선택', 5: '컨셉 확정', 7: '이미지 수급·크레딧 승인', 8: '반려 이미지 최종 판단'};
 const JOB_OF = {3: 'partners', 4: 'research', 5: 'concepts', 6: 'build', 7: 'image_plan', 8: 'generate'};
@@ -1129,7 +1129,7 @@ async function loadStudio() {
     const [p, r, j] = await Promise.all([
       SB.from('pt_proposal').select('*').order('updated_at', {ascending: false}),
       SB.from('pt_proposal_ref').select('*').eq('hidden', false).order('created_at', {ascending: false}),
-      SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work'])]);
+      SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work']), loadMembers()]);
     if (p.error) throw p.error; if (r.error) throw r.error; if (j.error) throw j.error;
     studio.list = p.data; studio.refs = r.data; studio.jobs = j.data;
   } catch (e) { studio.err = '제안서 스튜디오를 불러오지 못했습니다: ' + (e?.message || ''); }
@@ -1147,12 +1147,19 @@ function studioProjects() {
   const all = studio.list, live = all.filter(p => p.status !== 'done'), wait = all.filter(p => p.status === 'waiting'), work = all.filter(p => p.status === 'working'), done = all.filter(p => p.status === 'done');
   // 숫자 카드를 누르면 그 건만 (10-29 김현우) · 다시 누르면 전체
   const F = {live: ['진행 중', live], wait: ['결정 대기', wait], work: ['판테온 봇 처리 중', work], done: ['완료', done]};
-  const ps = F[studio.filter]?.[1] || all;
+  // 기안자 = 프로젝트를 연 사람(pt_proposal.created_by) · 기안자로 거르고 열 머리로 정렬 (11-02 홍석진 대표님)
+  const byOf = p => memberName(p.created_by) || '판테온 봇', byNames = [...new Set(all.map(byOf))].sort((a, b) => a.localeCompare(b, 'ko'));
+  if (studio.by && !byNames.includes(studio.by)) studio.by = '';
+  const {k: sk, d: sd} = studio.sort, sv = p => sk === 'title' ? pTitle(p) : sk === 'by' ? byOf(p) : sk === 'stage' ? p.stage : sk === 'created' ? p.created_at : p.updated_at;
+  const ps = (F[studio.filter]?.[1] || all).filter(p => !studio.by || byOf(p) === studio.by).slice().sort((a, b) => { const x = sv(a), y = sv(b); return (typeof x === 'number' ? x - y : String(x || '').localeCompare(String(y || ''), 'ko')) * sd || String(b.updated_at).localeCompare(String(a.updated_at)); });
+  const SORT_KO = {title: '프로젝트 이름순', by: '기안자순', stage: '단계순', created: '기안일순', updated: '업데이트순'};
+  const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
+  const bySel = `<select class="pf-by" data-pby aria-label="기안자로 보기"><option value="">기안자 전체</option>${byNames.map(n => `<option value="${esc(n)}"${studio.by === n ? ' selected' : ''}>${esc(n)} (${all.filter(p => byOf(p) === n).length})</option>`).join('')}</select>`;
   const stat = (key, n, unit, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${n}<small>${unit}</small></div><div class="stat-bottom">${bottom}</div></div>`;
   const decide = wait.length ? wait.map(p => `<button class="alert-row" data-proposal="${p.id}"><span class="alert-symbol">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}<small>${esc(GATES[p.stage] || '확인')} 대기 · ${esc(kst(p.updated_at))}</small></span></button>`).join('') : '<p class="panel-caption" style="padding:0 0 18px">지금 결정할 프로젝트가 없습니다.</p>';
-  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
+  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(byOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
   return `<div class="stats">${stat('live', live.length, '건', `전체 ${all.length}건`)}${stat('wait', wait.length, '건', '담당자 확인이 필요한 단계')}${stat('work', work.length, '건', '리서치·생성 등 자동 단계')}${stat('done', done.length, '건', '제안서 전달 완료', true)}</div>
-  <div class="main-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? `${F[studio.filter][0]} 프로젝트 <small>${ps.length}건 · 최근 업데이트 순</small>` : '전체 프로젝트 <small>최근 업데이트 순</small>'}</div>${F[studio.filter] ? '<button class="text-btn" data-pfilter="all">전체 보기</button>' : ''}</div>${!ps.length && F[studio.filter] ? `<div class="empty"><p>${F[studio.filter][0]}인 프로젝트가 없습니다.</p></div>` : ps.length ? `<div class="table-wrap"><table class="ct"><thead><tr><th>프로젝트</th><th>현재 단계</th><th>버전</th><th>상태</th><th>업데이트</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty"><p>아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP 하나로 시작하세요.</p></div>`}</section>
+  <div class="main-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? F[studio.filter][0] : '전체'} 프로젝트${studio.by ? ` · ${esc(studio.by)}` : ''} <small>${ps.length}건 · ${SORT_KO[sk]}</small></div><div class="pf-tools">${bySel}${F[studio.filter] || studio.by ? '<button class="text-btn" data-pfilter="all" data-pby-clear>전체 보기</button>' : ''}</div></div>${!ps.length && (F[studio.filter] || studio.by) ? `<div class="empty"><p>조건에 맞는 프로젝트가 없습니다.</p></div>` : ps.length ? `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty"><p>아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP 하나로 시작하세요.</p></div>`}</section>
   <section class="panel"><div class="panel-head"><div class="panel-title">지금 결정할 항목</div>${wait.length ? `<span class="alert-count">${wait.length}건</span>` : ''}</div><div class="alert-list">${decide}</div></section></div>`;
 }
 
@@ -1344,7 +1351,9 @@ function bindStudio() {
   });
   $$('[data-studio-tab]').forEach(b => b.onclick = () => { studio.tab = b.dataset.studioTab; if (studio.tab === 'archive') studio.arch = null; render(); });
   if (studio.tab === 'archive') bindArchive();
-  $$('[data-pfilter]').forEach(b => { const pick = () => { const v = b.dataset.pfilter; studio.filter = studio.filter === v ? 'all' : v; render(); }; b.onclick = pick; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } }; });
+  $$('[data-psort]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.psort; studio.sort = studio.sort.k === k ? {k, d: -studio.sort.d} : {k, d: ['updated', 'created'].includes(k) ? -1 : 1}; render(); });
+  $$('[data-pby]').forEach(s => s.onchange = () => { studio.by = s.value; render(); });
+  $$('[data-pfilter]').forEach(b => { const pick = () => { const v = b.dataset.pfilter; studio.filter = studio.filter === v ? 'all' : v; if (b.hasAttribute('data-pby-clear')) studio.by = ''; render(); }; b.onclick = pick; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } }; });
   $$('[data-proposal]').forEach(b => { b.onclick = () => openProposal(b.dataset.proposal); b.onkeydown = e => { if (e.key === 'Enter') openProposal(b.dataset.proposal); }; });
   $$('[data-ref-open]').forEach(b => b.onclick = async () => { const r = studio.refs.find(x => x.id === b.dataset.refOpen); const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(r.file_path, 600); if (error) return toast('파일을 열지 못했습니다.'); window.open(data.signedUrl, '_blank', 'noopener'); });
   $$('[data-ref-default]').forEach(b => b.onclick = async () => {
@@ -2062,7 +2071,7 @@ async function openProposal(id, keep) {
   showDrawer(`<span class="entity-avatar">${esc(p.ip_a_name.slice(0, 2))}</span><h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
-  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '판테온 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
+  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '판테온 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '판테온 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   const go = async (row, nextJob, msg, okMsg) => {
     const lp = studio.list?.find(z => z.id === p.id), before = lp && {...lp}, jobs0 = studio.jobs;
