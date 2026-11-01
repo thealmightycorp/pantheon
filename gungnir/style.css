@@ -9,6 +9,25 @@
 .rl-stage.s-R1{background:#eef4fb;color:#2a56a6}.rl-stage.s-R2{background:#e7f1fb;color:#1f4f96}.rl-stage.s-R3{background:#fdf1d8;color:#7c5400}.rl-stage.s-R4{background:#fde9e1;color:#a03d18}.rl-stage.s-R5{background:#e1f2ea;color:#1d6648}.rl-stage.s-R6{background:#285541;color:#fff}
 .rl-hint{border:1px dashed #c9a14a;background:#fffaf0;color:#7c5400;border-radius:6px;padding:4px 8px;font-size:var(--text-meta);font-weight:600;cursor:pointer;text-align:left}.rl-hint:hover{background:#fdf1d8}
 .rl-note{font-size:var(--text-meta);color:var(--ink-muted);margin:8px 0 0;line-height:1.6}
+/* 소싱 (11-01 · Phase 2) — IP 스코어 · 조합 · 워닝·감시 */
+.src-tabs{margin:0 0 14px}.src-tabs .nav-count{margin-left:6px}
+.src-sc{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:28px;padding:0 8px;border-radius:7px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;background:#eef1ee;color:#4a564f}
+.src-sc.hi{background:#e3f1e8;color:#285541}.src-sc.mid{background:#fdf3dc;color:#7c5400}.src-sc.lo{background:#f6e9e4;color:#8a3d22}.src-sc.none{background:none;color:var(--ink-muted);font-weight:600}
+.src-t td small{display:block;font-size:var(--text-meta);color:var(--ink-muted);margin-top:3px;line-height:1.45}.src-t tr.on{background:#f4f8f5}
+.src-t td .pill{vertical-align:middle}.src-open>td{background:#fafcfa;padding:0!important}
+.src-detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px 24px;padding:16px 22px 20px}
+.src-detail h4{margin:0 0 8px;font-size:14px;color:#1c2a22}.src-detail h4 small{font-weight:500;color:var(--ink-muted);font-size:var(--text-meta)}
+.src-ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px;line-height:1.55}.src-ul time{font-variant-numeric:tabular-nums;color:var(--ink-muted);margin-right:4px}.src-ul small{color:var(--ink-muted);font-size:var(--text-meta)}
+.src-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.src-row input{flex:1;min-width:120px;height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:14px}.src-row input[type=number]{flex:0 0 96px}
+.src-x{border:0;background:none;color:var(--ink-muted);cursor:pointer;padding:0 0 0 4px;font-size:12px}.src-x:hover{color:#8a3d22}
+.src-cbs{list-style:none;margin:0;padding:0 22px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.src-cb{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:#fff}.src-cb.execute{border-color:#9cc9ad}.src-cb.dropped{opacity:.65}
+.src-cb p{margin:0;font-size:13.5px;line-height:1.6;color:#2c3a32}.src-cb details summary{cursor:pointer;font-size:13px;color:#285541}
+.src-cb-head{display:flex;gap:10px;align-items:flex-start}.src-cb-head>div{flex:1;min-width:0}.src-cb-head b{display:block;font-size:15px}.src-cb-head small{font-size:var(--text-meta);color:var(--ink-muted)}
+.src-dl{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 10px;margin:0;font-size:13px}.src-dl dt{color:var(--ink-muted)}.src-dl dd{margin:0}
+.src-parts{font-size:var(--text-meta)!important;color:var(--ink-muted)!important}.src-path{display:flex;flex-wrap:wrap;gap:6px}.src-need{color:#8a3d22!important;font-size:13px!important}
+.src-cb .rq-acts{justify-content:flex-end}.rq-item.done{opacity:.7}
+@media(max-width:600px){.src-cbs{grid-template-columns:1fr;padding:0 14px 12px}.src-dl{grid-template-columns:auto 1fr}.src-detail{padding:14px}.src-tabs{display:flex}.src-tabs button{flex:1;padding:8px 6px!important;font-size:14px!important}}
 /* 이그드라실 ↔ 궁니르 바로가기 (11-01) */
 .nav-item.nav-app{margin-top:8px;box-shadow:inset 0 1px 0 var(--border);border-radius:0}.nav-app em{font-style:normal}.nav-app i{margin-left:auto;font-style:normal;font-size:var(--text-meta)}.nav-app:hover{color:var(--green)}
 @media(max-width:850px){.nav-app i{display:none}}@media(max-width:600px){.nav-item.nav-app{margin-top:0;box-shadow:inset 1px 0 0 var(--border)}.nav-app em{display:none}}

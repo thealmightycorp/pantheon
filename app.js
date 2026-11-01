@@ -211,7 +211,7 @@ function render() {
   if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
   if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 쓸 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
-  if (page === 'chart') html = chartView();
+  if (page === 'chart') html = srcView();
   if (page === 'search') html = searchView();
   $('#content').innerHTML = html;
   bindContent();
@@ -472,6 +472,7 @@ function reviewView() {
   rel.review.forEach(r => (byKind[r.kind] ||= []).push(r));
   const P = r => r.payload || {}, from = r => `<small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 「${esc(P(r).meeting || '')}」</small>`;
   const card = r => r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id)}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
+    : r.kind === 'ip_candidate' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).name || r.title)}</b>${P(r).name_en && P(r).name_en !== P(r).name ? ` <span>${esc(P(r).name_en)}</span>` : ''} <span class="pill">${esc(IPK[P(r).kind] || '')}</span><small>IP 차트 ${P(r).chart === 'new' ? '신규' : '전체'} ${esc(P(r).rank)}위${P(r).owner ? ' · ' + esc(P(r).owner) : ''}${P(r).holder_entity_id && byId(P(r).holder_entity_id) ? ' · 권리사 ' + esc(byId(P(r).holder_entity_id).name) : ''}</small>${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ipent="${r.id}" aria-label="연결할 IP 엔티티"><option value="">새 엔티티로 등록</option>${entities().filter(e => e.type === 'IP·유명인').sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(e => `<option value="${e.id}" ${e.id === r.target_id ? 'selected' : ''}>${esc(e.name)}에 연결</option>`).join('')}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-ip="${r.id}">반영</button></span></li>`
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
   return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인하거나 제외한 항목은 목록에서 빠지고 기록에 남습니다.</div>
@@ -494,6 +495,14 @@ function bindReview() {
     if (error) { b.disabled = false; return toast('연결하지 못했습니다: ' + error.message); }
     await Promise.all([load(), loadRel()]); render();
     toast(`${byId(ent)?.name || '회사'} 관계 타임라인에 미팅을 기록했습니다.`, {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await Promise.all([load(), loadRel()]); render(); toast('되돌렸습니다.'); }});
+  });
+  $$('[data-rq-ip]').forEach(b => b.onclick = async () => {
+    const id = Number(b.dataset.rqIp), ent = $(`[data-rq-ipent="${id}"]`)?.value || null, r = rel.review.find(x => x.id === id);
+    b.disabled = true;
+    const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
+    if (error) { b.disabled = false; return toast('반영하지 못했습니다: ' + error.message); }
+    await Promise.all([load(), loadRel()]); src.d = null; render();
+    toast(ent ? `${byId(ent)?.name || 'IP'}에 IP 차트를 연결했습니다.` : `${r?.payload?.name || 'IP'}를 엔티티로 등록했습니다. 소싱 「IP 스코어」에 나옵니다.`, {fn: async () => { const x = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (x.error) throw x.error; await Promise.all([load(), loadRel()]); src.d = null; render(); toast('연결을 되돌렸습니다. 새로 만든 엔티티는 엔티티 화면에서 숨길 수 있습니다.'); }});
   });
   $$('[data-rq-person]').forEach(b => b.onclick = () => {
     const r = rel.review.find(x => String(x.id) === b.dataset.rqPerson); if (!r) return; const p = r.payload || {};
@@ -2227,6 +2236,162 @@ function bindChart() {
     toast('순위 갱신을 요청했습니다. 판테온 봇이 바로 시작합니다.'); ipPoll();
   });
 }
+/* ---------- 소싱 (11-01 · Phase 2 · sql/018 · 봇 sourcing.py) — IP 스코어 · 조합 · 워닝·감시. 공개 범위는 IP 차트와 같음 ---------- */
+const SRC_TABS = [['chart', 'IP 차트'], ['ips', 'IP 스코어'], ['combos', '조합'], ['warn', '워닝·감시']];
+const CAL_KO = {comeback: '컴백', album: '앨범', anime: '애니 방영', movie: '영화 개봉', anniversary: '기념일', license_expiry: '라이선스 만료', enlist: '입대', discharge: '제대', renewal: '재계약', reunion: '완전체 복귀', sequel: '후속작', other: '기타'};
+const CERT_KO = {confirmed: '확정', planned: '예정', rumor: '루머'};
+const ALIAS_KO = {official: '공식', en: '영문', nickname: '애칭', slang: '팬덤 은어', typo: '오타', member: '멤버'};
+const BR_KO = {execute: '실행 가능', monitor: '모니터링', dropped: '제외'};
+const src = {tab: 'chart', d: null, open: '', poll: null, cf: 'all'};
+async function loadSrc() {
+  const q = (t, s, f = x => x) => f(SB.from(t).select(s));
+  const r = await Promise.all([
+    q('pt_ip_profile', '*'), q('pt_calendar_event', '*', x => x.eq('hidden', false).gte('starts_on', new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)).order('starts_on')),
+    q('pt_alias', '*', x => x.order('id')), q('pt_combination', '*', x => x.order('combo_score', {ascending: false, nullsFirst: false}).limit(500)),
+    q('pt_combo_run', 'id,ip_entity_id,status,progress,step,note,at', x => x.order('at', {ascending: false}).limit(20)),
+    q('pt_warning', '*', x => x.order('created_at', {ascending: false}).limit(100)), q('pt_watch', '*', x => x.order('created_at', {ascending: false}).limit(300)),
+    q('pt_score_event', '*', x => x.order('occurred_at', {ascending: false}).limit(500)), q('pt_sourcing_config', '*')]);
+  const bad = r.find(x => x.error);
+  if (bad) { src.d = {err: bad.error.message}; return; }
+  const [pf, cal, al, cb, runs, warn, watch, sev, conf] = r.map(x => x.data || []);
+  src.d = {pf: Object.fromEntries(pf.map(p => [p.entity_id, p])), cal, al, cb, runs, warn, watch, sev, conf: conf[0] || {}};
+}
+const srcBadge = n => n ? ` <span class="nav-count">${n}</span>` : '';
+function srcView() {
+  const tabs = `<div class="ipc-seg big src-tabs" role="tablist" aria-label="소싱">${SRC_TABS.map(([k, t]) => `<button type="button" role="tab" class="${src.tab === k ? 'on' : ''}" aria-selected="${src.tab === k}" data-src-tab="${k}">${t}${k === 'warn' && src.d?.warn ? srcBadge(src.d.warn.filter(w => !w.acknowledged_at).length) : ''}</button>`).join('')}</div>`;
+  if (src.tab === 'chart') return tabs + chartView();
+  if (!src.d) { setTimeout(async () => { await loadSrc(); if (page === 'chart') render(); }); return tabs + '<div class="empty"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  if (src.d.err) return tabs + `<div class="notice">소싱 정보를 불러오지 못했습니다: ${esc(src.d.err)}</div>`;
+  return tabs + (src.tab === 'ips' ? srcIps() : src.tab === 'combos' ? srcCombos() : srcWarn());
+}
+const srcScore = v => v == null ? '<span class="src-sc none">—</span>' : `<span class="src-sc ${v >= 70 ? 'hi' : v >= 40 ? 'mid' : 'lo'}">${v}</span>`;
+const srcName = id => byId(id)?.name || '';
+const srcNext = id => src.d.cal.find(e => e.entity_id === id && e.starts_on >= today());
+const srcEv = e => `<time>${esc(dotDate(e.starts_on))}</time> ${esc(CAL_KO[e.type] || e.type)}${e.title ? ' · ' + esc(e.title) : ''} <span class="pill ${e.certainty === 'confirmed' ? 'good' : e.certainty === 'rumor' ? 'muted' : ''}">${CERT_KO[e.certainty]}</span>`;
+function srcRun(r) {
+  if (!r || !['wait', 'work'].includes(r.status)) return '';
+  return r.status === 'wait' || !r.progress ? `<div class="ipc-prog" data-src-run="${r.id}"><span class="bar indet"><i></i></span><small>${esc(srcName(r.ip_entity_id))} 조합 시뮬레이션 준비 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`
+    : `<div class="ipc-prog" data-src-run="${r.id}"><span class="row"><span class="bar"><i style="width:${r.progress}%"></i></span><b>${r.progress}%</b></span><small>${esc(srcName(r.ip_entity_id))} 조합 시뮬레이션 · ${esc(r.step || '')}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+}
+function srcIps() {
+  const d = src.d, ids = Object.keys(d.pf).filter(id => byId(id)).sort((a, b) => (d.pf[b].ip_score ?? -1) - (d.pf[a].ip_score ?? -1));
+  const pend = rel.review.filter(r => r.kind === 'ip_candidate').length;
+  const list = ids.length ? `<div class="table-wrap"><table class="et src-t"><thead><tr><th>IP</th><th>IP 스코어</th><th>타이밍</th><th>팬덤 화력</th><th>권리구조</th><th>관계</th><th>다가오는 일정</th><th></th></tr></thead><tbody>${ids.map(id => {
+    const p = d.pf[id], P = Object.fromEntries((p.ip_score_parts || []).map(x => [x.key, x])), nx = srcNext(id);
+    return `<tr class="clickable${src.open === id ? ' on' : ''}" data-src-open="${id}" tabindex="0"><td><b>${esc(srcName(id))}</b>${byId(id)?.owned_ip ? ' <span class="pill good">당사 IP</span>' : ''}<small>${esc(IPK[p.ip_kind] || '')}${p.holder_entity_id ? ' · ' + esc(srcName(p.holder_entity_id)) : ''}</small></td><td>${srcScore(p.ip_score)}</td>${['timing', 'fandom', 'rights', 'relation'].map(k => `<td>${srcScore(P[k]?.score)}<small>${esc(P[k]?.basis || '')}</small></td>`).join('')}<td>${nx ? srcEv(nx) : '<small>—</small>'}</td><td><span class="ipc-more">${src.open === id ? '접기' : '자세히'}</span></td></tr>${src.open === id ? `<tr class="src-open"><td colspan="8">${srcDetail(id)}</td></tr>` : ''}`;
+  }).join('')}</tbody></table></div>` : `<div class="empty"><p>아직 이어진 IP가 없습니다. IP 차트 상위 IP가 「확인 대기」에 올라오면 엔티티로 등록해 주세요.</p></div>`;
+  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="#review">확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div></div>
+    <details class="ipc-how"><summary>IP 스코어 기준 — 어떻게 매기나요?</summary><div class="ipc-how-body"><p>타이밍 ${d.conf.weights?.timing ?? 30} · 팬덤 화력 ${d.conf.weights?.fandom ?? 30} · 권리구조 단순성 ${d.conf.weights?.rights ?? 15} · 관계 점수 ${d.conf.weights?.relation ?? 25} 비중으로 계산하고, 값이 없는 항목은 빼고 나머지 비중으로 나눕니다. 당사 귀속 IP는 100점입니다.</p>
+    <p><b>타이밍</b>: ${d.conf.timing_days ?? 180}일 안의 일정 — 30~120일 남은 확정 일정이 100점, 30일 안 60점, 그 뒤 80점, 지난 일주일 70점(예정은 ×0.85). 루머는 넣지 않습니다. <b>팬덤 화력</b>: 최근 3일 IP 차트 점수. <b>권리구조 단순성</b>: 담당자나 궁니르가 확인해 넣은 값만 씁니다. <b>관계 점수</b>: 권리사·라이선싱 대행사의 관계 점수.</p><p>점수가 바뀔 때마다 이유와 함께 기록이 남습니다.</p></div></details>${list}</section>`;
+}
+function srcDetail(id) {
+  const d = src.d, p = d.pf[id], evs = d.cal.filter(e => e.entity_id === id), als = d.al.filter(a => a.entity_id === id), sev = d.sev.filter(s => s.target_type === 'ip' && s.target_id === id).slice(0, 8);
+  const run = d.runs.find(r => r.ip_entity_id === id && ['wait', 'work'].includes(r.status)), nCb = d.cb.filter(c => c.ip_entity_id === id).length;
+  return `<div class="src-detail">
+    <section><h4>다가오는 일정 <small>${evs.length}건</small></h4>${evs.length ? `<ul class="src-ul">${evs.map(e => `<li>${srcEv(e)} <a href="${esc(e.source_url)}" target="_blank" rel="noopener">출처</a> <button class="text-btn" type="button" data-cal-hide="${e.id}">틀린 일정 숨기기</button></li>`).join('')}</ul>` : `<p class="ipc-muted">${p.calendar_checked_at ? '찾은 일정이 없습니다.' : '하루 한 번 웹에서 일정을 찾습니다. 곧 채워집니다.'}</p>`}</section>
+    <section><h4>별명 <small>${als.length}개</small></h4><div class="ipc-chips">${als.map(a => `<span class="ar-chip">${esc(a.text)} <small>${ALIAS_KO[a.kind] || ''}</small><button type="button" class="src-x" data-alias-del="${a.id}" aria-label="${esc(a.text)} 삭제">✕</button></span>`).join('') || '<span class="ipc-muted">없음</span>'}</div>
+      <div class="src-row"><input id="alias-in" placeholder="별명 입력" aria-label="별명"><select id="alias-kind" class="table-select" aria-label="종류">${Object.entries(ALIAS_KO).map(([k, t]) => `<option value="${k}" ${k === 'nickname' ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="button" type="button" data-alias-add="${id}">추가</button></div></section>
+    <section><h4>권리구조 단순성</h4><p class="ipc-muted">권리 보유사가 한 곳이고 승인이 빠를수록 높게(0~100). 확인한 값만 넣어 주세요.</p><div class="src-row"><input id="rights-in" type="number" min="0" max="100" value="${p.rights_simplicity ?? ''}" placeholder="미입력" aria-label="권리구조 단순성"><input id="rights-src" value="${esc(p.rights_source || '')}" placeholder="근거 (예: 궁니르 검토, 권리사 회신)" aria-label="근거"><button class="button" type="button" data-rights="${id}">저장</button></div></section>
+    <section><h4>스코어 기록</h4>${sev.length ? `<ul class="src-ul">${sev.map(s => `<li><time>${esc(ymd(s.occurred_at))}</time> ${s.before ?? '—'} → <b>${s.after}</b> <small>${esc(s.reason)}</small></li>`).join('')}</ul>` : '<p class="ipc-muted">아직 기록이 없습니다.</p>'}</section>
+    <section><h4>조합 시뮬레이션 ${nCb ? `<small>지금까지 ${nCb}개</small>` : ''}</h4>${run ? srcRun(run) : `<div class="src-row"><input id="combo-ins" placeholder="요청 사항 (선택 · 예: 편의점 채널 위주, 2027 봄)" aria-label="요청 사항"><button class="button primary" type="button" data-combo-run="${id}">조합 만들기</button></div>`}${nCb ? `<p><button class="text-btn" type="button" data-src-tab="combos" data-cf="${id}">이 IP 조합 보기 ↗</button></p>` : ''}</section>
+  </div>`;
+}
+function srcCombos() {
+  const d = src.d, f = src.cf, arr = d.cb.filter(c => (f === 'all' || c.ip_entity_id === f) && byId(c.ip_entity_id));
+  const ipIds = [...new Set(d.cb.map(c => c.ip_entity_id))].filter(byId);
+  const runs = d.runs.filter(r => ['wait', 'work'].includes(r.status)).map(srcRun).join('');
+  const fails = d.runs.filter(r => r.status === 'fail').slice(0, 1).map(r => `<div class="notice">${esc(srcName(r.ip_entity_id))} 조합 시뮬레이션을 하지 못했습니다${r.note ? ': ' + esc(r.note) : ''}. 다시 시도해 주세요.</div>`).join('');
+  const group = b => arr.filter(c => c.branch === b);
+  const card = c => { const sp = c.score_parts || {}, need = sp.need_path || [], brand = c.brand_entity_id ? srcName(c.brand_entity_id) : c.brand_name;
+    return `<li class="src-cb ${c.branch}"><div class="src-cb-head">${srcScore(c.combo_score)}<div><b>${esc(c.title || brand)}</b><small>${esc(srcName(c.ip_entity_id))} × ${esc(brand || '브랜드 미정')}${c.brand_entity_id ? '' : c.brand_name ? ' <span class="pill muted">미등록 브랜드</span>' : ''}</small></div><span class="pill ${c.branch === 'execute' ? 'good' : c.branch === 'dropped' ? 'muted' : ''}">${BR_KO[c.branch]}</span></div>
+      <dl class="src-dl"><dt>포맷</dt><dd>${esc(c.format || '—')}</dd><dt>캐릭터</dt><dd>${esc(c.character || '—')}</dd><dt>플랫폼</dt><dd>${esc(c.platform || '—')}</dd><dt>시즌</dt><dd>${esc(c.season || '—')}</dd></dl>
+      <p class="src-parts">IP 스코어 ${sp.ip_score ?? '미계산'} · 브랜드 적합도 ${sp.brand_fit ?? '—'} · 포맷 실행성 ${sp.format_feasibility ?? '—'} · 컨택 경로 ${sp.path_factor === 1 ? '양쪽 있음' : sp.path_factor ? '한쪽만' : '없음'}</p>
+      ${(c.contact_path || []).length ? `<p class="src-path">${(c.contact_path || []).map(x => `<span class="ar-chip">${esc(x.name)} · ${esc(x.via)}</span>`).join('')}</p>` : ''}
+      ${need.length ? `<p class="src-need">확보할 연락 경로: ${need.map(esc).join(' · ')}</p>` : ''}
+      ${c.rationale ? `<p>${esc(c.rationale)}</p>` : ''}
+      ${(sp.blockers || []).length ? `<p class="src-need">막히는 점: ${sp.blockers.map(esc).join(' · ')}</p>` : ''}
+      ${(c.conditions || []).length && c.branch !== 'execute' ? `<p class="ipc-muted">이렇게 되면 가능: ${c.conditions.map(esc).join(' · ')}</p>` : ''}
+      ${(c.sources || []).length ? `<details><summary>근거 ${c.sources.length}개</summary><ul class="src-ul">${c.sources.map(s => `<li>${esc(s.claim || '')} <a href="${esc(s.url)}" target="_blank" rel="noopener">출처</a></li>`).join('')}</ul></details>` : ''}
+      <div class="rq-acts">${c.branch === 'dropped' ? `<button class="button" type="button" data-cb-branch="${c.id}|monitor">다시 감시</button>` : `<button class="button" type="button" data-cb-branch="${c.id}|dropped">이 조합 제외</button>`}</div></li>`; };
+  const sec = (b, t, note) => { const g = group(b); return g.length ? `<h4 class="rq-kind">${t} <small>${g.length}개</small>${note ? ` · <small>${note}</small>` : ''}</h4><ul class="src-cbs">${g.map(card).join('')}</ul>` : ''; };
+  return `${runs}${fails}<section class="panel"><div class="panel-head"><div class="panel-title">조합 <small>${arr.length}개</small></div>${ipIds.length > 1 ? `<select class="table-select" id="cf-sel" aria-label="IP">${[['all', '모든 IP'], ...ipIds.map(i => [i, srcName(i)])].map(([k, t]) => `<option value="${k}" ${f === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}</div>
+    <details class="ipc-how"><summary>조합 스코어 기준</summary><div class="ipc-how-body"><p>IP 스코어 × 브랜드 적합도 × 포맷 실행성을 곱해 100점 기준으로 맞추고(세제곱근), 컨택 경로를 곱합니다 — IP 쪽(권리사·대행사)과 브랜드 쪽 모두 등록된 담당자·관계 담당자·관계 단계가 있으면 그대로, 한쪽만 있으면 0.6배, <b>없으면 0점</b>입니다. ${d.conf.execute_threshold ?? 60}점 이상이고 막히는 점이 없으면 「실행 가능」, 나머지는 「모니터링」으로 두고 조건이 맞으면 다시 계산합니다. ${d.conf.warn_threshold ?? 70}점을 넘으면 워닝을 냅니다. 채택은 사람이 결정합니다.</p></div></details>
+    ${arr.length ? sec('execute', '실행 가능') + sec('monitor', '모니터링', '조건이 맞으면 다시 계산') + sec('dropped', '제외') : '<div class="empty"><p>아직 만든 조합이 없습니다. 「IP 스코어」에서 IP를 열고 「조합 만들기」를 눌러 주세요.</p></div>'}</section>`;
+}
+function srcWarn() {
+  const d = src.d, cb = id => d.cb.find(c => c.id === id), open = d.watch.filter(w => w.status === 'watching'), met = d.watch.filter(w => w.status === 'met').slice(0, 20);
+  const wLabel = w => { const c = cb(Number(w.target_ref)); return c ? `${esc(c.title || '')} · ${esc(srcName(c.ip_entity_id))}` : ''; };
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">워닝 <small>${d.warn.length}건</small></div></div>${d.warn.length ? `<ul class="rq-list">${d.warn.map(w => `<li class="rq-item${w.acknowledged_at ? ' done' : ''}"><div><span class="pill ${w.kind === 'threshold' ? 'good' : ''}">${w.kind === 'threshold' ? '점수 도달' : w.kind === 'watch' ? '감시 조건 충족' : '부활 후보'}</span> <b>${esc(w.message)}</b>${(w.contact_path || []).length ? `<small>연락 경로: ${w.contact_path.map(x => esc(x.name + ' · ' + x.via)).join(' / ')}</small>` : ''}<time>${esc(ymd(w.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-src-tab="combos" data-cf="${cb(w.combination_id)?.ip_entity_id || 'all'}">조합 보기</button>${w.acknowledged_at ? '<span class="pill muted">확인함</span>' : `<button class="button primary" type="button" data-warn-ack="${w.id}">확인</button>`}</span></li>`).join('')}</ul>` : '<div class="empty"><p>아직 워닝이 없습니다. 조합 점수가 기준을 넘거나 감시 조건이 맞으면 여기에 쌓입니다. 같은 조합은 7일 안에 다시 알리지 않습니다.</p></div>'}</section>
+    <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">감시 중 <small>${open.length}건</small></div></div>${open.length ? `<ul class="rq-list">${open.map(w => `<li class="rq-item"><div><b>${esc(w.label)}</b><small>${wLabel(w)}</small>${w.expires_on ? `<time>${esc(dotDate(w.expires_on))}까지</time>` : ''}</div></li>`).join('')}</ul>` : '<div class="empty"><p>감시 중인 조건이 없습니다.</p></div>'}
+    ${met.length ? `<h4 class="rq-kind">충족된 조건</h4><ul class="rq-list">${met.map(w => `<li class="rq-item done"><div><b>${esc(w.label)}</b><small>${wLabel(w)} · ${esc(w.met_note || '')}</small><time>${esc(ymd(w.met_at))}</time></div></li>`).join('')}</ul>` : ''}</section>`;
+}
+function srcPoll() {
+  clearTimeout(src.poll);
+  if (!src.d?.runs?.some(r => ['wait', 'work'].includes(r.status))) return;
+  src.poll = setTimeout(async () => {
+    if (page !== 'chart' || src.tab === 'chart') return;
+    const { data } = await SB.from('pt_combo_run').select('id,ip_entity_id,status,progress,step,note,at').order('at', {ascending: false}).limit(20);
+    const was = src.d.runs.filter(r => ['wait', 'work'].includes(r.status)).map(r => r.id);
+    src.d.runs = data || src.d.runs;
+    const fin = src.d.runs.find(r => was.includes(r.id) && ['done', 'fail'].includes(r.status));
+    if (fin) { await loadSrc(); render(); if (fin.status === 'done') toast(`${srcName(fin.ip_entity_id)} ${fin.step}를 만들었습니다.`); return; }
+    $$('[data-src-run]').forEach(el => { const r = src.d.runs.find(x => String(x.id) === el.dataset.srcRun); if (r) el.outerHTML = srcRun(r); });
+    srcPoll();
+  }, 3000);
+}
+function bindSrc() {
+  $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
+  if (src.tab === 'chart') return bindChart();
+  srcPoll();
+  $$('[data-src-open]').forEach(b => { const go = () => { src.open = src.open === b.dataset.srcOpen ? '' : b.dataset.srcOpen; render(); }; b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
+  $('#cf-sel')?.addEventListener('change', e => { src.cf = e.target.value; render(); });
+  const redo = async msg => { await loadSrc(); render(); if (msg) toast(msg); };
+  $$('[data-cal-hide]').forEach(b => b.onclick = async () => {
+    const id = Number(b.dataset.calHide); b.disabled = true;
+    const { error } = await SB.from('pt_calendar_event').update({hidden: true}).eq('id', id);
+    if (error) { b.disabled = false; return toast('숨기지 못했습니다: ' + error.message); }
+    await redo(); toast('일정을 숨겼습니다. 다음 스코어 계산부터 빠집니다.', {fn: async () => { await SB.from('pt_calendar_event').update({hidden: false}).eq('id', id); await redo('되돌렸습니다.'); }});
+  });
+  $$('[data-alias-add]').forEach(b => b.onclick = async () => {
+    const t = $('#alias-in').value.trim(); if (!t) return toast('별명을 입력해 주세요.');
+    b.disabled = true;
+    const { error } = await SB.from('pt_alias').insert({entity_id: b.dataset.aliasAdd, text: t, kind: $('#alias-kind').value});
+    if (error) { b.disabled = false; return toast(/duplicate|23505/.test(error.message) ? '이미 있는 별명입니다.' : '추가하지 못했습니다: ' + error.message); }
+    redo('별명을 추가했습니다.');
+  });
+  $$('[data-alias-del]').forEach(b => b.onclick = async () => {
+    const a = src.d.al.find(x => String(x.id) === b.dataset.aliasDel); if (!a) return;
+    const { error } = await SB.from('pt_alias').delete().eq('id', a.id);
+    if (error) return toast('삭제하지 못했습니다: ' + error.message);
+    await redo(); toast(`「${a.text}」 별명을 삭제했습니다.`, {fn: async () => { const r = await SB.from('pt_alias').insert({entity_id: a.entity_id, text: a.text, kind: a.kind, member_of: a.member_of, source_url: a.source_url}); if (r.error) throw r.error; await redo('되돌렸습니다.'); }});
+  });
+  $$('[data-rights]').forEach(b => b.onclick = async () => {
+    const v = $('#rights-in').value.trim(), n = v === '' ? null : Number(v);
+    if (n != null && !(n >= 0 && n <= 100)) return toast('0~100 사이로 입력해 주세요.');
+    b.disabled = true;
+    const { error } = await SB.rpc('pt_ip_rights', {p_entity: b.dataset.rights, p_value: n, p_source: $('#rights-src').value.trim()});
+    if (error) { b.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
+    redo(n == null ? '미입력으로 저장했습니다.' : '저장했습니다. 5분 안에 스코어에 반영됩니다.');
+  });
+  $$('[data-combo-run]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const { error } = await SB.from('pt_combo_run').insert({ip_entity_id: b.dataset.comboRun, instruction: $('#combo-ins')?.value.trim() || '', status: 'wait'});
+    if (error) { b.disabled = false; return toast('요청하지 못했습니다: ' + error.message); }
+    await redo('조합 시뮬레이션을 요청했습니다. 판테온 봇이 곧 시작합니다.');
+  });
+  $$('[data-cb-branch]').forEach(b => b.onclick = async () => {
+    const [id, br] = b.dataset.cbBranch.split('|'); b.disabled = true;
+    const { error } = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br});
+    if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
+    await redo(); toast(br === 'dropped' ? '조합을 제외했습니다. 감시도 멈춥니다.' : '다시 감시합니다.', {fn: async () => { const r = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br === 'dropped' ? 'monitor' : 'dropped'}); if (r.error) throw r.error; await redo('되돌렸습니다.'); }});
+  });
+  $$('[data-warn-ack]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const { error } = await SB.rpc('pt_warning_ack', {p_id: Number(b.dataset.warnAck)});
+    if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
+    redo('확인했습니다.');
+  });
+}
 // 순위 기록 그래프 — 1위가 위 · 점에 마우스를 올리면 그때 순위
 function ipRankSvg(log) {
   if (log.length < 2) return '<p class="ipc-muted">기록이 두 번 이상 쌓이면 순위 그래프가 나옵니다.</p>';
@@ -2315,7 +2480,7 @@ function bindContent() {
   $$('[data-stat]').forEach(b => { const open = () => { const v = b.dataset.stat; if (v === 'contacts') return go('contacts'); go('entities'); if (v === LINKED) entState = '담당자 있음'; else filter = v; render(); }; b.onclick = open; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } }; });
   $$('[data-detail]').forEach(b => { b.onclick = () => openDetail(b.dataset.detail); b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(b.dataset.detail); } }; });
   $('#admin-export')?.addEventListener('click', exportCSV);
-  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'review') bindReview(); if (page === 'studio') bindStudio(); if (page === 'chart') bindChart();
+  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'review') bindReview(); if (page === 'studio') bindStudio(); if (page === 'chart') bindSrc();
 }
 
 /* ---------- 로그인 ---------- */
