@@ -2400,7 +2400,10 @@ function ipChg(r) {
 function chartView() {
   if (!ipc.rows) { setTimeout(loadChart); return '<div class="empty"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   const per = IPP.find(p => p[0] === ipc.period);
-  const rows = ipc.rows.filter(r => ipc.ips[r.ip] && !ipc.ips[r.ip].hidden && (ipc.kind === 'all' || ipc.ips[r.ip].kind === ipc.kind));
+  // 종류를 고르면 그 종류 안에서 1위부터 다시 매기고, ▲▼도 그 종류 안의 이전 순위와 비교 (11-02 김현우)
+  const vis = ipc.rows.filter(r => ipc.ips[r.ip] && !ipc.ips[r.ip].hidden && (ipc.kind === 'all' || ipc.ips[r.ip].kind === ipc.kind)).sort((x, y) => x.pos - y.pos);
+  const prevIn = ipc.kind === 'all' ? null : Object.fromEntries(vis.filter(r => r.prev_pos != null).sort((x, y) => x.prev_pos - y.prev_pos).map((r, i) => [r.ip, i + 1]));
+  const rows = prevIn ? vis.map((r, i) => ({...r, pos: i + 1, prev_pos: r.prev_pos == null ? null : prevIn[r.ip]})) : vis;
   const kinds = ['all', ...Object.keys(IPK).filter(k => k !== 'other' && ipc.rows.some(r => ipc.ips[r.ip]?.kind === k))];
   const basis = ipc.rows[0]?.basis, busy = ['wait', 'work'].includes(ipc.run?.status);
   const seg = (items, cur, attr) => items.map(([k, t]) => `<button type="button" class="${cur === k ? 'on' : ''}" aria-pressed="${cur === k}" data-${attr}="${k}">${t}</button>`).join('');
