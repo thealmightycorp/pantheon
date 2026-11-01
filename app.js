@@ -2248,7 +2248,7 @@ function studioProjectModal(p) {
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
   $('#sp-color').oninput = () => { $('input[name=sp-acc][value=pick]').checked = true; };
   const note = (inp, out) => { const e = entityByName($(inp).value); $(out).innerHTML = $(inp).value.trim() ? (e ? `<b>등록된 연락처 있음</b> · 이그드라실 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 이그드라실 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
-  ['#sp-a', '#sp-b'].forEach((s, i) => { $(s).oninput = () => note(s, i ? '#sp-b-note' : '#sp-a-note'); note(s, i ? '#sp-b-note' : '#sp-a-note'); });
+  if (!lockIp) ['#sp-a', '#sp-b'].forEach((s, i) => { $(s).oninput = () => note(s, i ? '#sp-b-note' : '#sp-a-note'); note(s, i ? '#sp-b-note' : '#sp-a-note'); });
   $('#sp-form').onsubmit = async ev => {
     ev.preventDefault();
     const a = $('#sp-a').value.trim(), mode = $('input[name=sp-mode]:checked').value, b = mode === 'collab' ? $('#sp-b').value.trim() : '';
