@@ -448,7 +448,7 @@ footer{display:none}
 .pv-steps li.skip{opacity:.45}.pv-steps li.skip b{text-decoration:line-through}
 .pv-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
 .pv-col{min-width:0}.pv-side .detail-block{background:#f8faf7;border:1px solid #e8ede7;border-radius:10px;padding:14px 16px;margin-top:16px}
-.pv-side .detail-block h3{display:flex;justify-content:space-between;align-items:center;gap:8px}.pv-side .detail-row{flex-wrap:wrap}.pv-side .detail-row b{text-align:right;word-break:keep-all}
+dialog input:disabled,dialog select:disabled{background:#f1f3f0;color:#6b766e;cursor:not-allowed}.pv-side .detail-block h3{display:flex;justify-content:space-between;align-items:center;gap:8px}.pv-side .detail-row{flex-wrap:wrap}.pv-side .detail-row b{text-align:right;word-break:keep-all}
 .pv-decide{border:1px solid #cfe0d4;border-left:4px solid #285541;border-radius:10px;padding:16px 18px;background:#fff}
 .pv-decide textarea{width:100%;margin-top:8px}
 .pv-decide .qa-box{max-height:280px;overflow:auto}
