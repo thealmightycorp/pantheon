@@ -286,8 +286,8 @@ function openDetail(id, keep) {
   if (!keep) setRoute(id);
   if (isContact(e)) return openContact(e, keep);
   const cs = contactsOf(e), parent = e.parentId && byId(e.parentId);
-  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + timelineBlock(evOf(e.id)) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
-  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e);
+  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
+  $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e); bindKn(e);
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
@@ -315,6 +315,8 @@ async function loadRel() {
   const [d, s, ev, rq] = await Promise.all([SB.from('pt_directory').select('*'), SB.from('pt_rel_state').select('*'),
     SB.from('pt_rel_event').select('*').order('occurred_on', {ascending: false}).order('id', {ascending: false}).limit(3000),
     SB.from('pt_review_queue').select('*').eq('status', 'pending').order('created_at', {ascending: false}).limit(500)]);
+  const [wk, rl] = await Promise.all([SB.from('pt_wiki_page').select('*'), SB.from('pt_relation').select('*').limit(5000)]);
+  rel.wiki = Object.fromEntries((wk.data || []).map(x => [x.entity_id, x])); rel.relations = rl.data || [];
   rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
   rel.events = ev.data || []; rel.review = rq.data || [];
 }
@@ -464,14 +466,14 @@ function cardWhereModal(c) {
 }
 
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
-const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안'};
+const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
 const reviewCount = () => rel.review.length + hints().length;
 function reviewView() {
   const hs = hints(), byKind = {};
   rel.review.forEach(r => (byKind[r.kind] ||= []).push(r));
   const P = r => r.payload || {}, from = r => `<small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 「${esc(P(r).meeting || '')}」</small>`;
-  const card = r => r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id)}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
+  const card = r => ['wiki', 'distill'].includes(r.kind) ? wikiCard(r) : r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id)}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
     : r.kind === 'ip_candidate' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).name || r.title)}</b>${P(r).name_en && P(r).name_en !== P(r).name ? ` <span>${esc(P(r).name_en)}</span>` : ''} <span class="pill">${esc(IPK[P(r).kind] || '')}</span><small>IP 차트 ${P(r).chart === 'new' ? '신규' : '전체'} ${esc(P(r).rank)}위${P(r).owner ? ' · ' + esc(P(r).owner) : ''}${P(r).holder_entity_id && byId(P(r).holder_entity_id) ? ' · 권리사 ' + esc(byId(P(r).holder_entity_id).name) : ''}</small>${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ipent="${r.id}" aria-label="연결할 IP 엔티티"><option value="">새 엔티티로 등록</option>${entities().filter(e => e.type === 'IP·유명인').sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(e => `<option value="${e.id}" ${e.id === r.target_id ? 'selected' : ''}>${esc(e.name)}에 연결</option>`).join('')}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-ip="${r.id}">반영</button></span></li>`
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
@@ -510,6 +512,7 @@ function bindReview() {
       onSaved: async (c, org) => { const { error } = await SB.rpc('pt_review_decide', {p_id: r.id, p_status: 'approved', p_note: '', p_entity: org?.id || null, p_contact: c.id}); if (error) toast('연락처는 등록했지만 확인 대기 처리를 하지 못했습니다: ' + error.message); }});
   });
   $$('[data-rq-stage]').forEach(b => b.onclick = () => { const [id, s, ev] = b.dataset.rqStage.split('|'); const e = byId(id); if (e) stageModal(e, {s, ev: Number(ev)}); });
+  bindKw();
 }
 
 /* ---------- 내부 담당자 입력 (헤임달 참석자 입력과 같은 방식) ----------
@@ -759,14 +762,14 @@ function contactModal(pre = {}) {
 }
 
 /* ---------- 질문하기 (사무실 PC 판테온 봇 → Claude) ---------- */
-function renderAnswer(text) {
+function renderAnswer(text, sources) {
   let html = '', inList = false;
   for (let ln of esc(text).split(/\n/)) {
-    ln = ln.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/「([^」]{1,40})」/g, (m, n) => { const e = all.find(x => [x.name, x.en, ...x.aliases].filter(Boolean).some(a => a.toLowerCase() === n.toLowerCase())); return e ? `<button class="ref" type="button" data-open="${e.id}">${n}</button>` : m; });
+    ln = ln.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/「([^」]{1,40})」/g, (m, n) => { const e = all.find(x => [x.name, x.en, ...x.aliases].filter(Boolean).some(a => a.toLowerCase() === n.toLowerCase())); return e ? `<button class="ref" type="button" data-open="${e.id}">${n}</button>` : m; }).replace(/\[(\d{1,3})\]/g, '<sup class="cite">$1</sup>');
     if (/^\s*[-•*]\s+/.test(ln)) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${ln.replace(/^\s*[-•*]\s+/, '')}</li>`; }
     else { if (inList) { html += '</ul>'; inList = false; } if (ln.trim()) html += `<p>${ln}</p>`; }
   }
-  return html + (inList ? '</ul>' : '');
+  return html + (inList ? '</ul>' : '') + srcList(sources);
 }
 function bindAsk() {
   const btn = $('#ask-btn'); if (!btn) return;
@@ -783,9 +786,142 @@ async function ask() {
     if (error) throw error;
     const res = await waitAsk(data.id, s => { const p = out.querySelector('.muted:last-child'); if (p) p.textContent = `판테온 봇이 답변을 작성하는 중입니다… ${s}초`; }, 150);
     out.innerHTML = head + (!res ? '<div class="warn">판테온 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
-      : res.status === 'done' ? renderAnswer(res.answer) : '<div class="warn">답변을 작성하지 못했습니다. 잠시 후 다시 질문해 주세요.</div>');
+      : res.status === 'done' ? renderAnswer(res.answer, res.result?.sources) : '<div class="warn">답변을 작성하지 못했습니다. 잠시 후 다시 질문해 주세요.</div>');
   } catch (e) { out.innerHTML = head + `<div class="warn">질문을 전송하지 못했습니다: ${esc(e?.message || '')}</div>`; }
   finally { lastAnswer = out.innerHTML; $('#ask-btn').disabled = false; bindAsk(); }
+}
+
+/* ---------- 지식 관리 (11-01 · Phase 3 · sql/019) — 위키 · 연결 관계 · 출처 붙은 답 · 지식 점검 ----------
+   위키 수정은 확인 대기(wiki)를 거쳐 관계 담당자가 반영 — 반영할 수 있는 사람이 쓰면 바로 반영(되돌리기 8초) · 봇 초안(distill)도 같은 카드 */
+const VERB = {collaborates: '협업', licenses: '라이선스 제공', launches: '출시', exhibits: '전시', sells: '판매', produces: '제작', distributes: '유통', invests: '투자', represents: '대리·매니지먼트', owns: '보유'};
+const wikiOf = id => rel.wiki?.[id];
+const relsOf = id => (rel.relations || []).filter(r => r.subject_id === id || r.object_id === id);
+const canWiki = e => !!e && canRel(e);
+const WIKI_TPL = '## 개요\n\n## 협업 이력\n\n## 알아 둘 점\n';
+function mdHtml(md) {
+  let html = '', inList = false;
+  for (const raw of String(md || '').split(/\n/)) {
+    const ln = esc(raw).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[(\d{1,3})\]/g, '<sup class="cite">$1</sup>'), h = raw.match(/^#{1,3}\s+(.+)/);
+    if (h) { if (inList) { html += '</ul>'; inList = false; } html += `<h4>${esc(h[1])}</h4>`; continue; }
+    if (/^\s*[-•*]\s+/.test(raw)) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${ln.replace(/^\s*[-•*]\s+/, '')}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (raw.trim()) html += `<p>${ln}</p>`;
+  }
+  return html + (inList ? '</ul>' : '');
+}
+const safeUrl = u => /^https?:\/\//.test(u || '') ? u : '';
+function srcList(list, title = '출처') {
+  if (!list?.length) return '';
+  return `<div class="kn-src"><small>${title}</small><ol>${list.map((s, i) => { const n = s.n || i + 1, u = safeUrl(s.url), ent = s.entity_id && byId(s.entity_id);
+    return `<li value="${n}">${ent && !u ? `<button class="ref" type="button" data-open="${esc(s.entity_id)}">${esc(s.label)}</button>` : u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(s.label)}</a>` : esc(s.label)}</li>`; }).join('')}</ol></div>`;
+}
+function wikiBlock(e) {
+  const w = wikiOf(e.id), pend = rel.review.filter(r => ['wiki', 'distill'].includes(r.kind) && r.target_id === e.id).length;
+  return `<div class="detail-block kn-wiki"><div class="rl-head"><h3>위키 ${w ? `<small>${w.version}판 · ${esc(ymd(w.updated_at))}${w.updated_via === 'distill' ? ' · 지식 정리' : ''}</small>` : ''}${w?.confidentiality === 'restricted' ? ' <span class="pill warn">관계 담당자만 열람</span>' : ''}</h3><button class="button" type="button" id="wiki-edit">${icon('plus')} ${w ? '위키 수정' : '위키 작성'}</button></div>
+    ${pend ? `<p class="rl-note">검토 중인 수정 ${pend}건 · <button class="text-btn" type="button" id="wiki-pend">확인 대기에서 보기</button></p>` : ''}
+    ${w ? `<div class="kn-md">${mdHtml(w.md)}</div>${srcList(w.sources)}` : '<p>아직 위키가 없습니다. 이 거래처와 함께한 일·알아 둘 점을 정리해 두면 질문 답변의 근거로 쓰입니다.</p>'}</div>`;
+}
+function relationsBlock(e) {
+  const rs = relsOf(e.id), who = id => id === e.id ? `<b>${esc(e.name)}</b>` : `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
+  return `<div class="detail-block"><div class="rl-head"><h3>연결 관계 <small>${rs.length}건</small></h3><button class="button" type="button" id="kr-add">${icon('plus')} 관계 추가</button></div>
+    ${rs.length ? `<ul class="kn-rel">${rs.map(r => `<li><span>${who(r.subject_id)} <em>${esc(VERB[r.verb] || r.verb)}</em> ${who(r.object_id)}</span><small>${esc([[r.valid_from, r.valid_to].filter(Boolean).join(' ~ '), r.note].filter(Boolean).join(' · '))}</small>${safeUrl(r.source_url) ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener">출처</a>` : '<span class="pill warn">출처 없음</span>'}${r.created_by === me?.id || isAdmin ? `<button type="button" class="text-btn" data-kr-del="${r.id}">삭제</button>` : ''}</li>`).join('')}</ul>`
+      : '<p>회사·브랜드·IP 사이의 협업·라이선스·매니지먼트·보유 관계를 기록합니다.</p>'}</div>`;
+}
+function parseSources(text) {
+  return String(text || '').split(/\n/).map(l => l.trim()).filter(Boolean).map(l => { const u = (l.match(/https?:\/\/\S+/) || [''])[0]; const label = l.replace(u, '').replace(/[|·\-–]\s*$/, '').trim(); return {label: label || u, url: u}; });
+}
+function wikiModal(e) {
+  const w = wikiOf(e.id), own = canWiki(e);
+  modal(`<form id="wk-form" class="kn-form"><h2>${esc(e.name)} 위키 ${w ? '수정' : '작성'}</h2><p>${own ? '저장하면 바로 위키에 반영됩니다. 바뀐 내용은 판 기록으로 남습니다.' : '저장하면 확인 대기에 올라가고, 관계 담당자가 반영하면 위키가 바뀝니다.'}</p>
+    <label>내용 <small>「## 제목」으로 섹션을 나눕니다. 사실 끝에 [1]처럼 출처 번호를 붙여 주세요.</small><textarea id="wk-md" rows="14">${esc(w?.md || WIKI_TPL)}</textarea></label>
+    <label>출처 <small>한 줄에 하나 · 「이름 https://…」 (번호는 위에서부터 1, 2, 3…)</small><textarea id="wk-src" rows="4" placeholder="SM 공식 발표 https://…">${esc((w?.sources || []).map(s => [s.label, s.url].filter(Boolean).join(' ')).join('\n'))}</textarea></label>
+    ${own ? `<label>열람 범위<select id="wk-conf"><option value="internal" ${w?.confidentiality !== 'restricted' ? 'selected' : ''}>전 직원</option><option value="restricted" ${w?.confidentiality === 'restricted' ? 'selected' : ''}>관계 담당자·DB 관리자만</option></select></label>` : ''}
+    <label>무엇을 바꿨는지 <input id="wk-sum" type="text" maxlength="120" placeholder="예: 11월 미팅 내용 추가"></label>
+    <div id="wk-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${own ? '위키에 반영' : '확인 대기에 올리기'}</button></div></form>`);
+  $('#wk-form').onsubmit = async ev => {
+    ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
+    const { data: rid, error } = await SB.rpc('pt_wiki_propose', {p_entity: e.id, p_md: $('#wk-md').value, p_sources: parseSources($('#wk-src').value), p_conf: own ? $('#wk-conf').value : null, p_summary: $('#wk-sum').value.trim()});
+    if (error) { if (btn) btn.disabled = false; $('#wk-err').textContent = error.message; return; }
+    if (own) { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'approved', p_note: ''}); if (r.error) { if (btn) btn.disabled = false; $('#wk-err').textContent = r.error.message; return; } }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
+    toast(own ? '위키에 반영했습니다.' : '확인 대기에 올렸습니다. 관계 담당자가 반영하면 위키가 바뀝니다.', own ? {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'rejected', p_note: '되돌림'}); await relReload(e.id); toast('되돌렸습니다.'); }} : undefined);
+  };
+}
+function relationModal(e) {
+  const opts = sel => entities().filter(x => !isContact(x)).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)} · ${esc(x.type)}</option>`).join('');
+  modal(`<form id="kr-form" class="kn-form"><h2>관계 추가</h2><p>「누가 · 무엇을 · 누구와」로 적습니다. 출처가 있으면 함께 남겨 주세요.</p>
+    <label>누가<select id="kr-s">${opts(e.id)}</select></label>
+    <label>관계<select id="kr-v">${Object.entries(VERB).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
+    <label>누구와 · 무엇을<select id="kr-o"><option value="">선택</option>${opts('')}</select></label>
+    <div class="kn-two"><label>시작일<input id="kr-f" type="date"></label><label>종료일<input id="kr-t" type="date"></label></div>
+    <label>출처 주소<input id="kr-u" type="url" placeholder="https://…"></label>
+    <label>메모<input id="kr-n" type="text" maxlength="200"></label>
+    <div id="kr-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 저장</button></div></form>`);
+  $('#kr-form').onsubmit = async ev => {
+    ev.preventDefault(); const s = $('#kr-s').value, o = $('#kr-o').value;
+    if (!o || s === o) { $('#kr-err').textContent = '서로 다른 두 엔티티를 골라 주세요.'; return; }
+    const row = {subject_id: s, verb: $('#kr-v').value, object_id: o, valid_from: $('#kr-f').value || null, valid_to: $('#kr-t').value || null, source_url: $('#kr-u').value.trim(), note: $('#kr-n').value.trim()};
+    const { error } = await SB.from('pt_relation').insert(row);
+    if (error) { $('#kr-err').textContent = /unique|duplicate/i.test(error.message) ? '같은 관계가 이미 있습니다.' : /source_url/.test(error.message) ? '출처 주소는 http로 시작해야 합니다.' : error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id); toast('관계를 저장했습니다.');
+  };
+}
+function bindKn(e) {
+  $('#wiki-edit')?.addEventListener('click', () => wikiModal(e));
+  $('#wiki-pend')?.addEventListener('click', () => { closeDrawer(); go('review'); });
+  $('#kr-add')?.addEventListener('click', () => relationModal(e));
+  $$('[data-kr-del]').forEach(b => b.onclick = async () => {
+    const x = (rel.relations || []).find(v => String(v.id) === b.dataset.krDel); if (!x) return;
+    const { error } = await SB.from('pt_relation').delete().eq('id', x.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
+    await relReload(e.id);
+    toast('관계를 삭제했습니다.', {fn: async () => { const {id, created_by, captured_at, ...row} = x; const r = await SB.from('pt_relation').insert(row); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }});
+  });
+}
+// 위키 바뀌는 내용 — 줄 단위 비교 (지운 줄 · 넣은 줄)
+function diffHtml(a, b) {
+  const x = String(a || '').split('\n'), y = String(b || '').split('\n'), n = x.length, m = y.length;
+  const L = Array.from({length: n + 1}, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && x[i] === y[j]) { out.push(['', x[i]]); i++; j++; }
+    else if (j < m && (i >= n || L[i][j + 1] >= L[i + 1][j])) out.push(['add', y[j++]]);
+    else out.push(['del', x[i++]]);
+  }
+  return `<pre class="kn-diff">${out.filter(([k, t]) => k || t.trim()).map(([k, t]) => `<span class="${k}">${k === 'add' ? '+ ' : k === 'del' ? '− ' : '  '}${esc(t)}</span>`).join('\n')}</pre>`;
+}
+function wikiCard(r) {
+  const P = r.payload || {}, e = byId(r.target_id);
+  return `<li class="rq-item rq-wide"><div><b>${esc(e?.name || r.title)}</b> <span class="pill">${r.kind === 'distill' ? '지식 정리 초안' : '위키 수정'}</span>${P.summary ? `<small>${esc(P.summary)}</small>` : ''}<small>${r.kind === 'distill' ? esc(P.from || '') : '제안 ' + esc(memberName(P.by) || '직원')} · ${esc(ymd(r.created_at))}</small><details class="kn-diffbox"><summary>바뀌는 내용 보기</summary>${diffHtml(wikiOf(r.target_id)?.md || '', P.md || '')}${srcList(P.sources, '출처')}</details></div>
+    <span class="rq-acts">${canWiki(e) ? `<button class="button" type="button" data-kw="${r.id}|rejected">제외</button><button class="button primary" type="button" data-kw="${r.id}|approved">위키에 반영</button>` : '<small>관계 담당자가 반영합니다</small>'}</span></li>`;
+}
+function bindKw() {
+  $$('[data-kw]').forEach(b => b.onclick = async () => {
+    const [id, st] = b.dataset.kw.split('|'); b.disabled = true;
+    const { error } = await SB.rpc('pt_wiki_decide', {p_id: Number(id), p_status: st, p_note: ''});
+    if (error) { b.disabled = false; return toast((st === 'approved' ? '반영하지 못했습니다: ' : '제외하지 못했습니다: ') + error.message); }
+    await loadRel(); render();
+    toast(st === 'approved' ? '위키에 반영했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('되돌렸습니다.'); }});
+  });
+}
+// 지식 점검 (K-07) — 봇이 매주 월요일 09시에 만든 결과
+const KH = [['no_wiki', '위키 없는 활성 거래처', '관계 단계가 있거나 최근 180일 안에 접촉한 곳'], ['no_source', '출처 없는 사실', '위키·연결 관계·관계 근거에 출처가 없는 곳'],
+  ['stale', '90일 접촉 없는 제안 이상 관계', 'R3 이상인데 마지막 접촉이 90일을 넘음'], ['no_alias', '별명이 빈 IP', '별명 사전에 아무것도 없는 IP·유명인']];
+async function loadHealth() {
+  const { data, error } = await SB.from('pt_health_report').select('*').order('week_of', {ascending: false}).limit(1);
+  admin.health = error ? {err: error.message} : (data[0] || {none: true}); render();
+}
+function healthPanel() {
+  if (!admin.health) { setTimeout(loadHealth); return '<div class="empty"><p>지식 점검 결과를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  const h = admin.health;
+  if (h.err) return `<div class="notice">결과를 불러오지 못했습니다: ${esc(h.err)}</div>`;
+  if (h.none) return '<div class="empty"><p>아직 점검 결과가 없습니다. 판테온 봇이 매주 월요일 오전 9시에 점검합니다.</p></div>';
+  const it = h.items || {};
+  return `<div class="quality-grid">${KH.map(([k, t, d]) => `<div class="stat"><div class="stat-label">${t}</div><div class="stat-value">${(it[k] || []).length}<small>곳</small></div><div class="stat-bottom">${d}</div></div>`).join('')}</div>
+    <p class="rl-note">${esc(h.week_of)} 주 점검 · ${esc(kst(h.created_at))}</p>
+    ${KH.map(([k, t]) => (it[k] || []).length ? `<section class="panel" style="margin-top:12px"><div class="panel-head"><div class="panel-title">${t} <small>${it[k].length}</small></div></div><ul class="rq-list">${it[k].map(x => `<li class="rq-item"><div><b>${esc(x.name)}</b>${x.why ? `<small>${esc(x.why)}</small>` : ''}</div><span class="rq-acts">${byId(x.id) ? `<button class="button" type="button" data-detail="${esc(x.id)}">상세</button>` : ''}</span></li>`).join('')}</ul></section>` : '').join('')}`;
 }
 
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
@@ -812,13 +948,14 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
   if (admin.tab === 'quality') return tabs + qualityPanel();
   if (admin.tab === 'bot') return tabs + botPanel();
   if (admin.tab === 'score') return tabs + scorePanel();
+  if (admin.tab === 'knowledge') return tabs + healthPanel();
   const people = [...new Set(admin.changes.map(x => x.actor || '(화면 밖)'))];
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
   return tabs + `
