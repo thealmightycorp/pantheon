@@ -1221,12 +1221,14 @@ const entityByName = name => { const n = normCo(name); return n.length < 2 ? nul
 async function loadStudio() {
   if (studio.loading) return; studio.loading = true; studio.err = '';
   try {
-    const [p, r, j] = await Promise.all([
+    const [p, r, j, cj] = await Promise.all([
       SB.from('pt_proposal').select('*').order('updated_at', {ascending: false}),
       SB.from('pt_proposal_ref').select('*').eq('hidden', false).order('created_at', {ascending: false}),
-      SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work']), loadMembers()]);
+      SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work']), loadMembers(),
+      SB.from('pt_proposal_job').select('id,proposal_id,kind,status,at,error,input').eq('status', 'fail').like('error', '%취소%').order('at', {ascending: false}).limit(200)]);
     if (p.error) throw p.error; if (r.error) throw r.error; if (j.error) throw j.error;
     studio.list = p.data; studio.refs = r.data; studio.jobs = j.data;
+    studio.cancelled = {}; (cj.data || []).forEach(x => { if (x.proposal_id && !studio.cancelled[x.proposal_id]) studio.cancelled[x.proposal_id] = x; });
   } catch (e) { studio.err = '제안서 스튜디오를 불러오지 못했습니다: ' + (e?.message || ''); }
   studio.loading = false; if (page === 'studio') render();
 }
@@ -2137,6 +2139,15 @@ async function optimistic(apply, save, revert, failMsg) {
 }
 async function proposalEvent(id, message) { await SB.from('pt_proposal_event').insert({proposal_id: id, message}); }
 
+// 마지막 작업이 「취소」로 끝났으면 다시 시작할 작업 — 리서치와 함께 돈 팬·SNS 조사(aside social)는 리서치로
+const RESUME_STAGE = {partners: 3, research: 4, concepts: 5, build: 6};
+function resumeOf(p) {
+  const job = studio.cancelled?.[p.id];
+  if (!job || p.status !== 'waiting' || studio.jobs.some(j => j.proposal_id === p.id) || !p.data?.cancel_req?.at || job.at > p.data.cancel_req.at) return null;      // 취소 요청 전에 넣은 작업만 · 다시 시작하면 cancel_req 를 지움
+  const social = job.kind === 'aside' && job.input?.task === 'social', kind = social ? 'research' : job.kind;
+  if (!RESUME_STAGE[kind]) return null;
+  return {kind, stage: RESUME_STAGE[kind], input: social ? {} : (job.input || {})};
+}
 async function openProposal(id, keep) {
   const p = studio.list?.find(x => x.id === id); if (!p) return;
   activeDetail = 'p:' + id;
@@ -2151,6 +2162,7 @@ async function openProposal(id, keep) {
   if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '판테온 봇이 파트너 IP 후보를 추천합니다.' : '판테온 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">인테이크 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
   else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 나가거나 새로 고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
+  else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 만든 결과는 그대로 남아 있습니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
   else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '판테온 봇이 작업을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
   else if (p.status === 'waiting' && p.stage === 3 && d.partners) action = partnersPanel(p);
   else if (p.status === 'waiting' && p.stage === 5 && d.concepts) action = conceptsPanel(p);
@@ -2182,6 +2194,9 @@ async function openProposal(id, keep) {
     studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
   };
   $('#intake-edit')?.addEventListener('click', () => studioProjectModal(p));
+  // 취소한 작업 다시 시작 (11-02 홍석진 대표님 「취소 눌러 멈췄는데 다시 재개할 방법이 없음」) — 같은 작업을 같은 입력으로 다시 넣는다
+  $('#job-resume')?.addEventListener('click', () => { const r = resumeOf(p); if (!r) return; const { cancel_req: _c, ...rest } = d;
+    go({stage: r.stage, status: 'working', data: rest}, {kind: r.kind, input: r.input}, `취소했던 작업을 다시 시작했습니다 (${STAGES[r.stage - 1]})`, `${STAGES[r.stage - 1]}을(를) 다시 시작합니다.`); });
   $('#pv-info-edit')?.addEventListener('click', () => studioProjectModal(p));
   // 작업 취소 (10-30 김현우) — 8초 안에 「되돌리기」를 누르면 취소하지 않는다. 봇은 apply_at(8초 뒤)이 지나야 멈춘다 → 화면을 나가도 그대로 적용
   $('#job-cancel')?.addEventListener('click', async ev => {
