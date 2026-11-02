@@ -371,7 +371,7 @@ html,body{overflow-x:hidden}
 .nav-item .nav-count{display:none}
 main{margin-left:0;width:100%;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
 .topbar{position:sticky;top:0;z-index:30;height:56px;padding:0 16px;gap:10px}
-.topbar:before{content:'Π';font-family:Georgia,serif;font-weight:900;font-size:26px;color:var(--green);line-height:1}
+.topbar:before{content:'Y';font-family:Georgia,serif;font-weight:900;font-size:26px;color:var(--green);line-height:1}
 .breadcrumb,.searchbox kbd{display:none}
 .top-actions{flex:1;gap:8px;min-width:0}
 .searchbox{flex:1;min-width:0;background:#f4f6f5;border-radius:8px;padding:8px 10px}
