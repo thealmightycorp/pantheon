@@ -974,7 +974,7 @@ function metricsPanel() {
 }
 
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
-const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기'};
+const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기', pt_erasure_request: '개인정보 삭제'};
 const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 받은 곳', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
 const VIA_KO = {web: '웹', slack: '슬랙', server: '시스템 입력', sql: '시스템 입력'};
 const OP_KO = {insert: '등록', update: '수정', delete: '삭제'};
@@ -997,7 +997,7 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['erase', '개인정보 삭제'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
@@ -1006,6 +1006,7 @@ function adminView() {
   if (admin.tab === 'score') return tabs + scorePanel();
   if (admin.tab === 'knowledge') return tabs + healthPanel();
   if (admin.tab === 'metrics') return tabs + metricsPanel();
+  if (admin.tab === 'erase') return tabs + erasePanel();
   const people = [...new Set(admin.changes.map(x => x.actor || '(화면 밖)'))];
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
   return tabs + `
@@ -1073,6 +1074,50 @@ function scorePanel() {
     <div class="quality-grid">${Object.entries(cfg.weights).map(([k, v]) => `<div class="stat"><div class="stat-label">${W_KO[k] || k}</div><div class="stat-value">${v}<small>점</small></div></div>`).join('')}</div>
     <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">되돌림</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 되돌리기</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
+// 개인정보 삭제 요청 (PRD 8.1 · sql/024 · 11-02) — 접수 → 처리(되돌릴 수 없음) → 명함·프로필 파일과 백업은 판테온 봇이 이어서 지움
+const ERASE_VIA = ['이메일', '전화', '직접 요청', '기타'];
+async function loadErase() {
+  const { data, error } = await SB.from('pt_erasure_request').select('*').order('id', {ascending: false}).limit(200);
+  admin.erase = {rows: data || [], err: error?.message || ''};
+  const ids = [...new Set((data || []).flatMap(x => [x.requested_by, x.processed_by]).filter(id => id && !admin.people[id]))];
+  if (ids.length) { const p = await SB.rpc('pt_people', {ids}); (p.data || []).forEach(x => admin.people[x.id] = x); }
+  if (page === 'admin' && admin.tab === 'erase') render();
+  clearTimeout(admin.eraseTimer);
+  if ((data || []).some(x => x.status === 'done' && !x.files_done_at)) admin.eraseTimer = setTimeout(() => { if (page === 'admin' && admin.tab === 'erase') loadErase(); }, 15000);
+}
+const eraseWho = x => { const c = byId(x.contact_id); return x.status === 'done' || !c ? '삭제된 연락처' : c.name + (agencyOf(c) ? ' · ' + agencyOf(c) : ''); };
+function erasePanel() {
+  if (!admin.erase) { setTimeout(loadErase); return '<div class="empty"><p>요청을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  const {rows, err} = admin.erase; if (err) return `<div class="notice">요청을 불러오지 못했습니다: ${esc(err)}</div>`;
+  const day = x => Math.floor((Date.now() - new Date(x.requested_at)) / 86400000) + 1;
+  const state = x => x.status === 'canceled' ? '<span class="pill muted">취소</span>'
+    : x.status === 'pending' ? (day(x) > 7 ? `<span class="pill warn">처리 대기 · ${day(x)}일째 (기한 지남)</span>` : `<span class="pill">처리 대기 · ${day(x)}일째</span>`)
+    : !x.files_done_at ? `<span class="pill">명함 이미지 정리 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></span>`
+    : '<span class="pill good">삭제 완료</span>';
+  const done = x => x.processed_at ? `<small class="cell-sub">${esc(kst(x.processed_at))} · ${esc(whoName(x.processed_by, '관리자'))}</small>` : '';
+  const got = x => Object.entries(x.result || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ');
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">개인정보 삭제 요청 <small>${rows.filter(x => x.status === 'pending').length}건 대기</small></div><p class="panel-caption">본인이 연락처 삭제를 요청하면 여기서 접수하고, 요청일로부터 7일 안에 처리해 주세요. 처리하면 연락처·명함·소속·변경 기록에서 그 사람의 정보가 지워지고, 관계 기록에는 「삭제된 연락처」로만 남습니다. 처리한 뒤에는 되돌릴 수 없습니다.</p></div><button class="button primary" type="button" id="erase-add">삭제 요청 접수</button></div>
+  <div class="table-wrap"><table><thead><tr><th>접수</th><th>연락처</th><th>요청 경로 · 메모</th><th>상태</th><th>조치</th></tr></thead><tbody>${rows.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.requested_at))}<small class="cell-sub">${esc(whoName(x.requested_by, '관리자'))}</small></td><td><b>${esc(eraseWho(x))}</b></td><td>${esc(x.requested_via || '—')}${x.note ? `<small class="cell-sub">${esc(x.note)}</small>` : ''}</td><td>${state(x)}${done(x)}${x.status === 'done' && got(x) ? `<small class="cell-sub">지운 것: ${esc(got(x))}</small>` : ''}</td><td style="white-space:nowrap">${x.status === 'pending' ? `<button class="button danger" type="button" data-erase-go="${x.id}">삭제 처리</button> <button class="text-btn" type="button" data-erase-cancel="${x.id}">접수 취소</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">접수된 삭제 요청이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+}
+function eraseAdd() {
+  const list = contacts().filter(c => c.name !== '삭제된 연락처').sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  const opt = arr => arr.map(c => `<option value="${esc(c.id)}">${esc(c.name)}${agencyOf(c) ? ' · ' + esc(agencyOf(c)) : ''}${c.role ? ' · ' + esc(c.role) : ''}</option>`).join('');
+  modal(`<form id="erase-form"><h2>삭제 요청 접수</h2><p>삭제를 요청한 본인의 연락처를 고르고, 어떻게 요청받았는지 남겨 주세요. 접수만으로는 지워지지 않으며, 목록에서 「삭제 처리」를 눌러야 지워집니다.</p>
+    <label>연락처 찾기<input id="ef-q" maxlength="50" placeholder="이름 또는 회사"></label>
+    <label>연락처<select id="ef-c" required><option value="">고르세요</option>${opt(list)}</select></label>
+    <label>요청 경로<select id="ef-via">${ERASE_VIA.map(v => `<option>${v}</option>`).join('')}</select></label>
+    <label>메모<input id="ef-note" maxlength="500" placeholder="예: 11/2 본인 이메일로 요청 (받은 메일 제목)"></label>
+    <div id="ef-err" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="ef-go">접수</button></div></form>`);
+  $('#ef-q').oninput = e => { const q = e.target.value.trim().toLowerCase(), cur = $('#ef-c').value; $('#ef-c').innerHTML = '<option value="">고르세요</option>' + opt(list.filter(c => !q || (c.name + ' ' + agencyOf(c)).toLowerCase().includes(q))); $('#ef-c').value = cur; };
+  $('#erase-form').onsubmit = async ev => {
+    ev.preventDefault(); const id = $('#ef-c').value; if (!id) { $('#ef-err').textContent = '연락처를 골라 주세요.'; return; }
+    $('#ef-go').disabled = true;
+    const { error } = await SB.rpc('pt_erasure_add', {p_contact: id, p_via: $('#ef-via').value, p_note: $('#ef-note').value.trim()});
+    if (error) { $('#ef-go').disabled = false; $('#ef-err').textContent = '접수하지 못했습니다: ' + error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); admin.erase = null; render(); toast('삭제 요청을 접수했습니다.');
+  };
+}
 function bindAdmin() {
   $$('[data-score-revert]').forEach(b => b.onclick = async () => {
     const ok = await confirmBox({title: '이전 기준으로 되돌릴까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 같은 방향의 조정은 30일 동안 다시 하지 않습니다.', ok: '이전 기준으로 되돌리기'});
@@ -1080,6 +1125,20 @@ function bindAdmin() {
     if (error) return toast('되돌리지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 되돌렸습니다.');
   });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
+  $('#erase-add')?.addEventListener('click', eraseAdd);
+  $$('[data-erase-cancel]').forEach(b => b.onclick = async () => {
+    const ok = await confirmBox({title: '접수를 취소할까요?', body: '잘못 접수한 요청만 취소해 주세요. 연락처는 그대로 남습니다.', ok: '접수 취소', cancel: '닫기'});
+    if (!ok) return; const { error } = await SB.rpc('pt_erasure_cancel', {p_id: Number(b.dataset.eraseCancel)});
+    if (error) return toast('취소하지 못했습니다: ' + error.message); admin.erase = null; render(); toast('접수를 취소했습니다.');
+  });
+  $$('[data-erase-go]').forEach(b => b.onclick = async () => {
+    const x = admin.erase.rows.find(r => String(r.id) === b.dataset.eraseGo); if (!x) return;
+    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 판테온 봇이 몇 분 안에 지웁니다. <b>되돌릴 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
+    if (!ok) return; b.disabled = true; b.textContent = '삭제하는 중…';
+    const { error } = await SB.rpc('pt_erasure_process', {p_id: x.id});
+    if (error) { b.disabled = false; b.textContent = '삭제 처리'; return toast('삭제하지 못했습니다: ' + error.message); }
+    admin.erase = null; admin.changes = null; await load(); loadAdmin(); toast('개인정보를 삭제했습니다. 명함 이미지는 판테온 봇이 이어서 지웁니다.');
+  });
   $('#metric-reload')?.addEventListener('click', () => { admin.metrics = null; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
