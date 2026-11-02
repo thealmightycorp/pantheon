@@ -30,8 +30,9 @@ let page = 'home', filter = '전체', query = '', activeDetail = null, lastAnswe
 const APP = document.documentElement.dataset.app === 'gungnir' ? 'gungnir' : 'ygg';
 const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
 const GUNGNIR_URL = 'https://thealmightycorp.github.io/pantheon/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
-const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오']]
-  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['chart','소싱 · IP 차트'],['review','확인 대기'],['admin','DB 관리']];
+// 11-02 홍석진 대표님: 이그드라실은 엔티티 DB 축적·관리만 · 콜라보 점수·IP 차트(소싱)는 궁니르에서
+const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오'],['chart','소싱 · IP 차트']]
+  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['review','확인 대기'],['admin','DB 관리']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
 const byId = id => all.find(e => e.id === id);
 const isContact = e => e.type === '거래처 담당자';
@@ -143,7 +144,7 @@ async function save(id, patch, isNew = false) {
   return e;
 }
 async function load() {
-  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), APP === 'ygg' ? loadRel().catch(() => {}) : null]);
+  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), loadRel().catch(() => {})]);
   if (error) throw error;
   all = data.map(fromRow);
 }
@@ -190,9 +191,10 @@ function searchView() {
 }
 function render() {
   if (APP === 'ygg' && page === 'studio') { if (studioCan) return location.replace(GUNGNIR_URL + location.hash); page = 'moved'; }
-  if (page !== 'search' && page !== 'moved' && !navMenus().some(m => m[0] === page)) page = APP === 'gungnir' ? 'studio' : 'home';
+  if (APP === 'ygg' && page === 'chart') { if (ipcCan) return location.replace(GUNGNIR_URL + location.hash); page = 'home'; }
+  if (page !== 'search' && page !== 'moved' && !navMenus().some(m => m[0] === page)) page = APP === 'gungnir' ? (navMenus()[0]?.[0] || 'studio') : 'home';
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
-    + (APP === 'ygg' ? (studioCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}" title="궁니르 · 제안서 스튜디오로 이동">${icon('studio')}<span>궁니르<em> · 제안서</em></span><i aria-hidden="true">↗</i></a>` : '')
+    + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르<em> · ${studioCan ? '제안서·소싱' : '소싱'}</em></span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
   const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['IP 차트','요즘 뜨는 신규 IP와 전체 IP 순위입니다. 하루 4번 새로 매깁니다.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
@@ -2544,7 +2546,7 @@ function srcIps() {
     const p = d.pf[id], P = Object.fromEntries((p.ip_score_parts || []).map(x => [x.key, x])), nx = srcNext(id);
     return `<tr class="clickable${src.open === id ? ' on' : ''}" data-src-open="${id}" tabindex="0"><td><b>${esc(srcName(id))}</b>${byId(id)?.owned_ip ? ' <span class="pill good">당사 IP</span>' : ''}<small>${esc(IPK[p.ip_kind] || '')}${p.holder_entity_id ? ' · ' + esc(srcName(p.holder_entity_id)) : ''}</small></td><td>${srcScore(p.ip_score)}</td>${['timing', 'fandom', 'rights', 'relation'].map(k => `<td>${srcScore(P[k]?.score)}<small>${esc(P[k]?.basis || '')}</small></td>`).join('')}<td>${nx ? srcEv(nx) : '<small>—</small>'}</td><td><span class="ipc-more">${src.open === id ? '접기' : '자세히'}</span></td></tr>${src.open === id ? `<tr class="src-open"><td colspan="8">${srcDetail(id)}</td></tr>` : ''}`;
   }).join('')}</tbody></table></div>` : `<div class="empty"><p>아직 이어진 IP가 없습니다. IP 차트 상위 IP가 「확인 대기」에 올라오면 엔티티로 등록해 주세요.</p></div>`;
-  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="#review">확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div></div>
+  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="${APP === 'gungnir' ? YGG_URL : ''}#review"${APP === 'gungnir' ? ' target="_blank" rel="noopener"' : ''}>확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div></div>
     <details class="ipc-how"><summary>IP 스코어 기준 — 어떻게 매기나요?</summary><div class="ipc-how-body"><p>타이밍 ${d.conf.weights?.timing ?? 30} · 팬덤 화력 ${d.conf.weights?.fandom ?? 30} · 권리구조 단순성 ${d.conf.weights?.rights ?? 15} · 관계 점수 ${d.conf.weights?.relation ?? 25} 비중으로 계산하고, 값이 없는 항목은 빼고 나머지 비중으로 나눕니다. 당사 귀속 IP는 100점입니다.</p>
     <p><b>타이밍</b>: ${d.conf.timing_days ?? 180}일 안의 일정 — 30~120일 남은 확정 일정이 100점, 30일 안 60점, 그 뒤 80점, 지난 일주일 70점(예정은 ×0.85). 루머는 넣지 않습니다. <b>팬덤 화력</b>: 최근 3일 IP 차트 점수. <b>권리구조 단순성</b>: 담당자나 궁니르가 확인해 넣은 값만 씁니다. <b>관계 점수</b>: 권리사·라이선싱 대행사의 관계 점수.</p><p>점수가 바뀔 때마다 이유와 함께 기록이 남습니다.</p></div></details>${list}</section>`;
 }
