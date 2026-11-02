@@ -12,6 +12,7 @@ let RECOVERY = /type=recovery/.test(location.hash || '');
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
+icons.graph = '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7.2 15.6 7.6 M7 8.4l1.4 7.2 M16.6 10.2l-5.8 6.2"/>';
 const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[n]||icons.entities}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const TYPES = ['회사','브랜드','IP·유명인','기관','미디어·매체','미디어·OTT','판매 채널'];
@@ -32,7 +33,7 @@ const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
 const GUNGNIR_URL = 'https://thealmightycorp.github.io/pantheon/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
 // 11-02 홍석진 대표님: 이그드라실은 엔티티 DB 축적·관리만 · 콜라보 점수·IP 차트(소싱)는 궁니르에서
 const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오'],['chart','소싱 · IP 차트']]
-  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['review','확인 대기'],['admin','DB 관리']];
+  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['graph','관계 그래프'],['review','확인 대기'],['admin','DB 관리']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
 const byId = id => all.find(e => e.id === id);
 const isContact = e => e.type === '거래처 담당자';
@@ -196,7 +197,7 @@ function render() {
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
-  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
   document.title = title[0] + ' · ' + BRAND;
@@ -208,6 +209,7 @@ function render() {
   let html = '';
   if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
+  if (page === 'graph') html = graphView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
   if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
@@ -752,6 +754,158 @@ async function waitAsk(id, onTick, limitSec = 120) {
     if (data && (data.status === 'done' || data.status === 'fail')) return data;
   }
   return null;
+}
+/* ---------- 관계 그래프 (11-02 홍석진 대표님 「관계 그래프 뷰 PRD E-07」) ----------
+   엔티티·담당자를 점, 관계를 선으로. 새 표 없이 화면이 이미 읽은 데이터(pt_entity·pt_relation·pt_directory)로 그린다 → 각 표의 권한(RLS)이 그대로.
+   전화·메일·주소는 그래프에 넣지 않는다. 설정은 이 브라우저에만 저장 */
+const G_TYPES = ['회사', '브랜드', '기관', 'IP·유명인', '미디어·매체', '미디어·OTT', '판매 채널', '거래처 담당자'];
+const G_COLOR = {'회사': '#2f6f5e', '브랜드': '#3b7fc4', '기관': '#7b5ea7', 'IP·유명인': '#d08a1f', '미디어·매체': '#c2577a', '미디어·OTT': '#2a9d8f', '판매 채널': '#8c6d4a', '거래처 담당자': '#98a19e'};
+const G_EDGE = {rel: '엔티티 관계', work: '재직', past: '전 소속', parent: '소속 회사'};
+const G_EDGE_COLOR = {rel: '#5c6b66', work: '#9fb3aa', past: '#b9a98f', parent: '#c9d2ce'};
+const G_KEY = 'pantheon.graph.settings.v1';
+const G_DEF = {offTypes: [], offEdges: [], ended: false, sourced: false, orphans: true, contacts: true, labels: true, arrows: false, fade: 1.6, repel: 60, dist: 40, link: 0.6, depth: 1};
+const graph = {fg: null, sel: null, near: null, focus: null, set: (() => { try { return {...G_DEF, ...JSON.parse(localStorage.getItem(G_KEY) || '{}')}; } catch { return {...G_DEF}; } })()};
+const gSave = () => { try { localStorage.setItem(G_KEY, JSON.stringify(graph.set)); } catch {} };
+async function loadForceGraph() {
+  if (window.ForceGraph) return;
+  await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/force-graph@1.43.5/dist/force-graph.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+function graphData() {
+  const S = graph.set, today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  let nodes = all.filter(e => !e.hidden && !S.offTypes.includes(e.type) && (S.contacts || !isContact(e)));
+  let ids = new Set(nodes.map(e => e.id));
+  const links = [], add = (s, t, kind, label, x = {}) => { if (s && t && s !== t && ids.has(s) && ids.has(t) && !S.offEdges.includes(kind)) links.push({source: s, target: t, kind, label, ...x}); };
+  for (const e of nodes) if (e.parentId) add(e.id, e.parentId, isContact(e) ? 'work' : 'parent', isContact(e) ? '재직' : '소속');
+  for (const c of nodes) if (isContact(c)) for (const p of rel.dir[c.id]?.past || []) add(c.id, p.entity_id, 'past', '전 소속', {ended: true});
+  for (const r of rel.relations) {
+    const ended = !!(r.valid_to && r.valid_to < today);
+    if ((ended && !S.ended) || (S.sourced && !r.source_url)) continue;
+    add(r.subject_id, r.object_id, 'rel', VERB[r.verb] || r.verb, {ended, src: r.source_url || ''});
+  }
+  if (graph.focus && ids.has(graph.focus)) {   // 이 점 기준으로 보기 — 1·2단계 이웃만
+    const keep = new Set([graph.focus]); let edge = [graph.focus];
+    for (let d = 0; d < S.depth; d++) { const nx = []; for (const l of links) for (const [a, b] of [[l.source, l.target], [l.target, l.source]]) if (edge.includes(a) && !keep.has(b)) { keep.add(b); nx.push(b); } edge = nx; }
+    nodes = nodes.filter(e => keep.has(e.id)); ids = keep;
+  }
+  const ls = links.filter(l => ids.has(l.source) && ids.has(l.target)), deg = {};
+  ls.forEach(l => { deg[l.source] = (deg[l.source] || 0) + 1; deg[l.target] = (deg[l.target] || 0) + 1; });
+  if (!S.orphans) nodes = nodes.filter(e => deg[e.id] || e.id === graph.focus);
+  return {nodes: nodes.map(e => ({id: e.id, e, deg: deg[e.id] || 0})), links: ls};
+}
+const gNeighbors = (data, id) => { const s = new Set([id]); data.links.forEach(l => { const a = l.source.id || l.source, b = l.target.id || l.target; if (a === id) s.add(b); if (b === id) s.add(a); }); return s; };
+function graphView() {
+  const S = graph.set, cnt = t => all.filter(e => !e.hidden && e.type === t).length;
+  const chk = (k, label) => `<label class="g-chk"><input type="checkbox" data-gset="${k}" ${S[k] ? 'checked' : ''}> ${label}</label>`;
+  const rng = (k, label, min, max, step) => `<label class="g-rng"><span>${label}</span><input type="range" data-grng="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></label>`;
+  return `<div class="g-wrap"><section class="panel g-main">
+    <div class="g-bar"><div class="g-search">${icon('search')}<input id="g-q" type="search" list="g-names" placeholder="이름·별칭으로 찾기" aria-label="그래프에서 찾기" autocomplete="off"><datalist id="g-names">${all.filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist></div>
+      <span class="g-count" id="g-count"></span>
+      <span id="g-focus"></span></div>
+    <div id="g-canvas" class="g-canvas" role="img" aria-label="엔티티·담당자 관계 그래프"><div class="g-loading">그래프를 그리는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></div></div>
+    <div class="g-legend" role="group" aria-label="종류별 켜고 끄기">${G_TYPES.map(t => `<button type="button" class="g-lg${S.offTypes.includes(t) ? ' off' : ''}" data-gtype="${esc(t)}" aria-pressed="${!S.offTypes.includes(t)}"><i style="background:${G_COLOR[t]}"></i>${esc(t)} <small>${cnt(t)}</small></button>`).join('')}</div>
+  </section>
+  <aside class="g-side">
+    <section class="panel g-detail" id="g-detail"></section>
+    <section class="panel g-set"><details ${isPhone() ? '' : 'open'}><summary>필터</summary>
+      <div class="g-sub">선 종류</div>${Object.entries(G_EDGE).map(([k, t]) => `<label class="g-chk"><input type="checkbox" data-gedge="${k}" ${S.offEdges.includes(k) ? '' : 'checked'}> <i class="g-ln g-ln-${k}"></i>${t}</label>`).join('')}
+      <div class="g-sub">보기</div>${chk('contacts', '담당자 보이기')}${chk('orphans', '연결 없는 점 보이기')}${chk('ended', '끝난 관계 포함')}${chk('sourced', '출처 있는 관계만')}
+    </details>
+    <details><summary>표시 · 힘 조절</summary>
+      ${chk('labels', '이름 보이기')}${chk('arrows', '방향 화살표')}${rng('fade', '이름이 보이는 확대 배율', 0.4, 4, 0.2)}
+      ${rng('repel', '밀어내는 힘', 10, 200, 5)}${rng('dist', '선 길이', 10, 150, 5)}${rng('link', '당기는 힘', 0.05, 1, 0.05)}
+      <div class="drawer-actions"><button class="button" type="button" id="g-reheat">다시 배치</button><button class="text-btn" type="button" id="g-reset">설정 초기화</button></div>
+    </details></section>
+  </aside></div>`;
+}
+function gDetail() {
+  const box = $('#g-detail'); if (!box) return;
+  const e = graph.sel && byId(graph.sel);
+  if (!e) { box.innerHTML = `<div class="empty"><p>점을 누르면 연결된 회사·IP·담당자가 여기에 나옵니다.</p><p class="muted">큰 점일수록 연결이 많습니다. 끌어서 옮기고, 휠·두 손가락으로 확대합니다.</p></div>`; return; }
+  const data = graph.fg ? graph.fg.graphData() : {links: []};
+  const rows = data.links.filter(l => (l.source.id || l.source) === e.id || (l.target.id || l.target) === e.id).map(l => {
+    const out = (l.source.id || l.source) === e.id, other = byId(out ? (l.target.id || l.target) : (l.source.id || l.source));
+    return other ? {other, txt: l.kind === 'rel' ? (out ? `${l.label} →` : `← ${l.label}`) : l.label, l} : null;
+  }).filter(Boolean).sort((a, b) => G_TYPES.indexOf(a.other.type) - G_TYPES.indexOf(b.other.type));
+  const d = rel.dir[e.id] || {}, st = rel.state[e.id] || {};
+  const info = isContact(e)
+    ? [['회사', d.entity_name || agencyOf(e) || '—'], ['직함', e.role || d.title || '—'], ['마지막 접촉', (d.last_touch || st.last_touch) ? dotDate(d.last_touch || st.last_touch) : '—']]
+    : [['종류', e.type], e.en ? ['영문', e.en] : null, e.aliases.length ? ['별칭', e.aliases.slice(0, 6).join(', ')] : null, ['연결', `${rows.length}개`]].filter(Boolean);
+  box.innerHTML = `<div class="g-dh"><i style="background:${G_COLOR[e.type]}"></i><div><b>${esc(e.name)}</b><small>${esc(e.type)}</small></div></div>
+    ${info.map(([k, v]) => `<div class="detail-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}
+    <div class="drawer-actions"><button class="button primary" type="button" data-detail="${e.id}">상세 보기</button>${graph.focus === e.id ? '' : `<button class="button" type="button" id="g-focus-go">이 점 기준으로 보기</button>`}</div>
+    ${rows.length ? `<ul class="g-nb">${rows.map(r => `<li><button type="button" data-gsel="${r.other.id}"><i style="background:${G_COLOR[r.other.type]}"></i><span>${esc(r.other.name)}</span><small>${esc(r.txt)}${r.l.ended ? ' · 끝남' : ''}</small></button>${r.l.src ? `<a href="${esc(r.l.src)}" target="_blank" rel="noopener" title="출처">출처</a>` : ''}</li>`).join('')}</ul>` : '<p class="muted">연결된 점이 없습니다. 상세 보기에서 소속 회사나 관계를 추가하면 이어집니다.</p>'}`;
+  $$('#g-detail [data-detail]').forEach(b => b.onclick = () => openDetail(b.dataset.detail));
+  $$('#g-detail [data-gsel]').forEach(b => b.onclick = () => gSelect(b.dataset.gsel, true));
+  const f = $('#g-focus-go'); if (f) f.onclick = () => { graph.focus = e.id; gRefresh(true); };
+}
+function gFocusChip() {
+  const el = $('#g-focus'); if (!el) return;
+  const f = graph.focus && byId(graph.focus);
+  el.innerHTML = f ? `<span class="g-fchip"><b>${esc(f.name)}</b> 기준 <span class="seg-mini" role="group" aria-label="단계">${[1, 2].map(n => `<button type="button" data-gdepth="${n}" class="${graph.set.depth === n ? 'on' : ''}" aria-pressed="${graph.set.depth === n}">${n}단계</button>`).join('')}</span><button type="button" class="text-btn" id="g-all">전체 보기</button></span>` : '';
+  $$('[data-gdepth]').forEach(b => b.onclick = () => { graph.set.depth = Number(b.dataset.gdepth); gSave(); gRefresh(true); });
+  const a = $('#g-all'); if (a) a.onclick = () => { graph.focus = null; gRefresh(true); };
+}
+function gSelect(id, move) {
+  graph.sel = id; graph.near = graph.fg ? gNeighbors(graph.fg.graphData(), id) : null; gDetail();
+  const n = graph.fg?.graphData().nodes.find(x => x.id === id);
+  if (move && n && n.x != null) { graph.fg.centerAt(n.x, n.y, 600); graph.fg.zoom(Math.max(graph.fg.zoom(), 2.2), 600); }
+}
+function gRefresh(refit) {
+  if (!graph.fg) return;
+  const data = graphData();
+  graph.fg.graphData(data);
+  if (graph.sel && !data.nodes.some(n => n.id === graph.sel)) graph.sel = null;
+  graph.near = graph.sel ? gNeighbors(data, graph.sel) : null;
+  $('#g-count').textContent = `점 ${data.nodes.length} · 선 ${data.links.length}`;
+  gFocusChip(); gDetail();
+  if (refit) setTimeout(() => graph.fg?.zoomToFit(500, 40), 700);
+}
+function gForces() {
+  const S = graph.set, fg = graph.fg; if (!fg) return;
+  fg.d3Force('charge').strength(-S.repel); fg.d3Force('link').distance(S.dist).strength(S.link);
+  fg.linkDirectionalArrowLength(S.arrows ? 4 : 0); fg.d3ReheatSimulation();
+}
+async function graphMount() {
+  const el = $('#g-canvas'); if (!el) return;
+  try { await loadForceGraph(); } catch { el.innerHTML = '<div class="g-loading">그래프 도구를 불러오지 못했습니다. 새로고침해 주세요.</div>'; return; }
+  if (!$('#g-canvas')) return;
+  el.innerHTML = '';
+  const S = graph.set, ink = '#202a29';
+  const fg = graph.fg = ForceGraph()(el).width(el.clientWidth).height(el.clientHeight).backgroundColor('#fbfcfb')
+    .nodeId('id').nodeRelSize(4).nodeVal(n => 1 + n.deg)
+    .linkColor(l => { const hl = graph.sel ? ((l.source.id || l.source) === graph.sel || (l.target.id || l.target) === graph.sel) : true; return hl ? G_EDGE_COLOR[l.kind] : '#e6ebe8'; })
+    .linkWidth(l => graph.sel && ((l.source.id || l.source) === graph.sel || (l.target.id || l.target) === graph.sel) ? 2 : l.kind === 'rel' ? 1.2 : 0.8)
+    .linkLineDash(l => l.kind === 'past' || l.kind === 'parent' || l.ended ? [3, 3] : null)
+    .linkDirectionalArrowRelPos(1).linkLabel(l => `${esc(l.label)}${l.ended ? ' · 끝남' : ''}`)
+    .nodeLabel(n => `${esc(n.e.name)} · ${esc(n.e.type)}${n.e.en ? ' · ' + esc(n.e.en) : ''}`)
+    .nodeCanvasObject((n, ctx, k) => {
+      const near = graph.near, dim = near && !near.has(n.id);
+      const r = isContact(n.e) ? 2.6 : 3 + Math.sqrt(n.deg) * 1.7;
+      ctx.globalAlpha = dim ? 0.18 : 1;
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2 * Math.PI); ctx.fillStyle = G_COLOR[n.e.type] || '#999'; ctx.fill();
+      if (n.id === graph.sel || n.id === graph.focus) { ctx.lineWidth = 2 / k; ctx.strokeStyle = ink; ctx.stroke(); }
+      if (graph.set.labels && (k >= graph.set.fade || (near && near.has(n.id)) || n.deg >= 8)) {
+        const fs = Math.max(11 / k, 2); ctx.font = `${n.id === graph.sel ? 600 : 400} ${fs}px Pretendard, "Malgun Gothic", sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = ink; ctx.fillText(n.e.name, n.x, n.y + r + 1.5 / k);
+      }
+      ctx.globalAlpha = 1;
+    })
+    .nodePointerAreaPaint((n, color, ctx) => { const r = (isContact(n.e) ? 2.6 : 3 + Math.sqrt(n.deg) * 1.7) + 3; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2 * Math.PI); ctx.fill(); })
+    .onNodeClick(n => gSelect(n.id)).onBackgroundClick(() => { graph.sel = null; graph.near = null; gDetail(); })
+    .cooldownTicks(200);
+  gForces(); gRefresh(); setTimeout(() => graph.fg === fg && fg.zoomToFit(500, 40), 900);
+  const ro = new ResizeObserver(() => { if (graph.fg === fg && el.isConnected) fg.width(el.clientWidth).height(el.clientHeight); else ro.disconnect(); }); ro.observe(el);
+  // 찾기 — 이름·영문·별칭
+  const q = $('#g-q'), find = v => { const s = normCo(v); if (!s) return null; const hits = all.filter(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x) === s)); return hits[0] || all.find(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x).includes(s))); };
+  const goFind = () => { const e = find(q.value); if (!e) return toast('그래프에서 찾지 못했습니다.'); if (!fg.graphData().nodes.some(n => n.id === e.id)) { graph.focus = null; if (graph.set.offTypes.includes(e.type)) graph.set.offTypes = graph.set.offTypes.filter(t => t !== e.type); if (isContact(e)) graph.set.contacts = true; graph.set.orphans = true; gSave(); gRefresh(); render(); return setTimeout(() => gSelect(e.id, true), 1200); } gSelect(e.id, true); };
+  q.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); goFind(); } };
+  q.onchange = () => { if ([...$('#g-names').options].some(o => o.value === q.value)) goFind(); };
+  $$('[data-gtype]').forEach(b => b.onclick = () => { const t = b.dataset.gtype, off = graph.set.offTypes; graph.set.offTypes = off.includes(t) ? off.filter(x => x !== t) : [...off, t]; b.classList.toggle('off'); b.setAttribute('aria-pressed', !graph.set.offTypes.includes(t)); gSave(); gRefresh(); });
+  $$('[data-gedge]').forEach(c => c.onchange = () => { const k = c.dataset.gedge, off = graph.set.offEdges; graph.set.offEdges = c.checked ? off.filter(x => x !== k) : [...off, k]; gSave(); gRefresh(); });
+  $$('[data-gset]').forEach(c => c.onchange = () => { graph.set[c.dataset.gset] = c.checked; gSave(); if (c.dataset.gset === 'arrows') gForces(); else gRefresh(); });
+  $$('[data-grng]').forEach(c => c.oninput = () => { graph.set[c.dataset.grng] = Number(c.value); gSave(); if (c.dataset.grng !== 'fade') gForces(); });
+  $('#g-reheat').onclick = () => { fg.d3ReheatSimulation(); setTimeout(() => fg.zoomToFit(500, 40), 1200); };
+  $('#g-reset').onclick = () => { graph.set = {...G_DEF}; graph.focus = null; gSave(); render(); };
 }
 /* ---------- 리멤버 가져오기 (11-02 홍석진 대표님 「리멤버에서 끌고 오는 거」) ----------
    리멤버 앱 설정 → 명함 내보내기 → 메일로 받은 엑셀(xls·xlsx·csv)을 올리면 회사별로 묶어 보여 주고, 고른 사람만 주소록에 넣는다.
@@ -2946,6 +3100,7 @@ async function openIp(id, keep) {
 }
 
 function bindContent() {
+  if (page === 'graph') graphMount();
   $('#remember-btn')?.addEventListener('click', rememberModal);
   $$('[data-page]').forEach(b => b.onclick = ev => { ev.preventDefault(); go(b.dataset.page); });
   $$('[data-state]').forEach(b => b.onclick = () => { entState = b.dataset.state; render(); });
