@@ -210,7 +210,7 @@ function render() {
   if (page === 'review') html = reviewView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
-  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
+  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
   if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 쓸 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
   if (page === 'chart') html = srcView();
@@ -752,6 +752,99 @@ async function waitAsk(id, onTick, limitSec = 120) {
     if (data && (data.status === 'done' || data.status === 'fail')) return data;
   }
   return null;
+}
+/* ---------- 리멤버 가져오기 (11-02 홍석진 대표님 「리멤버에서 끌고 오는 거」) ----------
+   리멤버 앱 설정 → 명함 내보내기 → 메일로 받은 엑셀(xls·xlsx·csv)을 올리면 회사별로 묶어 보여 주고, 고른 사람만 주소록에 넣는다.
+   같은 메일 주소·같은 회사의 같은 이름은 이미 있음으로 건너뛰고, 그룹사·내부 사람은 기본으로 빼 둔다. 넣기는 웹 등록과 같은 save() — 변경 기록에 남는다 */
+const RM_COLS = {name: /^(이름|성명|name|full ?name)$/i, company: /^(회사|회사명|소속|company|organization)$/i, dept: /^(부서|부서명|팀|department)$/i,
+  title: /^(직책|직급|직함|직위|title|position)$/i, mobile: /^(휴대폰|휴대전화|핸드폰|모바일|mobile|cell)/i, phone: /^(전화|전화번호|회사전화|유선|tel|phone|office)/i,
+  fax: /^(팩스|fax)/i, email: /^(이메일|e-?mail|메일)/i, address: /^(주소|회사주소|address)/i, web: /^(홈페이지|웹사이트|website|url)/i, memo: /^(메모|note|memo)/i};
+const RM_INTERNAL = /더올마이티|올마이티|almighty|골포스트|goalpost|사운드스루|soundthrough|루트82|route ?82|슈퍼홀릭|superholics|브룩스글로벌|ouah/i;
+const rm = {groups: []};
+async function loadXlsx() {
+  if (window.XLSX) return;
+  await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+function rmParse(rows) {
+  const hi = rows.findIndex(r => r.filter(c => Object.values(RM_COLS).some(re => re.test(String(c).trim()))).length >= 2);
+  if (hi < 0) return null;
+  const head = rows[hi].map(c => String(c).trim()), col = {};
+  head.forEach((h, i) => { for (const [k, re] of Object.entries(RM_COLS)) if (col[k] === undefined && re.test(h)) col[k] = i; });
+  if (col.name === undefined) return null;
+  const v = (r, k) => col[k] === undefined ? '' : String(r[col[k]] ?? '').trim();
+  return rows.slice(hi + 1).map(r => ({name: v(r, 'name'), company: v(r, 'company'), dept: v(r, 'dept'), title: v(r, 'title'), mobile: v(r, 'mobile'), phone: v(r, 'phone'),
+    fax: v(r, 'fax'), email: v(r, 'email').toLowerCase(), address: v(r, 'address'), web: v(r, 'web'), memo: v(r, 'memo')})).filter(p => p.name);
+}
+function rmGroup(people) {
+  const cs = contacts(), mails = new Set(cs.flatMap(c => (c.points || []).join(' ').toLowerCase().match(/[\w.+-]+@[\w.-]+/g) || []));
+  const orgs = entities().filter(e => e.type !== 'IP·유명인'), by = {};
+  for (const p of people) { const key = normCo(p.company) || '-'; (by[key] ||= {company: p.company || '', people: []}).people.push(p); }
+  return Object.values(by).map(g => {
+    const hit = g.company ? orgs.find(e => [e.name, e.en, ...(e.aliases || [])].some(n => n && normCo(n) === normCo(g.company))) : null;
+    const internal = RM_INTERNAL.test(g.company) || g.people.some(p => /@(thealmighty|route82|superholics)\./.test(p.email));
+    g.people.forEach(p => {
+      p.dup = !!((p.email && mails.has(p.email)) || (hit && cs.some(c => c.parentId === hit.id && normCo(c.name) === normCo(p.name))));
+      p.on = !p.dup && !internal;
+    });
+    return {...g, orgId: hit?.id || '', internal};
+  }).sort((a, b) => (a.internal - b.internal) || b.people.length - a.people.length);
+}
+function rememberModal() {
+  modal(`<form id="rm-form" class="rm-modal"><h2>리멤버에서 가져오기</h2>
+    <p>리멤버 앱 <b>설정 → 명함 내보내기</b>에서 엑셀 파일을 메일로 받은 뒤 여기에 올려 주세요. 회사별로 묶어 보여 드리고, 고른 사람만 주소록에 등록합니다. 이미 있는 연락처와 그룹사 명함은 빼 둡니다.</p>
+    <label>엑셀 파일 (xls · xlsx · csv)<input type="file" id="rm-file" accept=".xls,.xlsx,.csv"></label>
+    <div id="rm-prog-wrap"></div><div id="rm-body"></div><div id="rm-error" style="color:#ba775e;margin-top:8px;font-size:12px" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="submit" id="rm-go" disabled>등록</button></div></form>`);
+  const body = $('#rm-body'), err = $('#rm-error'), goBtn = $('#rm-go');
+  const draw = () => {
+    const n = rm.groups.reduce((a, g) => a + g.people.filter(p => p.on).length, 0), total = rm.groups.reduce((a, g) => a + g.people.length, 0);
+    body.innerHTML = `<p class="rm-sum">명함 ${total}장 · 회사 ${rm.groups.length}곳 · 등록할 사람 <b>${n}명</b></p><div class="rm-list">${rm.groups.map((g, gi) => `<section class="rm-g${g.internal ? ' internal' : ''}">
+      <div class="rm-gh"><b>${esc(g.company || '회사 없음')}</b>${g.internal ? ' <span class="pill">그룹사·내부</span>' : ''}
+      <select class="table-select" data-rm-org="${gi}" aria-label="${esc(g.company || '회사 없음')} 연결할 회사"><option value="">${g.company ? '새 회사로 등록' : '회사 없이 등록'}</option>${companyOptions(g.orgId, [g.company])}</select></div>
+      <ul>${g.people.map((p, pi) => `<li><label><input type="checkbox" data-rm-p="${gi}|${pi}" ${p.on ? 'checked' : ''} ${p.dup ? 'disabled' : ''}> <b>${esc(p.name)}</b> <span>${esc([p.dept, p.title].filter(Boolean).join(' '))}</span></label><small>${esc(p.email || p.mobile || p.phone || '')}${p.dup ? ' · 이미 주소록에 있음' : ''}</small></li>`).join('')}</ul></section>`).join('')}</div>`;
+    goBtn.disabled = !n; goBtn.textContent = n ? `${n}명 등록` : '등록';
+    $$('[data-rm-p]').forEach(c => c.onchange = () => { const [gi, pi] = c.dataset.rmP.split('|').map(Number); rm.groups[gi].people[pi].on = c.checked; draw(); });
+    $$('[data-rm-org]').forEach(sl => sl.onchange = () => { rm.groups[Number(sl.dataset.rmOrg)].orgId = sl.value; });
+  };
+  $('#rm-file').onchange = async ev => {
+    const f = ev.target.files[0]; if (!f) return; err.textContent = '';
+    body.innerHTML = '<p class="rm-sum">파일을 읽는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>';
+    try {
+      await loadXlsx();
+      const wb = XLSX.read(await f.arrayBuffer(), {type: 'array'}), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ''});
+      const people = rmParse(rows);
+      if (!people?.length) { body.innerHTML = ''; err.textContent = '이름 칸을 찾지 못했습니다. 리멤버에서 내보낸 엑셀 파일인지 확인해 주세요.'; return; }
+      rm.groups = rmGroup(people); draw();
+    } catch (e) { body.innerHTML = ''; err.textContent = '파일을 읽지 못했습니다: ' + (e?.message || ''); }
+  };
+  $('#rm-form').onsubmit = async ev => {
+    ev.preventDefault();
+    const todo = rm.groups.map(g => ({g, ps: g.people.filter(p => p.on)})).filter(x => x.ps.length), total = todo.reduce((a, x) => a + x.ps.length, 0);
+    if (!total) return;
+    goBtn.disabled = true; $$('#rm-form input, #rm-form select').forEach(x => { x.disabled = true; });
+    const d = today(), me = myName || ''; let done = 0, made = 0, orgsMade = 0;
+    $('#rm-prog-wrap').innerHTML = '<div class="ref-prog rm-prog"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></span><b>0%</b></span><small></small></div>';
+    const prog = () => { const pc = Math.round(done / total * 100), w = $('#rm-prog-wrap'); w.querySelector('i').style.width = pc + '%'; w.querySelector('b').textContent = pc + '%'; w.querySelector('small').textContent = `${done} / ${total}명 등록 중`; };
+    prog();
+    for (const {g, ps} of todo) {
+      let org = g.orgId ? byId(g.orgId) : null;
+      if (!org && g.company) {
+        const web = ps.map(p => p.web).find(Boolean), addr = ps.map(p => p.address).find(Boolean);
+        org = await save(uid(), {type: '회사', name: g.company, points: [web, addr].filter(Boolean), owners: me ? [me] : [], facts: [`리멤버에서 가져옴 ${d}`], first: d, last: d}, true);
+        if (org) orgsMade++;
+      }
+      for (const p of ps) {
+        const pts = [p.email, p.mobile && '휴대전화 ' + p.mobile, p.phone && '전화 ' + p.phone, p.fax && '팩스 ' + p.fax, p.address].filter(Boolean);
+        const c = await save(uid(), {type: '거래처 담당자', name: p.name, role: [p.dept, p.title].filter(Boolean).join(' '), parentId: org?.id || null, agencyText: org?.name || g.company || '',
+          points: pts, owners: me ? [me] : [], facts: [`리멤버에서 가져옴 ${d}`, p.memo].filter(Boolean), first: d, last: d}, true);
+        if (c) made++;
+        done++; prog();
+      }
+    }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); rm.groups = [];
+    await loadRel().catch(() => {}); render();
+    toast(`리멤버에서 ${made}명을 주소록에 등록했습니다${orgsMade ? ` (새 회사 ${orgsMade}곳)` : ''}.`);
+  };
 }
 function contactModal(pre = {}) {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
@@ -2853,6 +2946,7 @@ async function openIp(id, keep) {
 }
 
 function bindContent() {
+  $('#remember-btn')?.addEventListener('click', rememberModal);
   $$('[data-page]').forEach(b => b.onclick = ev => { ev.preventDefault(); go(b.dataset.page); });
   $$('[data-state]').forEach(b => b.onclick = () => { entState = b.dataset.state; render(); });
   $$('[data-state-go]').forEach(b => b.onclick = () => { go('entities'); entState = b.dataset.stateGo; render(); });
