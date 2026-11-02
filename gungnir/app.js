@@ -468,7 +468,7 @@ function cardWhereModal(c) {
 }
 
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
-const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안', auto: '헤임달 미팅에서 자동 등록'};
+const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
 const reviewCount = () => rel.review.length + hints().length;
 function ipHitSelect(r) {
@@ -483,6 +483,9 @@ function reviewView() {
   const card = r => ['wiki', 'distill'].includes(r.kind) ? wikiCard(r) : r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id, [P(r).org, r.title])}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
     : r.kind === 'ip_candidate' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).name || r.title)}</b>${P(r).name_en && P(r).name_en !== P(r).name ? ` <span>${esc(P(r).name_en)}</span>` : ''} <span class="pill">${esc(IPK[P(r).kind] || '')}</span><small>IP 차트 ${P(r).chart === 'new' ? '신규' : '전체'} ${esc(P(r).rank)}위${P(r).owner ? ' · ' + esc(P(r).owner) : ''}${P(r).holder_entity_id && byId(P(r).holder_entity_id) ? ' · 권리사 ' + esc(byId(P(r).holder_entity_id).name) : ''}</small>${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}</div><span class="rq-acts">${ipHitSelect(r)}<button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-ip="${r.id}">반영</button></span></li>`
     : r.kind === 'auto' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).meeting || r.title)}</b>${from(r)}<small>${esc(P(r).by || '')} 님이 올린 미팅에서 새로 등록했습니다. 잘못 들어간 것은 숨겨 주세요.</small><ul class="rq-auto">${(P(r).created || []).map(c => { const e = byId(c.id); return `<li>${e ? `<button class="text-btn" type="button" data-detail="${esc(c.id)}">${esc(e.name)}</button>` : `<s>${esc(c.name)}</s>`} <span class="pill">${esc(c.kind)}</span>${e && isAdmin ? ` <button class="text-btn" type="button" data-auto-hide="${esc(c.id)}">숨기기</button>` : ''}</li>`; }).join('')}</ul></div><span class="rq-acts"><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`
+    : r.kind === 'mail' ? `<li class="rq-item rq-wide rq-mail"><div><b>${esc(P(r).company || r.title)}</b> <span>@${esc(P(r).domain || r.title)}</span><small>직원들이 보낸 메일 ${esc(P(r).total || 0)}통 · 마지막 ${esc(dotDate(P(r).last))}</small>
+        <div class="rq-mail-org"><select class="table-select" data-mail-ent="${r.id}" aria-label="회사"><option value="">새 회사로 등록</option>${companyOptions(r.target_id, [P(r).company, P(r).domain])}</select><input class="table-select" data-mail-name="${r.id}" value="${esc(P(r).company || '')}" aria-label="새 회사 이름" ${r.target_id ? 'hidden' : ''}></div>
+        <ul class="rq-mail-people">${(P(r).people || []).map((x, i) => `<li><label><input type="checkbox" data-mail-p="${r.id}|${i}" checked> <input class="rq-mail-nm" data-mail-nm="${r.id}|${i}" value="${esc(x.name || '')}" placeholder="이름" aria-label="이름"></label><span>${esc(x.email)}</span><small>${esc(x.count)}통 · ${esc(dotDate(x.last))} · ${esc((x.staff || []).join(', '))}</small></li>`).join('')}</ul></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-mail-go="${r.id}">선택한 담당자 등록</button></span></li>`
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
   return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인하거나 제외한 항목은 목록에서 빠지고 기록에 남습니다.</div>
@@ -490,6 +493,29 @@ function reviewView() {
     <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${rel.review.length ? Object.keys(byKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 여기에 쌓입니다.</p></div>'}</section>`;
 }
 function bindReview() {
+  $$('[data-mail-ent]').forEach(s => s.onchange = () => { const i = $(`[data-mail-name="${s.dataset.mailEnt}"]`); if (i) i.hidden = !!s.value; });
+  $$('[data-mail-go]').forEach(b => b.onclick = async () => {
+    const id = Number(b.dataset.mailGo), r = rel.review.find(x => x.id === id), p = r?.payload || {}, d = today();
+    const picked = (p.people || []).map((x, i) => ({...x, i, name: ($(`[data-mail-nm="${id}|${i}"]`)?.value || '').trim()})).filter(x => $(`[data-mail-p="${id}|${x.i}"]`)?.checked);
+    if (!picked.length) return toast('등록할 담당자를 하나 이상 선택해 주세요.');
+    const noName = picked.find(x => !x.name); if (noName) return toast(`${noName.email} 의 이름을 입력해 주세요.`);
+    let ent = $(`[data-mail-ent="${id}"]`)?.value; b.disabled = true;
+    const staff = picked[0].staff?.[0] || myName;
+    if (!ent) {
+      const nm = ($(`[data-mail-name="${id}"]`)?.value || '').trim(); if (!nm) { b.disabled = false; return toast('회사 이름을 입력해 주세요.'); }
+      const e = await save(uid(), {type: '회사', name: nm, points: [`메일 도메인 ${p.domain}`], owners: [staff], facts: [`메일에서 등록 ${d}`], first: d, last: d}, true);
+      if (!e) { b.disabled = false; return; } ent = e.id;
+    }
+    const org = byId(ent); let n = 0;
+    for (const x of picked) {
+      const c = await save(uid(), {type: '거래처 담당자', name: x.name, parentId: ent, agencyText: org?.name || '', points: [x.email], owners: [x.staff?.[0] || staff],
+                                   facts: [`메일에서 등록 ${d} · 주고받은 메일 ${x.count}통 · 마지막 ${x.last}`], first: d, last: d}, true);
+      if (c) n++;
+    }
+    await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: `${n}명 등록`, p_entity: ent});
+    await Promise.all([load(), loadRel()]); render();
+    toast(`${org?.name || '회사'}에 담당자 ${n}명을 등록했습니다.`);
+  });
   $$('[data-auto-hide]').forEach(b => b.onclick = async () => {
     const id = b.dataset.autoHide, nm = byId(id)?.name || ''; b.disabled = true;
     const { error } = await SB.rpc('pt_set_hidden', {entity: id, value: true});
