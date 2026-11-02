@@ -1530,7 +1530,7 @@ async function checkVersion() {
     const v = (html.match(/app\.js\?v=([\w]+)/) || [])[1];
     if (v && v !== MY_VER) {
       const bar = document.createElement('div'); bar.id = 'new-ver';
-      bar.innerHTML = (APP === 'gungnir' ? '궁니르' : '이그드라실') + '이 업데이트되었습니다. <button class="button primary small" type="button">새로고침</button>';
+      bar.innerHTML = (APP === 'gungnir' ? '궁니르가' : '이그드라실이') + ' 업데이트되었습니다. <button class="button primary small" type="button">새로고침</button>';
       bar.querySelector('button').onclick = () => location.reload();
       document.body.appendChild(bar);
     }
