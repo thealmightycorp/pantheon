@@ -2595,7 +2595,7 @@ function srcIps() {
     const p = d.pf[id], P = Object.fromEntries((p.ip_score_parts || []).map(x => [x.key, x])), nx = srcNext(id);
     return `<tr class="clickable${src.open === id ? ' on' : ''}" data-src-open="${id}" tabindex="0"><td><b>${esc(srcName(id))}</b>${byId(id)?.owned_ip ? ' <span class="pill good">당사 IP</span>' : ''}<small>${esc(IPK[p.ip_kind] || '')}${p.holder_entity_id ? ' · ' + esc(srcName(p.holder_entity_id)) : ''}</small></td><td>${srcScore(p.ip_score)}</td>${['timing', 'fandom', 'rights', 'relation'].map(k => `<td>${srcScore(P[k]?.score)}<small>${esc(P[k]?.basis || '')}</small></td>`).join('')}<td>${nx ? srcEv(nx) : '<small>—</small>'}</td><td><span class="ipc-more">${src.open === id ? '접기' : '자세히'}</span></td></tr>${src.open === id ? `<tr class="src-open"><td colspan="8">${srcDetail(id)}</td></tr>` : ''}`;
   }).join('')}</tbody></table></div>` : `<div class="empty"><p>아직 이어진 IP가 없습니다. IP 차트 상위 IP가 「확인 대기」에 올라오면 엔티티로 등록해 주세요.</p></div>`;
-  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="${APP === 'gungnir' ? YGG_URL : ''}#review"${APP === 'gungnir' ? ' target="_blank" rel="noopener"' : ''}>확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div></div>
+  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="${APP === 'gungnir' ? YGG_URL : ''}#review"${APP === 'gungnir' ? ' target="_blank" rel="noopener"' : ''}>확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div><button class="button primary" type="button" id="ip-add">${icon('plus')}IP 직접 추가</button></div>
     <details class="ipc-how"><summary>IP 스코어 기준 — 어떻게 매기나요?</summary><div class="ipc-how-body"><p>타이밍 ${d.conf.weights?.timing ?? 30} · 팬덤 화력 ${d.conf.weights?.fandom ?? 30} · 권리구조 단순성 ${d.conf.weights?.rights ?? 15} · 관계 점수 ${d.conf.weights?.relation ?? 25} 비중으로 계산하고, 값이 없는 항목은 빼고 나머지 비중으로 나눕니다. 당사 귀속 IP는 100점입니다.</p>
     <p><b>타이밍</b>: ${d.conf.timing_days ?? 180}일 안의 일정 — 30~120일 남은 확정 일정이 100점, 30일 안 60점, 그 뒤 80점, 지난 일주일 70점(예정은 ×0.85). 루머는 넣지 않습니다. <b>팬덤 화력</b>: 최근 3일 IP 차트 점수. <b>권리구조 단순성</b>: 담당자나 궁니르가 확인해 넣은 값만 씁니다. <b>관계 점수</b>: 권리사·라이선싱 대행사의 관계 점수.</p><p>점수가 바뀔 때마다 이유와 함께 기록이 남습니다.</p></div></details>${list}</section>`;
 }
@@ -2656,6 +2656,28 @@ function srcPoll() {
     srcPoll();
   }, 3000);
 }
+// IP 직접 추가 (11-02 홍석진 대표님 「제안하지 않은 IP 를 내가 넣어서 스코어 확인 · 내가 제안한 IP 로 진행」) — sql/028 pt_ip_add
+function ipAddModal() {
+  modal(`<form id="ipadd-form"><h2>IP 직접 추가</h2><p>IP 차트에 없는 IP도 넣으면 판테온 봇이 일정을 찾아 IP 스코어를 매기고, 조합 시뮬레이션도 바로 시작합니다. 이미 등록된 IP면 그 IP에 이어 붙입니다.</p>
+    <label>IP 이름<input id="ipa-name" required maxlength="100" placeholder="예: 리락쿠마"></label>
+    <label>영문 이름 (선택)<input id="ipa-en" maxlength="100" placeholder="예: Rilakkuma"></label>
+    <label>종류<select id="ipa-kind">${Object.entries(IPK).map(([k, t]) => `<option value="${k}" ${k === 'character' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    <label>권리사·소유사 (선택)<select id="ipa-holder"><option value="">선택 안 함</option>${companyOptions('')}</select></label>
+    <label class="check"><input type="checkbox" id="ipa-combo" checked> 조합 시뮬레이션도 바로 시작</label>
+    <label>조합 요청 사항 (선택)<input id="ipa-ins" maxlength="500" placeholder="예: 보이그룹 아티스트 콜라보, 2028 팝업 위주"></label>
+    <div id="ipa-error" style="color:#ba775e;margin-top:8px;font-size:12px" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">추가하고 스코어 계산</button></div></form>`);
+  $('#ipadd-form').onsubmit = async ev => {
+    ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
+    const name = $('#ipa-name').value.trim();
+    const { data, error } = await SB.rpc('pt_ip_add', {p_name: name, p_en: $('#ipa-en').value.trim(), p_kind: $('#ipa-kind').value,
+      p_holder: $('#ipa-holder').value || null, p_combo: $('#ipa-combo').checked, p_instruction: $('#ipa-ins').value.trim()});
+    if (error) { if (btn) btn.disabled = false; $('#ipa-error').textContent = '추가하지 못했습니다: ' + error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close();
+    await load(); src.d = null; src.open = data; src.tab = 'ips'; render();
+    toast(`${name}을(를) 추가했습니다. 판테온 봇이 몇 분 안에 일정을 찾고 IP 스코어를 매깁니다.`);
+  };
+}
 function bindSrc() {
   $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
   if (src.tab === 'chart') return bindChart();
@@ -2691,6 +2713,7 @@ function bindSrc() {
     if (error) { b.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
     redo(n == null ? '미입력으로 저장했습니다.' : '저장했습니다. 5분 안에 스코어에 반영됩니다.');
   });
+  $('#ip-add')?.addEventListener('click', ipAddModal);
   $$('[data-combo-run]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     const { error } = await SB.from('pt_combo_run').insert({ip_entity_id: b.dataset.comboRun, instruction: $('#combo-ins')?.value.trim() || '', status: 'wait'});
