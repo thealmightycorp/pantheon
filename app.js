@@ -1221,7 +1221,7 @@ const entityByName = name => { const n = normCo(name); return n.length < 2 ? nul
 async function loadStudio() {
   if (studio.loading) return; studio.loading = true; studio.err = '';
   try {
-    const [p, r, j, cj] = await Promise.all([
+    const [p, r, j, , cj] = await Promise.all([
       SB.from('pt_proposal').select('*').order('updated_at', {ascending: false}),
       SB.from('pt_proposal_ref').select('*').eq('hidden', false).order('created_at', {ascending: false}),
       SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work']), loadMembers(),
