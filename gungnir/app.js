@@ -74,8 +74,8 @@ const toRow = p => {           // 화면 칸 → DB 칸 (보낸 것만)
 function toast(s, undo) {
   const t = $('#toast'); t.textContent = '';
   const sp = document.createElement('span'); sp.textContent = s; t.appendChild(sp);
-  if (undo) { const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-undo'; b.textContent = undo.label || '되돌리기';
-    b.onclick = async () => { b.disabled = true; t.classList.remove('visible'); clearTimeout(window.tt); try { await undo.fn(); } catch (e) { toast('되돌리지 못했습니다: ' + (e?.message || '')); } }; t.appendChild(b); }
+  if (undo) { const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-undo'; b.textContent = undo.label || '실행 취소';
+    b.onclick = async () => { b.disabled = true; t.classList.remove('visible'); clearTimeout(window.tt); try { await undo.fn(); } catch (e) { toast('실행 취소하지 못했습니다: ' + (e?.message || '')); } }; t.appendChild(b); }
   t.classList.toggle('has-undo', !!undo);
   try { if (!t.hasAttribute('popover')) t.setAttribute('popover', 'manual'); t.hidePopover?.(); t.showPopover?.(); } catch {}
   t.classList.add('visible'); clearTimeout(window.tt);
@@ -261,7 +261,7 @@ const noteBlock = e => `<div class="detail-block"><h3>리서치 노트</h3><text
 function bindNote(e) { $('#save-note').onclick = async () => { const b = $('#save-note'); b.disabled = true; const ok = await save(e.id, {note: $('#research-note').value}); b.disabled = false; if (ok) toast('리서치 노트를 저장했습니다.'); }; }
 const adminTools = e => isAdmin ? `<button class="button" id="hide-entity">${e.hidden ? '숨김 해제' : '숨기기'}</button>` : '';
 function bindAdminTools(e) { $('#hide-entity')?.addEventListener('click', async () => { const { error } = await SB.rpc('pt_set_hidden', {entity: e.id, value: !e.hidden}); if (error) return toast('변경하지 못했습니다: ' + error.message); await load(); render(); openDetail(e.id);
-  toast(e.hidden ? '숨김을 해제했습니다.' : '숨김 처리했습니다. DB 관리자만 볼 수 있습니다.', {fn: async () => { const r = await SB.rpc('pt_set_hidden', {entity: e.id, value: !!e.hidden}); if (r.error) throw r.error; await load(); render(); openDetail(e.id); toast('되돌렸습니다.'); }}); }); }
+  toast(e.hidden ? '숨김을 해제했습니다.' : '숨김 처리했습니다. DB 관리자만 볼 수 있습니다.', {fn: async () => { const r = await SB.rpc('pt_set_hidden', {entity: e.id, value: !!e.hidden}); if (r.error) throw r.error; await load(); render(); openDetail(e.id); toast('실행을 취소했습니다.'); }}); }); }
 
 // 내부 담당자 이력 (10-26) — 최초 등록자 → 주 담당자 지정·변경(인수인계)을 시각과 함께. 변경 기록에서 담당자 항목만 (pt_owner_history)
 function ownerHistoryHtml(rows) {
@@ -372,7 +372,7 @@ function bindRel(e, contact) {
     const x = rel.events.find(v => String(v.id) === b.dataset.tlDel); if (!x) return;
     const { error } = await SB.from('pt_rel_event').delete().eq('id', x.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
     await relReload(activeDetail);
-    toast('기록을 삭제했습니다.', {fn: async () => { const {id, created_at, created_by, ...row} = x; const r = await SB.from('pt_rel_event').insert(row); if (r.error) throw r.error; await relReload(activeDetail); toast('되돌렸습니다.'); }});
+    toast('기록을 삭제했습니다.', {fn: async () => { const {id, created_at, created_by, ...row} = x; const r = await SB.from('pt_rel_event').insert(row); if (r.error) throw r.error; await relReload(activeDetail); toast('실행을 취소했습니다.'); }});
   });
 }
 function eventModal({entity, contact}) {
@@ -399,7 +399,7 @@ function eventModal({entity, contact}) {
     if (btn) btn.disabled = false;
     if (error) { $('#ev-err').textContent = '저장하지 못했습니다: ' + error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); const back = (contact || entity).id; await relReload(back);
-    toast(`${EV[t]} 기록을 남겼습니다.`, {fn: async () => { const r = await SB.from('pt_rel_event').delete().eq('id', data.id); if (r.error) throw r.error; await relReload(back); toast('되돌렸습니다.'); }});
+    toast(`${EV[t]} 기록을 남겼습니다.`, {fn: async () => { const r = await SB.from('pt_rel_event').delete().eq('id', data.id); if (r.error) throw r.error; await relReload(back); toast('실행을 취소했습니다.'); }});
   };
 }
 function stageModal(e, pre) {
@@ -418,7 +418,7 @@ function stageModal(e, pre) {
     const { error } = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: to, p_event: evid, p_note: $('#st-note').value.trim()});
     if (error) { $('#st-err').textContent = error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(`${e.name} 관계 단계를 ${to} ${STAGE[to]}(으)로 바꿨습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: cur || null, p_event: evid, p_note: '되돌리기'}); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }});
+    toast(`${e.name} 관계 단계를 ${to} ${STAGE[to]}(으)로 바꿨습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: cur || null, p_event: evid, p_note: '실행 취소'}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
   };
 }
 function depthModal(e) {
@@ -447,7 +447,7 @@ function relOwnerModal(e) {
     const { error } = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: v});
     if (error) { $('#ro-err').textContent = error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(v ? `관계 담당자를 ${memberName(v)}(으)로 정했습니다.` : '관계 담당자를 비웠습니다.', prev !== v && (!prev || isAdmin || prev === me.id) ? {fn: async () => { const r = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: prev}); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }} : undefined);
+    toast(v ? `관계 담당자를 ${memberName(v)}(으)로 정했습니다.` : '관계 담당자를 비웠습니다.', prev !== v && (!prev || isAdmin || prev === me.id) ? {fn: async () => { const r = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: prev}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
   };
 }
 // 사람 상세 — 소속(지금·이전) · 접촉 · 명함 받은 곳
@@ -527,14 +527,14 @@ function bindReview() {
     const { error } = await SB.rpc('pt_set_hidden', {entity: id, value: true});
     if (error) { b.disabled = false; return toast('숨기지 못했습니다: ' + error.message); }
     await load(); render();
-    toast(`${nm}을(를) 숨겼습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_hidden', {entity: id, value: false}); if (r.error) throw r.error; await load(); render(); toast('되돌렸습니다.'); }});
+    toast(`${nm}을(를) 숨겼습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_hidden', {entity: id, value: false}); if (r.error) throw r.error; await load(); render(); toast('실행을 취소했습니다.'); }});
   });
   $$('[data-rq]').forEach(b => b.onclick = async () => {
     const [id, st] = b.dataset.rq.split('|'); b.disabled = true;
     const { error } = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: st, p_note: ''});
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
     await loadRel(); render();
-    toast(st === 'approved' ? '확인했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('되돌렸습니다.'); }});
+    toast(st === 'approved' ? '확인했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('실행을 취소했습니다.'); }});
   });
   $$('[data-rq-link]').forEach(b => b.onclick = async () => {
     const id = Number(b.dataset.rqLink), ent = $(`[data-rq-ent="${id}"]`)?.value;
@@ -543,7 +543,7 @@ function bindReview() {
     const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
     if (error) { b.disabled = false; return toast('연결하지 못했습니다: ' + error.message); }
     await Promise.all([load(), loadRel()]); render();
-    toast(`${byId(ent)?.name || '회사'} 관계 타임라인에 미팅을 기록했습니다.`, {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await Promise.all([load(), loadRel()]); render(); toast('되돌렸습니다.'); }});
+    toast(`${byId(ent)?.name || '회사'} 관계 타임라인에 미팅을 기록했습니다.`, {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await Promise.all([load(), loadRel()]); render(); toast('실행을 취소했습니다.'); }});
   });
   $$('[data-rq-ip]').forEach(b => b.onclick = async () => {
     const id = Number(b.dataset.rqIp), ent = $(`[data-rq-ipent="${id}"]`)?.value || null, r = rel.review.find(x => x.id === id);
@@ -551,7 +551,7 @@ function bindReview() {
     const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
     if (error) { b.disabled = false; return toast('반영하지 못했습니다: ' + error.message); }
     await Promise.all([load(), loadRel()]); src.d = null; render();
-    toast(ent ? `${byId(ent)?.name || 'IP'}에 IP 차트를 연결했습니다.` : `${r?.payload?.name || 'IP'}를 엔티티로 등록했습니다. 소싱 「IP 스코어」에 나옵니다.`, {fn: async () => { const x = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (x.error) throw x.error; await Promise.all([load(), loadRel()]); src.d = null; render(); toast('연결을 되돌렸습니다. 새로 만든 엔티티는 엔티티 화면에서 숨길 수 있습니다.'); }});
+    toast(ent ? `${byId(ent)?.name || 'IP'}에 IP 차트를 연결했습니다.` : `${r?.payload?.name || 'IP'}를 엔티티로 등록했습니다. 소싱 「IP 스코어」에 나옵니다.`, {fn: async () => { const x = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (x.error) throw x.error; await Promise.all([load(), loadRel()]); src.d = null; render(); toast('연결을 취소했습니다. 새로 만든 엔티티는 엔티티 화면에서 숨길 수 있습니다.'); }});
   });
   $$('[data-rq-person]').forEach(b => b.onclick = () => {
     const r = rel.review.find(x => String(x.id) === b.dataset.rqPerson); if (!r) return; const p = r.payload || {};
@@ -644,7 +644,7 @@ function linkModal(c) {
   $('#link-find').oninput = ev => { const q = ev.target.value.toLowerCase(); [...$('#link-select').options].forEach(o => { const e = byId(o.value); o.hidden = !!q && ![e.name, e.en, ...e.aliases].filter(Boolean).join(' ').toLowerCase().includes(q); }); $('#link-error').textContent = [...$('#link-select').options].some(o => !o.hidden) ? '' : '찾는 회사가 없습니다. 「엔티티 등록」으로 먼저 등록해 주세요.'; };
   const prevOrg = c.parentId ? byId(c.parentId) : null;
   const go = async org => { if (!await save(c.id, {parentId: org ? org.id : null, agencyText: org ? org.name : ''})) return; $('#modal').dataset.dirty = ''; $('#modal').close(); render(); openDetail(c.id);
-    toast(org ? `${c.name} 님을 ${org.name}에 연결했습니다.` : `${c.name} 님의 회사 연결을 해제했습니다.`, {fn: async () => { if (!await save(c.id, {parentId: prevOrg ? prevOrg.id : null, agencyText: prevOrg ? prevOrg.name : ''})) return; render(); openDetail(c.id); toast('되돌렸습니다.'); }}); };
+    toast(org ? `${c.name} 님을 ${org.name}에 연결했습니다.` : `${c.name} 님의 회사 연결을 해제했습니다.`, {fn: async () => { if (!await save(c.id, {parentId: prevOrg ? prevOrg.id : null, agencyText: prevOrg ? prevOrg.name : ''})) return; render(); openDetail(c.id); toast('실행을 취소했습니다.'); }}); };
   $('#link-clear')?.addEventListener('click', () => go(null));
   $('#link-form').onsubmit = ev => { ev.preventDefault(); const org = byId($('#link-select').value); if (!org) { $('#link-error').textContent = '연결할 회사를 선택해 주세요.'; return; } go(org); };
 }
@@ -1232,7 +1232,7 @@ function wikiModal(e) {
     if (error) { if (btn) btn.disabled = false; $('#wk-err').textContent = error.message; return; }
     if (own) { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'approved', p_note: ''}); if (r.error) { if (btn) btn.disabled = false; $('#wk-err').textContent = r.error.message; return; } }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(own ? '위키에 반영했습니다.' : '확인 대기에 올렸습니다. 관계 담당자가 반영하면 위키가 바뀝니다.', own ? {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'rejected', p_note: '되돌림'}); await relReload(e.id); toast('되돌렸습니다.'); }} : undefined);
+    toast(own ? '위키에 반영했습니다.' : '확인 대기에 올렸습니다. 관계 담당자가 반영하면 위키가 바뀝니다.', own ? {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'rejected', p_note: '실행 취소'}); await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
   };
 }
 function relationModal(e) {
@@ -1263,7 +1263,7 @@ function bindKn(e) {
     const x = (rel.relations || []).find(v => String(v.id) === b.dataset.krDel); if (!x) return;
     const { error } = await SB.from('pt_relation').delete().eq('id', x.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
     await relReload(e.id);
-    toast('관계를 삭제했습니다.', {fn: async () => { const {id, created_by, captured_at, ...row} = x; const r = await SB.from('pt_relation').insert(row); if (r.error) throw r.error; await relReload(e.id); toast('되돌렸습니다.'); }});
+    toast('관계를 삭제했습니다.', {fn: async () => { const {id, created_by, captured_at, ...row} = x; const r = await SB.from('pt_relation').insert(row); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
   });
 }
 // 위키 바뀌는 내용 — 줄 단위 비교 (지운 줄 · 넣은 줄)
@@ -1290,7 +1290,7 @@ function bindKw() {
     const { error } = await SB.rpc('pt_wiki_decide', {p_id: Number(id), p_status: st, p_note: ''});
     if (error) { b.disabled = false; return toast((st === 'approved' ? '반영하지 못했습니다: ' : '제외하지 못했습니다: ') + error.message); }
     await loadRel(); render();
-    toast(st === 'approved' ? '위키에 반영했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('되돌렸습니다.'); }});
+    toast(st === 'approved' ? '위키에 반영했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('실행을 취소했습니다.'); }});
   });
 }
 // 지식 점검 (K-07) — 봇이 매주 월요일 09시에 만든 결과
@@ -1445,9 +1445,9 @@ function scorePanel() {
   if (!admin.score) { setTimeout(loadScore); return '<div class="empty"><p>기준을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   const {cfg, log, err} = admin.score; if (err || !cfg) return `<div class="notice">기준을 불러오지 못했습니다: ${esc(err)}</div>`;
   const wl = w => Object.entries(w || {}).map(([k, v]) => `${W_KO[k] || k} ${v}`).join(' · ');
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">관계 점수 기준 <small>${cfg.version}판</small></div><p class="panel-caption">처음 기준에서 시작해 Claude가 월 1회, 또는 점수와 실제 결과가 어긋날 때 항목당 10점 안에서 조정합니다. 바뀌면 이유·근거와 함께 아래에 남고, 되돌리면 같은 방향으로 30일 동안 다시 바꾸지 않습니다.</p></div></div>
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">관계 점수 기준 <small>${cfg.version}판</small></div><p class="panel-caption">처음 기준에서 시작해 Claude가 월 1회, 또는 점수와 실제 결과가 어긋날 때 항목당 10점 안에서 조정합니다. 바뀌면 이유·근거와 함께 아래에 남고, 복원하면 같은 방향으로 30일 동안 다시 바꾸지 않습니다.</p></div></div>
     <div class="quality-grid">${Object.entries(cfg.weights).map(([k, v]) => `<div class="stat"><div class="stat-label">${W_KO[k] || k}</div><div class="stat-value">${v}<small>점</small></div></div>`).join('')}</div>
-    <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">되돌림</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 되돌리기</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
+    <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">복원됨</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 // 개인정보 삭제 요청 (PRD 8.1 · sql/024 · 11-02) — 접수 → 처리(되돌릴 수 없음) → 명함·프로필 파일과 백업은 판테온 봇이 이어서 지움
 const ERASE_VIA = ['이메일', '전화', '직접 요청', '기타'];
@@ -1471,7 +1471,7 @@ function erasePanel() {
     : '<span class="pill good">삭제 완료</span>';
   const done = x => x.processed_at ? `<small class="cell-sub">${esc(kst(x.processed_at))} · ${esc(whoName(x.processed_by, '관리자'))}</small>` : '';
   const got = x => Object.entries(x.result || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ');
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">개인정보 삭제 요청 <small>${rows.filter(x => x.status === 'pending').length}건 대기</small></div><p class="panel-caption">본인이 연락처 삭제를 요청하면 여기서 접수하고, 요청일로부터 7일 안에 처리해 주세요. 처리하면 연락처·명함·소속·변경 기록에서 그 사람의 정보가 지워지고, 관계 기록에는 「삭제된 연락처」로만 남습니다. 처리한 뒤에는 되돌릴 수 없습니다.</p></div><button class="button primary" type="button" id="erase-add">삭제 요청 접수</button></div>
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">개인정보 삭제 요청 <small>${rows.filter(x => x.status === 'pending').length}건 대기</small></div><p class="panel-caption">본인이 연락처 삭제를 요청하면 여기서 접수하고, 요청일로부터 7일 안에 처리해 주세요. 처리하면 연락처·명함·소속·변경 기록에서 그 사람의 정보가 지워지고, 관계 기록에는 「삭제된 연락처」로만 남습니다. 처리한 뒤에는 복원할 수 없습니다.</p></div><button class="button primary" type="button" id="erase-add">삭제 요청 접수</button></div>
   <div class="table-wrap"><table><thead><tr><th>접수</th><th>연락처</th><th>요청 경로 · 메모</th><th>상태</th><th>조치</th></tr></thead><tbody>${rows.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.requested_at))}<small class="cell-sub">${esc(whoName(x.requested_by, '관리자'))}</small></td><td><b>${esc(eraseWho(x))}</b></td><td>${esc(x.requested_via || '—')}${x.note ? `<small class="cell-sub">${esc(x.note)}</small>` : ''}</td><td>${state(x)}${done(x)}${x.status === 'done' && got(x) ? `<small class="cell-sub">지운 것: ${esc(got(x))}</small>` : ''}</td><td style="white-space:nowrap">${x.status === 'pending' ? `<button class="button danger" type="button" data-erase-go="${x.id}">삭제 처리</button> <button class="text-btn" type="button" data-erase-cancel="${x.id}">접수 취소</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">접수된 삭제 요청이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 function eraseAdd() {
@@ -1495,9 +1495,9 @@ function eraseAdd() {
 }
 function bindAdmin() {
   $$('[data-score-revert]').forEach(b => b.onclick = async () => {
-    const ok = await confirmBox({title: '이전 기준으로 되돌릴까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 같은 방향의 조정은 30일 동안 다시 하지 않습니다.', ok: '이전 기준으로 되돌리기'});
+    const ok = await confirmBox({title: '이전 기준으로 복원할까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 같은 방향의 조정은 30일 동안 다시 하지 않습니다.', ok: '이전 기준으로 복원'});
     if (!ok) return; const { error } = await SB.rpc('pt_rel_config_revert', {p_log: Number(b.dataset.scoreRevert)});
-    if (error) return toast('되돌리지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 되돌렸습니다.');
+    if (error) return toast('복원하지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 복원했습니다.');
   });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
   $('#erase-add')?.addEventListener('click', eraseAdd);
@@ -1508,7 +1508,7 @@ function bindAdmin() {
   });
   $$('[data-erase-go]').forEach(b => b.onclick = async () => {
     const x = admin.erase.rows.find(r => String(r.id) === b.dataset.eraseGo); if (!x) return;
-    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 판테온 봇이 몇 분 안에 지웁니다. <b>되돌릴 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
+    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 판테온 봇이 몇 분 안에 지웁니다. <b>복원할 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
     if (!ok) return; b.disabled = true; b.textContent = '삭제하는 중…';
     const { error } = await SB.rpc('pt_erasure_process', {p_id: x.id});
     if (error) { b.disabled = false; b.textContent = '삭제 처리'; return toast('삭제하지 못했습니다: ' + error.message); }
@@ -1688,8 +1688,8 @@ async function arView(id) {
     toast(`「${AR_KO[k]}」(으)로 옮겼습니다.`); };
   $('#ar-hide').onclick = async () => { const i = studio.arch.indexOf(a);
     $('#modal').close();
-    const done = await optimistic(() => { studio.arch.splice(i, 1); render(); }, () => SB.from('pt_image_archive').update({hidden: true}).eq('id', a.id), () => { studio.arch.splice(i, 0, a); render(); }, '빼지 못해 원래대로 되돌렸습니다');
-    if (done) toast('아카이브에서 뺐습니다.', {fn: async () => { const r = await SB.from('pt_image_archive').update({hidden: false}).eq('id', a.id); if (r.error) throw r.error; studio.arch.splice(i, 0, a); render(); toast('되돌렸습니다.'); }}); };
+    const done = await optimistic(() => { studio.arch.splice(i, 1); render(); }, () => SB.from('pt_image_archive').update({hidden: true}).eq('id', a.id), () => { studio.arch.splice(i, 0, a); render(); }, '삭제하지 못해 원래대로 복원했습니다');
+    if (done) toast('아카이브에서 뺐습니다.', {fn: async () => { const r = await SB.from('pt_image_archive').update({hidden: false}).eq('id', a.id); if (r.error) throw r.error; studio.arch.splice(i, 0, a); render(); toast('실행을 취소했습니다.'); }}); };
 }
 // 제안서 이미지 확인·수정 카드 「아카이브에서 선택」 — 고른 이미지를 그 자리에 넣는다(복사본 그대로 · 내 이미지로 교체와 같은 흐름)
 const AR_NEAR = {official: 'official', logo: 'logo', capture: 'capture', reference: 'reference', ai_concept: 'ai_concept', mockup: 'mockup', texture: 'texture'};
@@ -1722,7 +1722,7 @@ async function useArchive(p, key, a) {
   studio.list = null; await loadStudio(); toast('아카이브 이미지로 교체했습니다. 「변경 사항 반영」을 누르면 제안서에 들어갑니다.', {fn: async () => {
     const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
     await SB.from('pt_proposal').update({data: {...d2, images: {...d2.images, slots: {...d2.images.slots, [key]: was}}}}).eq('id', p.id);
-    await proposalEvent(p.id, `이미지 ${key} 교체를 되돌렸습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 되돌렸습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+    await proposalEvent(p.id, `이미지 ${key} 교체를 취소했습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 복원했습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
   return true;
 }
 // 레퍼런스 분석 진행률 — 판테온 봇이 pt_proposal_job.result 에 3초마다 적는 값(1~100% · 남은 초)을 읽어 막대로
@@ -2086,7 +2086,7 @@ async function replaceSlotImage(p, key, f) {
   studio.list = null; await loadStudio(); toast('이미지를 교체했습니다. 「변경 사항 반영」을 누르면 제안서에 들어갑니다.', {fn: async () => {
     const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
     await SB.from('pt_proposal').update({data: {...d2, images: {...d2.images, slots: {...d2.images.slots, [key]: was}}}}).eq('id', p.id);
-    await proposalEvent(p.id, `이미지 ${key} 교체를 되돌렸습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 되돌렸습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+    await proposalEvent(p.id, `이미지 ${key} 교체를 취소했습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 복원했습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
   return true;
 }
 const qaBlock = p => { const d = p.data || {}, qa = qaOf(d), busy = studio.jobs.some(j => j.proposal_id === p.id && j.kind === 'qa' && ['wait', 'work'].includes(j.status));
@@ -2187,8 +2187,8 @@ async function candApply(p, key, ok) {
     const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
     const pt = {...(d2.build.patches || {})}; if (one) { if (d.build.patches?.[page]) pt[page] = d.build.patches[page]; else delete pt[page]; }
     await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, patches: pt}, qa: d.qa, images: {...d2.images, slots: {...d2.images.slots, [key]: cur}}}}).eq('id', p.id);
-    await proposalEvent(p.id, `${page}페이지 새 이미지 ${ok ? '확정' : '버리기'}를 되돌렸습니다`);
-    studio.list = null; await loadStudio(); toast('되돌렸습니다.'); window.dispatchEvent(new Event('pt-refresh'));
+    await proposalEvent(p.id, `${page}페이지 새 이미지 ${ok ? '확정' : '버리기'}를 취소했습니다`);
+    studio.list = null; await loadStudio(); toast('실행을 취소했습니다.'); window.dispatchEvent(new Event('pt-refresh'));
   }} : null;
   toast(ok ? (one ? `확정했습니다. ${page}페이지만 바꿨고, 그 페이지만 다시 검수합니다.` : '확정했습니다. 이 이미지가 든 페이지들만 다시 그립니다.') : '새 이미지를 버렸습니다. 원래 이미지를 그대로 씁니다.', undo);
 }
@@ -2345,14 +2345,14 @@ async function pageReview(pid, start) {
         const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, boxes, deck: {...deck0, text_pos: pos, text_orig: orig}}}, status: 'working'}).eq('id', p.id);
         if (error) { $('#tx-ok').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
         await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
-        await proposalEvent(p.id, `${cur}페이지 글 ${ids.length}개 위치를 ${reset ? '원래대로 되돌렸습니다' : '옮겼습니다'} → 이 페이지만 다시 그립니다`);
+        await proposalEvent(p.id, `${cur}페이지 글 ${ids.length}개 위치를 ${reset ? '원래대로 복원했습니다' : '옮겼습니다'} → 이 페이지만 다시 그립니다`);
         dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur);
-        toast(reset ? '글을 원래 위치로 되돌립니다. 이 페이지를 다시 그리는 중입니다.' : '글 위치를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
+        toast(reset ? '글을 원래 위치로 복원합니다. 이 페이지를 다시 그리는 중입니다.' : '글 위치를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
           const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
           await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, boxes: {...d2.build.boxes, ...Object.fromEntries(ids.map(id => [id, f.build.boxes[id]]))}, deck: {...d2.build.deck, text_pos: deck0.text_pos || {}, text_orig: deck0.text_orig || {}}}}, status: 'working'}).eq('id', p.id);
           await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
-          await proposalEvent(p.id, `${cur}페이지 글 위치 변경을 되돌렸습니다`);
-          studio.list = null; await loadStudio(); toast('되돌렸습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+          await proposalEvent(p.id, `${cur}페이지 글 위치 변경을 취소했습니다`);
+          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
       };
       $('#tx-ok').onclick = () => save(false);
       if ($('#tx-reset')) $('#tx-reset').onclick = () => save(true);
@@ -2398,14 +2398,14 @@ async function pageReview(pid, start) {
         const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, boxes}, images: {...f.images, slots: {...f.images.slots, [k]: slot}}}, status: 'working'}).eq('id', p.id);
         if (error) { $('#sz-ok').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
         await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: [k]}});
-        await proposalEvent(p.id, `${cur}페이지 「${whatText(s0.what) || k}」 이미지 상자를 ${reset ? '원래 크기로 되돌렸습니다' : '조절했습니다'} → 이 페이지만 다시 그립니다`);
+        await proposalEvent(p.id, `${cur}페이지 「${whatText(s0.what) || k}」 이미지 상자를 ${reset ? '원래 크기로 복원했습니다' : '조절했습니다'} → 이 페이지만 다시 그립니다`);
         dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur);
-        toast(reset ? '원래 크기로 되돌립니다. 이 페이지를 다시 그리는 중입니다.' : '상자 크기를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
+        toast(reset ? '원래 크기로 복원합니다. 이 페이지를 다시 그리는 중입니다.' : '상자 크기를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
           const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
           await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, boxes: {...d2.build.boxes, [k]: b0}}, images: {...d2.images, slots: {...d2.images.slots, [k]: s0}}}, status: 'working'}).eq('id', p.id);
           await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: [k]}});
-          await proposalEvent(p.id, `${cur}페이지 이미지 상자 조절을 되돌렸습니다`);
-          studio.list = null; await loadStudio(); toast('되돌렸습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+          await proposalEvent(p.id, `${cur}페이지 이미지 상자 조절을 취소했습니다`);
+          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
       };
       $('#sz-ok').onclick = () => save(false);
       if ($('#sz-reset')) $('#sz-reset').onclick = () => save(true);
@@ -2429,7 +2429,7 @@ async function pageReview(pid, start) {
         () => { lp.data = {...lp.data, qa_ok: flip({...before})}; show(page); toast(on ? '이 이미지로 확정했습니다. 확인할 곳에서 빠집니다.' : '확정을 취소했습니다.'); },
         async () => { const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); if (e0) throw e0;
           return SB.from('pt_proposal').update({data: {...row.data, qa_ok: flip({...(row.data.qa_ok || {})})}}).eq('id', p.id); },
-        () => { lp.data = {...lp.data, qa_ok: before}; show(page); }, '확정을 저장하지 못해 되돌렸습니다');
+        () => { lp.data = {...lp.data, qa_ok: before}; show(page); }, '확정을 저장하지 못해 원래대로 복원했습니다');
       if (done) proposalEvent(p.id, `${page}페이지 「${whatText(S[k].what) || k}」 이미지를 ${on ? '확정했습니다' : '확정 취소했습니다'}`); };
     $$('#rv-side [data-rv-ok]').forEach(x => x.onclick = () => setOk(x.dataset.rvOk, true));
     $$('#rv-side [data-rv-unok]').forEach(x => x.onclick = () => setOk(x.dataset.rvUnok, false));
@@ -2474,7 +2474,7 @@ async function pageReview(pid, start) {
 async function optimistic(apply, save, revert, failMsg) {
   apply();
   try { const r = await save(); if (r?.error) throw r.error; return true; }
-  catch (e) { revert(); toast(`${failMsg || '저장하지 못해 원래대로 되돌렸습니다'}${e?.message ? ' · ' + e.message : ''}`); return false; }
+  catch (e) { revert(); toast(`${failMsg || '저장하지 못해 원래대로 복원했습니다'}${e?.message ? ' · ' + e.message : ''}`); return false; }
 }
 async function proposalEvent(id, message) { await SB.from('pt_proposal_event').insert({proposal_id: id, message}); }
 
@@ -2527,7 +2527,7 @@ async function openProposal(id, keep) {
         openProposal(p.id, true); if (okMsg) toast(okMsg); },
       async () => { const r = await SB.from('pt_proposal').update(row).eq('id', p.id); if (r.error) throw r.error;
         if (nextJob) { const j = await SB.from('pt_proposal_job').insert({proposal_id: p.id, ...nextJob}); if (j.error) throw j.error; } },
-      () => { if (lp) { Object.keys(lp).forEach(x => delete lp[x]); Object.assign(lp, before); } studio.jobs = jobs0; openProposal(p.id, true); }, '저장하지 못해 원래대로 되돌렸습니다');
+      () => { if (lp) { Object.keys(lp).forEach(x => delete lp[x]); Object.assign(lp, before); } studio.jobs = jobs0; openProposal(p.id, true); }, '저장하지 못해 원래대로 복원했습니다');
     if (!done) return;
     await proposalEvent(p.id, msg);
     studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
@@ -2553,7 +2553,7 @@ async function openProposal(id, keep) {
       const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
       const { cancel_req: _c, ...rest } = r2.data || {};
       await SB.from('pt_proposal').update({data: rest}).eq('id', p.id);
-      toast('취소를 되돌렸습니다. 작업을 계속 진행합니다.'); studio.list = null; await loadStudio(); openProposal(p.id, true); }});
+      toast('작업 취소를 철회했습니다. 작업을 계속 진행합니다.'); studio.list = null; await loadStudio(); openProposal(p.id, true); }});
   });
   // 같은 IP 조합으로 제안서 하나 더 — 리서치·팬·SNS 조사·컨셉 후보를 이어받아 컨셉 고르기부터
   $('#prop-more')?.addEventListener('click', async ev => {
@@ -2648,7 +2648,7 @@ async function openProposal(id, keep) {
     const log = (d.prompt_log || []).map(x => keep.has(x.key) ? {...x, kept: true} : x);
     if (patched) return go({status: 'working', data: {...d, good_images: good, prompt_log: log}}, {kind: 'finalize', input: {then_done: true}}, `수정한 ${patched}개 페이지를 전체에 반영한 뒤 완료합니다 (통과한 AI 이미지 ${good.length}장 기록)`, '수정한 페이지를 전체에 반영한 뒤 완료합니다.');
     go({status: 'done', data: {...d, good_images: good, prompt_log: log}}, null, `v${d.build.version} 으로 제안서를 완료했습니다 (통과한 AI 이미지 ${good.length}장 기록)`).then(() =>
-      toast('제안서를 완료했습니다.', {fn: async () => { await SB.from('pt_proposal').update({status: 'waiting'}).eq('id', p.id); await proposalEvent(p.id, '완료를 되돌렸습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('완료를 되돌렸습니다.'); }}));
+      toast('제안서를 완료했습니다.', {fn: async () => { await SB.from('pt_proposal').update({status: 'waiting'}).eq('id', p.id); await proposalEvent(p.id, '완료를 취소했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('완료를 취소했습니다.'); }}));
   });
   if (d.images && $('#img-board')) loadImgThumbs(d.images.slots);
   if (d.social?.captures?.length) loadImgThumbs(Object.fromEntries(d.social.captures.map((c, i) => [i, c])));
@@ -3029,7 +3029,7 @@ function bindSrc() {
     const id = Number(b.dataset.calHide); b.disabled = true;
     const { error } = await SB.from('pt_calendar_event').update({hidden: true}).eq('id', id);
     if (error) { b.disabled = false; return toast('숨기지 못했습니다: ' + error.message); }
-    await redo(); toast('일정을 숨겼습니다. 다음 스코어 계산부터 빠집니다.', {fn: async () => { await SB.from('pt_calendar_event').update({hidden: false}).eq('id', id); await redo('되돌렸습니다.'); }});
+    await redo(); toast('일정을 숨겼습니다. 다음 스코어 계산부터 빠집니다.', {fn: async () => { await SB.from('pt_calendar_event').update({hidden: false}).eq('id', id); await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-alias-add]').forEach(b => b.onclick = async () => {
     const t = $('#alias-in').value.trim(); if (!t) return toast('별명을 입력해 주세요.');
@@ -3042,7 +3042,7 @@ function bindSrc() {
     const a = src.d.al.find(x => String(x.id) === b.dataset.aliasDel); if (!a) return;
     const { error } = await SB.from('pt_alias').delete().eq('id', a.id);
     if (error) return toast('삭제하지 못했습니다: ' + error.message);
-    await redo(); toast(`「${a.text}」 별명을 삭제했습니다.`, {fn: async () => { const r = await SB.from('pt_alias').insert({entity_id: a.entity_id, text: a.text, kind: a.kind, member_of: a.member_of, source_url: a.source_url}); if (r.error) throw r.error; await redo('되돌렸습니다.'); }});
+    await redo(); toast(`「${a.text}」 별명을 삭제했습니다.`, {fn: async () => { const r = await SB.from('pt_alias').insert({entity_id: a.entity_id, text: a.text, kind: a.kind, member_of: a.member_of, source_url: a.source_url}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-rights]').forEach(b => b.onclick = async () => {
     const v = $('#rights-in').value.trim(), n = v === '' ? null : Number(v);
@@ -3063,7 +3063,7 @@ function bindSrc() {
     const [id, br] = b.dataset.cbBranch.split('|'); b.disabled = true;
     const { error } = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br});
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
-    await redo(); toast(br === 'dropped' ? '조합을 제외했습니다. 감시도 멈춥니다.' : '다시 감시합니다.', {fn: async () => { const r = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br === 'dropped' ? 'monitor' : 'dropped'}); if (r.error) throw r.error; await redo('되돌렸습니다.'); }});
+    await redo(); toast(br === 'dropped' ? '조합을 제외했습니다. 감시도 멈춥니다.' : '다시 감시합니다.', {fn: async () => { const r = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br === 'dropped' ? 'monitor' : 'dropped'}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-warn-ack]').forEach(b => b.onclick = async () => {
     b.disabled = true;
