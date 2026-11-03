@@ -226,11 +226,13 @@ function render() {
 /* ---------- 상세 ---------- */
 // 상세는 주소에 남긴다 #<화면>/<id> (10-31 대표님 UX 리뷰 ④) — 링크로 바로 열고, 뒤로가기로 닫는다
 let routed = false, ignoreHash = false, lastFocus = null;
-function setRoute(id) { const h = '#' + (page === 'search' ? 'entities' : page) + '/' + id; if (location.hash === h) return; try { if (location.hash.includes('/')) history.replaceState(null, '', h); else { history.pushState(null, '', h); routed = true; } } catch {} }
-async function openRoute(pg, id) { if (byId(id)) return openDetail(id); if (pg === 'studio' && APP === 'gungnir') { if (!studio.list) await loadStudio(); return openProposal(id); } if (pg === 'chart') return openIp(id); }
+function setRoute(id) { if (page === 'graph') return;   // 그래프의 주소는 「기준 점」이 차지 (11-03) — 그래프 안 상세는 주소를 바꾸지 않음
+  const h = '#' + (page === 'search' ? 'entities' : page) + '/' + id; if (location.hash === h) return; try { if (location.hash.includes('/')) history.replaceState(null, '', h); else { history.pushState(null, '', h); routed = true; } } catch {} }
+async function openRoute(pg, id) { if (pg === 'graph' && APP === 'ygg') return graphGo(id); if (byId(id)) return openDetail(id); if (pg === 'studio' && APP === 'gungnir') { if (!studio.list) await loadStudio(); return openProposal(id); } if (pg === 'chart') return openIp(id); }
 function hideDrawer() { $('#drawer').hidden = true; $('#overlay').hidden = true; activeDetail = null; ipc.open = null; document.body.style.overflow = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); lastFocus = null; }
 function closeDrawer() {
   if ($('#drawer').hidden) return;
+  if (page === 'graph') return hideDrawer();
   hideDrawer();
   if (!location.hash.includes('/')) return;
   if (routed) { routed = false; ignoreHash = true; history.back(); } else try { history.replaceState(null, '', '#' + location.hash.slice(1).split('/')[0]); } catch {}
@@ -292,12 +294,12 @@ function openDetail(id, keep) {
   if (!keep) setRoute(id);
   if (isContact(e)) return openContact(e, keep);
   const cs = contactsOf(e), parent = e.parentId && byId(e.parentId);
-  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + pathBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
+  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${e.id}">그래프에서 보기</button>` : ''}${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + pathBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
   $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e); bindKn(e); if (APP === 'ygg') loadPaths(e);
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
-  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 크게 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
+  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${c.id}">그래프에서 보기</button>` : ''}${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 크게 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
   bindNote(c); bindAdminTools(c); loadOwnerHistory(c.id); bindRel(byId(c.parentId) || c, c); loadCard(c);
   $('#card-where')?.addEventListener('click', () => cardWhereModal(c));
   $('#link-company').onclick = () => linkModal(c);
@@ -931,9 +933,23 @@ function gDetail() {
 function gFocusChip() {
   const el = $('#g-focus'); if (!el) return;
   const f = graph.focus && byId(graph.focus);
-  el.innerHTML = f ? `<span class="g-fchip"><b>${esc(f.name)}</b> 기준 <span class="seg-mini" role="group" aria-label="단계">${[1, 2].map(n => `<button type="button" data-gdepth="${n}" class="${graph.set.depth === n ? 'on' : ''}" aria-pressed="${graph.set.depth === n}">${n}단계</button>`).join('')}</span><button type="button" class="text-btn" id="g-all">전체 보기</button></span>` : '';
+  el.innerHTML = f ? `<span class="g-fchip"><b>${esc(f.name)}</b> 기준 <span class="seg-mini" role="group" aria-label="단계">${[1, 2].map(n => `<button type="button" data-gdepth="${n}" class="${graph.set.depth === n ? 'on' : ''}" aria-pressed="${graph.set.depth === n}">${n}단계</button>`).join('')}</span><button type="button" class="text-btn" id="g-all">전체 보기</button><button type="button" class="text-btn" id="g-link">링크 복사</button></span>` : '';
   $$('[data-gdepth]').forEach(b => b.onclick = () => { graph.set.depth = Number(b.dataset.gdepth); gSave(); gRefresh(true); });
   const a = $('#g-all'); if (a) a.onclick = () => { graph.focus = null; gRefresh(true); };
+  const l = $('#g-link'); if (l) l.onclick = async () => { gHash(); try { await navigator.clipboard.writeText(location.href); toast('이 그래프 링크를 복사했습니다. 슬랙에 붙여 넣으면 같은 화면이 열립니다.'); } catch { toast('복사하지 못했습니다. 주소창의 주소를 복사해 주세요.'); } };
+}
+// 그래프 주소 공유 (11-03 · PRD E-07) — #graph/<기준 점>/<단계>. 상세의 「그래프에서 보기」와 슬랙에 붙인 링크가 여기로 온다
+function graphGo(id) {
+  const e = byId(id); if (!e) return toast('그래프에서 찾지 못했습니다.');
+  const d = Number(location.hash.split('/')[2]); if (d === 1 || d === 2) graph.set.depth = d;
+  if (graph.set.offTypes.includes(e.type)) graph.set.offTypes = graph.set.offTypes.filter(t => t !== e.type);
+  if (isContact(e)) graph.set.contacts = true;
+  graph.focus = id; graph.sel = id; gSave(); hideDrawer();
+  if (graph.fg && graph.el && graph.el === $('#g-canvas')) { gRefresh(true); setTimeout(() => gSelect(id, true), 900); } else graph.pendingSel = id;
+}
+function gHash() {   // 기준 점이 바뀌면 주소도 — 뒤로 가기 기록은 남기지 않음
+  const h = graph.focus ? `#graph/${graph.focus}/${graph.set.depth}` : '#graph';
+  if (location.hash !== h) try { history.replaceState(null, '', h); } catch {}
 }
 function gSelect(id, move) {
   graph.sel = id; graph.near = graph.fg ? gNeighbors(graph.fg.graphData(), id) : null; gDetail();
@@ -947,7 +963,7 @@ function gRefresh(refit) {
   if (graph.sel && !data.nodes.some(n => n.id === graph.sel)) graph.sel = null;
   graph.near = graph.sel ? gNeighbors(data, graph.sel) : null;
   $('#g-count').textContent = `점 ${data.nodes.length} · 선 ${data.links.length}`;
-  gFocusChip(); gDetail();
+  gFocusChip(); gDetail(); if (page === 'graph') gHash();
   if (refit) setTimeout(() => graph.fg?.zoomToFit(500, 40), 700);
 }
 function gForces() {
@@ -961,6 +977,7 @@ async function graphMount() {
   if (!$('#g-canvas')) return;
   el.innerHTML = '';
   const S = graph.set, ink = '#202a29';
+  graph.el = el;
   const fg = graph.fg = ForceGraph()(el).width(el.clientWidth).height(el.clientHeight).backgroundColor('#fbfcfb')
     .nodeId('id').nodeRelSize(4).nodeVal(n => 1 + n.deg)
     .linkColor(l => { const hl = graph.sel ? ((l.source.id || l.source) === graph.sel || (l.target.id || l.target) === graph.sel) : true; return hl ? G_EDGE_COLOR[l.kind] : '#e6ebe8'; })
@@ -984,6 +1001,7 @@ async function graphMount() {
     .onNodeClick(n => gSelect(n.id)).onBackgroundClick(() => { graph.sel = null; graph.near = null; gDetail(); })
     .cooldownTicks(200);
   gForces(); gRefresh(); setTimeout(() => graph.fg === fg && fg.zoomToFit(500, 40), 900);
+  if (graph.pendingSel) { const id = graph.pendingSel; graph.pendingSel = null; setTimeout(() => graph.fg === fg && gSelect(id, true), 1400); }
   const ro = new ResizeObserver(() => { if (graph.fg === fg && el.isConnected) fg.width(el.clientWidth).height(el.clientHeight); else ro.disconnect(); }); ro.observe(el);
   // 찾기 — 이름·영문·별칭
   const q = $('#g-q'), find = v => { const s = normCo(v); if (!s) return null; const hits = all.filter(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x) === s)); return hits[0] || all.find(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x).includes(s))); };
@@ -3299,6 +3317,7 @@ $('#notification').onclick = () => go('home');
 $('.top-avatar').onclick = () => $('#profile').click();      // 폰에서는 왼쪽 메뉴가 아래 막대가 되어 프로필이 위 오른쪽 사진으로
 $('#profile').onclick = async () => { if (!me) return; modal(`<h2>내 계정</h2><p><b>${esc(myName)}</b> · ${isAdmin ? 'DB 관리자' : '구성원'}<br>${esc(me.email || '')}</p><p>로그아웃하면 헤임달에서도 함께 로그아웃됩니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button" type="button" id="logout-go">로그아웃</button></div>`); $('#logout-go').onclick = async () => { await SB.auth.signOut(); location.reload(); }; };
 $('#overlay').onclick = closeDrawer;
+$('#drawer').addEventListener('click', ev => { const b = ev.target.closest('[data-graph-go]'); if (b) location.hash = '#graph/' + b.dataset.graphGo; });   // 상세 「그래프에서 보기」 (11-03 · PRD E-07-11)
 SB.auth.onAuthStateChange(e => { if (e === 'PASSWORD_RECOVERY') { RECOVERY = true; recoveryScreen(); } });
 window.addEventListener('hashchange', () => {
   if (ignoreHash) { ignoreHash = false; return; }
