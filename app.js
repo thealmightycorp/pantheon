@@ -832,7 +832,7 @@ async function manAsk() {
   const q = $('#man-q').value.trim(); if (!q || man.busy) return;
   const head = `<p class="muted">질문: ${esc(q)}</p>`, put = h => { const o = $('#man-answer'); if (o) { o.hidden = false; o.innerHTML = h; } };   // 그사이 화면이 다시 그려져도 지금 칸에
   man.busy = true; $('#man-go').disabled = true;
-  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 판테온 봇에 보냈습니다' : '판테온 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 판테온 봇에 전달했습니다' : '판테온 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
   put(step(5));
   try {
     const { data, error } = await SB.from('pt_ask').insert({kind: 'manual_' + APP, question: q}).select('id').single();
@@ -1057,7 +1057,7 @@ function rememberModal() {
       await loadXlsx();
       const wb = XLSX.read(await f.arrayBuffer(), {type: 'array'}), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ''});
       const people = rmParse(rows);
-      if (!people?.length) { body.innerHTML = ''; err.textContent = '이름 칸을 찾지 못했습니다. 리멤버에서 내보낸 엑셀 파일인지 확인해 주세요.'; return; }
+      if (!people?.length) { body.innerHTML = ''; err.textContent = '이름 항목을 찾지 못했습니다. 리멤버에서 내보낸 엑셀 파일인지 확인해 주세요.'; return; }
       rm.groups = rmGroup(people); draw();
     } catch (e) { body.innerHTML = ''; err.textContent = '파일을 읽지 못했습니다: ' + (e?.message || ''); }
   };
