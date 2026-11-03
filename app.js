@@ -807,7 +807,7 @@ function manualView() {
     <div class="ask-answer" id="man-answer" ${man.answer ? '' : 'hidden'}>${man.answer}</div></div></section>`;
   const body = man.err ? `<div class="empty"><p><b>매뉴얼을 불러오지 못했습니다.</b></p><p>${esc(man.err)}</p><p><button class="button" type="button" id="man-retry">다시 불러오기</button></p></div>`
     : !man.md ? '<p class="rm-sum" style="padding:22px">매뉴얼을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>'
-    : `<details class="man-toc"><summary>목차</summary><ol>${d.toc.map(([id, t]) => `<li><a href="#manual" data-man-go="${id}">${esc(t)}</a></li>`).join('')}</ol></details><article class="man-doc">${d.html}</article>`;
+    : `<details class="man-toc"><summary>목차</summary><ul>${d.toc.map(([id, t]) => `<li><a href="#manual" data-man-go="${id}">${esc(t)}</a></li>`).join('')}</ul></details><article class="man-doc">${d.html}</article>`;
   return ask + `<section class="panel man-panel" style="margin-top:16px">${body}</section>`;
 }
 async function loadManual() {
