@@ -12,6 +12,7 @@ let RECOVERY = /type=recovery/.test(location.hash || '');
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
+icons.manual = '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5 M8 7h7 M8 11h7"/>';
 icons.graph = '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7.2 15.6 7.6 M7 8.4l1.4 7.2 M16.6 10.2l-5.8 6.2"/>';
 const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[n]||icons.entities}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -32,8 +33,8 @@ const APP = document.documentElement.dataset.app === 'gungnir' ? 'gungnir' : 'yg
 const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
 const GUNGNIR_URL = 'https://thealmightycorp.github.io/pantheon/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
 // 11-02 홍석진 대표님: 이그드라실은 엔티티 DB 축적·관리만 · 콜라보 점수·IP 차트(소싱)는 궁니르에서
-const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오'],['chart','소싱 · IP 차트']]
-  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['graph','관계 그래프'],['review','확인 대기'],['admin','DB 관리']];
+const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오'],['chart','소싱 · IP 차트'],['manual','사용 매뉴얼']]
+  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['graph','관계 그래프'],['review','확인 대기'],['admin','DB 관리'],['manual','사용 매뉴얼']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
 const byId = id => all.find(e => e.id === id);
 const isContact = e => e.type === '거래처 담당자';
@@ -197,7 +198,7 @@ function render() {
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
-  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
   document.title = title[0] + ' · ' + BRAND;
@@ -210,6 +211,7 @@ function render() {
   if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
   if (page === 'graph') html = graphView();
+  if (page === 'manual') html = manualView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
   if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
@@ -754,6 +756,94 @@ async function waitAsk(id, onTick, limitSec = 120) {
     if (data && (data.status === 'done' || data.status === 'fail')) return data;
   }
   return null;
+}
+/* ---------- 사용 매뉴얼 (11-03 홍석진 대표님 「궁니르 쓰는 법 매뉴얼 … hr 시스템에 올린 거 참조 … 이그드라실도 같이」) ----------
+   본문은 web/manual/<앱>.md → build_web.py 가 manual.md 로 함께 올린다. 「매뉴얼에 물어보기」는 pt_ask(kind manual_<앱>) → 판테온 봇이 매뉴얼 내용으로만 답 */
+const MAN_EX = APP === 'gungnir' ? ['파트너 추천이 마음에 안 들어요', '작업 취소를 잘못 눌렀어요', '수신사를 바꾸고 싶어요', '제안서를 PPTX로 받을 수 있나요?']
+  : ['비밀번호를 잊었어요', '명함으로 연락처 등록하는 법', '관계 단계는 누가 바꾸나요?', '헤임달 미팅은 어떻게 들어오나요?'];
+const man = {md: '', err: '', answer: '', busy: false};
+const mdInline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+function manDoc(md) {
+  const toc = [], out = [], lines = String(md || '').split(/\r?\n/);
+  let list = '', table = [];
+  const flush = () => {
+    if (list) { out.push(`</${list}>`); list = ''; }
+    if (table.length) {
+      const [head, ...rows] = table.filter(r => !/^\|[\s:|-]+\|$/.test(r)).map(r => r.replace(/^\||\|$/g, '').split('|').map(c => mdInline(c.trim())));
+      out.push(`<div class="table-wrap"><table class="man-t"><thead><tr>${head.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      table = [];
+    }
+  };
+  for (const raw of lines) {
+    const ln = raw.trim();
+    if (ln.startsWith('|')) { if (list) { out.push(`</${list}>`); list = ''; } table.push(ln); continue; }
+    if (table.length) flush();
+    let m;
+    if ((m = ln.match(/^(#{1,3})\s+(.+)/))) {
+      flush();
+      if (m[1] === '#') continue;                       // 문서 제목은 화면 제목으로 대신
+      if (m[1] === '##') { const id = 'man-' + toc.length; toc.push([id, m[2]]); out.push(`<h2 class="man-h" id="${id}">${mdInline(m[2])}</h2>`); }
+      else out.push(`<h3>${mdInline(m[2])}</h3>`);
+      continue;
+    }
+    const ol = ln.match(/^\d+\.\s+(.+)/), ul = ln.match(/^[-•]\s+(.+)/);
+    if (ol || ul) {
+      const tag = ol ? 'ol' : 'ul';
+      if (list !== tag) { if (list) out.push(`</${list}>`); out.push(`<${tag}>`); list = tag; }
+      out.push(`<li>${mdInline((ol || ul)[1])}</li>`); continue;
+    }
+    flush();
+    if (!ln) continue;
+    out.push(/^대상:/.test(ln) ? `<p class="man-who">${mdInline(ln)}</p>` : `<p>${mdInline(ln)}</p>`);
+  }
+  flush();
+  return {toc, html: out.join('')};
+}
+function manualView() {
+  const d = manDoc(man.md);
+  const ask = `<section class="panel ask-panel man-ask"><div class="panel-head"><div><div class="panel-title">매뉴얼에 물어보기</div><p class="panel-caption">매뉴얼 내용으로만 답합니다. ${APP === 'gungnir' ? '제안서·IP 정보' : '회사·담당자 정보'} 같은 실제 데이터는 해당 메뉴에서 확인하세요.</p></div></div>
+    <div class="ask-body"><div class="ask-row"><input id="man-q" type="search" autocomplete="off" placeholder="예: ${esc(MAN_EX[0])}"><button class="button primary" id="man-go" type="button" ${man.busy ? 'disabled' : ''}>질문</button></div>
+    <div class="ask-examples">${MAN_EX.map(x => `<button type="button" data-man-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+    <div class="ask-answer" id="man-answer" ${man.answer ? '' : 'hidden'}>${man.answer}</div></div></section>`;
+  const body = man.err ? `<div class="empty"><p><b>매뉴얼을 불러오지 못했습니다.</b></p><p>${esc(man.err)}</p><p><button class="button" type="button" id="man-retry">다시 불러오기</button></p></div>`
+    : !man.md ? '<p class="rm-sum" style="padding:22px">매뉴얼을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>'
+    : `<details class="man-toc"><summary>목차</summary><ol>${d.toc.map(([id, t]) => `<li><a href="#manual" data-man-go="${id}">${esc(t)}</a></li>`).join('')}</ol></details><article class="man-doc">${d.html}</article>`;
+  return ask + `<section class="panel man-panel" style="margin-top:16px">${body}</section>`;
+}
+async function loadManual() {
+  man.err = '';
+  try {
+    const v = new URL(import.meta.url).searchParams.get('v') || Date.now();
+    const r = await fetch(`manual.md?v=${v}`, {cache: 'no-cache'});
+    if (!r.ok) throw new Error('파일이 없습니다 (' + r.status + ')');
+    man.md = await r.text();
+  } catch (e) { man.err = e?.message || ''; }
+  if (page === 'manual') render();
+}
+function manualMount() {
+  if (!man.md && !man.err) loadManual();
+  $('#man-retry')?.addEventListener('click', () => { man.err = ''; render(); });
+  $$('[data-man-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); document.getElementById(a.dataset.manGo)?.scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  const go = $('#man-go'); if (!go) return;
+  go.onclick = manAsk; $('#man-q').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) manAsk(); };
+  $$('[data-man-ex]').forEach(b => b.onclick = () => { $('#man-q').value = b.dataset.manEx; manAsk(); });
+}
+async function manAsk() {
+  const q = $('#man-q').value.trim(); if (!q || man.busy) return;
+  const head = `<p class="muted">질문: ${esc(q)}</p>`, put = h => { const o = $('#man-answer'); if (o) { o.hidden = false; o.innerHTML = h; } };   // 그사이 화면이 다시 그려져도 지금 칸에
+  man.busy = true; $('#man-go').disabled = true;
+  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 판테온 봇에 보냈습니다' : '판테온 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+  put(step(5));
+  try {
+    const { data, error } = await SB.from('pt_ask').insert({kind: 'manual_' + APP, question: q}).select('id').single();
+    if (error) throw error;
+    put(step(20));
+    const res = await waitAsk(data.id, s => put(step(Math.min(95, 20 + Math.round(s * 4)))), 90);
+    man.answer = head + (!res ? '<div class="warn">판테온 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
+      : res.status === 'done' ? res.answer.split(/\n+/).filter(Boolean).map(x => `<p>${mdInline(x.replace(/^[-•]\s+/, '· '))}</p>`).join('')
+      : '<div class="warn">답변을 작성하지 못했습니다. 잠시 후 다시 질문해 주세요.</div>');
+  } catch (e) { man.answer = head + `<div class="warn">질문을 보내지 못했습니다: ${esc(e?.message || '')}</div>`; }
+  man.busy = false; put(man.answer); const g = $('#man-go'); if (g) g.disabled = false;
 }
 /* ---------- 관계 그래프 (11-02 홍석진 대표님 「관계 그래프 뷰 PRD E-07」) ----------
    엔티티·담당자를 점, 관계를 선으로. 새 표 없이 화면이 이미 읽은 데이터(pt_entity·pt_relation·pt_directory)로 그린다 → 각 표의 권한(RLS)이 그대로.
@@ -1301,7 +1391,7 @@ function adminView() {
 }
 function asksPanel() {
   const list = admin.asks.slice(0, 300);
-  return `<section class="panel"><div class="panel-head"><div class="panel-title">질문 기록 <small>웹·슬랙</small> <span class="nav-count">${admin.asks.length}</span></div></div><div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>어디서</th><th>무엇</th><th>상태</th></tr></thead><tbody>${list.map(a => `<tr><td style="white-space:nowrap">${esc(kst(a.at))}</td><td>${esc(whoName(a.asker) || '—')}</td><td>${a.via === 'slack' ? '슬랙' : '웹'}</td><td>${a.kind === 'ocr' ? '<span class="pill">명함 읽기</span>' : a.kind === 'restart' ? '<span class="pill">봇 재시작</span>' : esc(a.question)}</td><td>${{done: '답변 완료', fail: '실패', wait: '대기', work: '처리 중'}[a.status] || a.status}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">아직 질문이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">질문 기록 <small>웹·슬랙</small> <span class="nav-count">${admin.asks.length}</span></div></div><div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>어디서</th><th>무엇</th><th>상태</th></tr></thead><tbody>${list.map(a => `<tr><td style="white-space:nowrap">${esc(kst(a.at))}</td><td>${esc(whoName(a.asker) || '—')}</td><td>${a.via === 'slack' ? '슬랙' : '웹'}</td><td>${a.kind === 'ocr' ? '<span class="pill">명함 읽기</span>' : a.kind === 'restart' ? '<span class="pill">봇 재시작</span>' : a.kind.startsWith('manual') ? '<span class="pill">매뉴얼</span> ' + esc(a.question) : esc(a.question)}</td><td>${{done: '답변 완료', fail: '실패', wait: '대기', work: '처리 중'}[a.status] || a.status}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">아직 질문이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 /* 판테온 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
@@ -3101,6 +3191,7 @@ async function openIp(id, keep) {
 
 function bindContent() {
   if (page === 'graph') graphMount();
+  if (page === 'manual') manualMount();
   $('#remember-btn')?.addEventListener('click', rememberModal);
   $$('[data-page]').forEach(b => b.onclick = ev => { ev.preventDefault(); go(b.dataset.page); });
   $$('[data-state]').forEach(b => b.onclick = () => { entState = b.dataset.state; render(); });
