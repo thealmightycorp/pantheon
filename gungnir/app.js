@@ -3248,11 +3248,17 @@ function loginScreen(msg) {
   $('#lg-reset').onclick = async () => {
     const email = $('#lg-email').value.trim(), out = $('#lg-err');
     if (!email) { out.textContent = '이메일을 먼저 입력해 주세요. 입력한 주소로 비밀번호 재설정 메일을 발송합니다.'; $('#lg-email').focus(); return; }
-    $('#lg-reset').disabled = true;
+    const btn = $('#lg-reset'); btn.disabled = true;
     const { error } = await SB.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
-    $('#lg-reset').disabled = false;
-    out.style.color = error ? '#ba775e' : '#38674d';
-    out.textContent = error ? '메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.' : `${email}(으)로 비밀번호 재설정 메일을 발송했습니다. 메일의 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.`;
+    // 같은 계정은 60초 안에 다시 보낼 수 없다(429) — 메일은 이미 나간 것이므로 실패로 보이지 않게 (11-03 정원하 대표님 6번 다시 누르심)
+    const wait = error && (error.status === 429 || /seconds|rate limit/i.test(error.message || '')) ? (+((error.message || '').match(/after (\d+) seconds/) || [])[1] || 60) : 0;
+    const sent = `${email}(으)로 비밀번호 재설정 메일을 발송했습니다. 몇 분 안에 도착하니 메일함과 스팸함을 확인해 주세요. 메일의 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.`;
+    out.style.color = error && !wait ? '#ba775e' : '#38674d';
+    if (error && !wait) { btn.disabled = false; out.textContent = '메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.'; return; }
+    out.textContent = wait ? `방금 ${email}(으)로 재설정 메일을 발송했습니다. 메일함과 스팸함을 먼저 확인해 주세요.` : sent;
+    let n = wait || 60; const label = '비밀번호를 잊으셨나요? 비밀번호 찾기';
+    const tick = () => { if (!btn.isConnected) return; if (n <= 0) { btn.disabled = false; btn.textContent = label; return; } btn.textContent = `메일이 오지 않았다면 ${n}초 뒤 다시 보낼 수 있습니다`; n--; setTimeout(tick, 1000); };
+    tick();
   };
 }
 // 메일 링크로 들어온 분 — 새 비밀번호. 헤임달과 같은 계정이라 헤임달 비밀번호도 이것으로 바뀐다
