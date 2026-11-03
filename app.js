@@ -3,7 +3,7 @@
    · 로그인 = 헤임달 계정 (같은 Supabase · 같은 주소라 헤임달에 로그인돼 있으면 그대로 들어옴)
    · 쓰는 사람 = 헤임달 승인 구성원 (DB 가 막음 — pt_can_use)
    · 누가·언제·무엇을 = DB 트리거가 pt_change 에 남김 (화면은 그 기록을 보여 주기만)
-   · 질문·명함 읽기 = pt_ask 에 넣으면 사무실 PC 판테온 봇이 Claude 로 처리해 답을 씀 (키는 PC 에만)
+   · 질문·명함 읽기 = pt_ask 에 넣으면 사무실 PC 이그드라실 봇이 Claude 로 처리해 답을 씀 (키는 PC 에만)
    · 이번 범위 = 10/21 회의 지시(엔티티 DB·등록·명함·회사 연결·연락) — 모니터링·딜은 숨김 */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -156,7 +156,7 @@ const avatar = e => { const s = imgSrc(e.img); return `<span class="entity-avata
 function entityCard(e) { const c = contactsOf(e).length; return `<article class="entity-card" data-detail="${e.id}" tabindex="0" role="button" aria-label="${esc(e.name)} 상세 보기"><div class="entity-top">${avatar(e)}<div><b>${esc(e.name)}</b><small>${esc(e.en || agencyOf(e))}</small></div></div><span class="entity-category">${esc(e.type)}</span>${e.parentId && byId(e.parentId) ? ` <span class="entity-category">${esc(byId(e.parentId).name)}</span>` : ''}${e.hidden ? ' <span class="entity-category">숨김</span>' : ''}${e.rel ? `<p class="entity-rel">${esc(e.rel)}</p>` : `<p class="entity-rel none">${PILL_NOREL}</p>`}<div class="card-bottom"><span>${[c ? '담당자 ' + c + '명' : noContact(e) ? '담당자 없음' : '', kidsText(kidsOf(e)), registrar(e) && '등록 ' + registrar(e)].filter(Boolean).join(' · ')}</span><span>상세 보기 ↗</span></div></article>`; }
 function stats() { const es = entities(), cs = contacts(); return `<div class="stats"><div class="stat" data-stat="전체" role="button" tabindex="0" aria-label="엔티티 전체 보기"><div class="stat-label">${icon('entities')} 등록 엔티티</div><div class="stat-value">${es.length}<small>개</small></div><div class="stat-bottom"><span class="positive">이그드라실</span> · 전 직원 공유</div></div><div class="stat" data-stat="contacts" role="button" tabindex="0" aria-label="연락처 보기"><div class="stat-label">${icon('contacts')} 거래처 담당자</div><div class="stat-value">${cs.length}<small>명</small></div><div class="stat-bottom">회사별로 연결해 관리</div></div><div class="stat" data-stat="IP·유명인" role="button" tabindex="0" aria-label="IP·유명인 보기"><div class="stat-label">${icon('up')} IP·유명인</div><div class="stat-value">${es.filter(e => e.type === 'IP·유명인').length}<small>명</small></div><div class="stat-bottom">계약·협업 중인 인물</div></div><div class="stat highlight" data-stat="담당자 연결" role="button" tabindex="0" aria-label="담당자 연결 회사 보기"><div class="stat-label">${icon('link')} 담당자 연결 회사</div><div class="stat-value">${es.filter(e => contactsOf(e).length).length}<small>곳</small></div><div class="stat-bottom">거래처 담당자가 등록된 회사</div></div></div>`; }
 const EXAMPLES = ['골포스트가 협업한 리그·매체는?', '사운드스루 제작지원 브랜드 목록', '브이티코스메틱 담당자 누구야?', '포켓몬이랑 지금 뭐 하고 있어?'];
-function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK YGGDRASIL</small></div><p class="panel-caption">이그드라실 DB를 검색해 Claude가 답변합니다. 슬랙 판테온 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자 누구야?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
+function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK YGGDRASIL</small></div><p class="panel-caption">이그드라실 DB를 검색해 Claude가 답변합니다. 슬랙 이그드라실 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자 누구야?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
 function alerts() { const es = entities(); const noC = es.filter(noContact).length, nr = es.filter(e => !e.rel).length, ip = es.filter(e => e.type === 'IP·유명인').length; return `<div class="side-stack"><section class="panel"><div class="panel-head"><div class="panel-title">확인이 필요한 항목</div><span class="alert-count">4건</span></div><div class="alert-list"><button class="alert-row" data-page-go="review"><span class="alert-symbol">${icon('review')}</span><span class="alert-text">확인 대기<small>${reviewCount()}건 · 시스템이 찾은 후보</small></span></button><button class="alert-row" data-state-go="장기 미접촉"><span class="alert-symbol red">${icon('clock')}</span><span class="alert-text">장기 미접촉<small>${es.filter(stale).length}곳 · 미팅 이상 관계 중 ${STALE_DAYS}일 넘게 접촉 없음</small></span></button><button class="alert-row" data-state-go="담당자 없음"><span class="alert-symbol green">${icon('link')}</span><span class="alert-text">담당자 없음<small>${noC}곳 · 명함을 등록하면 연결됩니다</small></span></button><button class="alert-row" data-state-go="근거 없음"><span class="alert-symbol red">${icon('warning')}</span><span class="alert-text">관계 근거 없음<small>${nr}개 · 내부 담당자 확인이 필요합니다</small></span></button></div></section><section class="panel"><div class="alert-list"><button class="alert-row" data-filter-go="IP·유명인"><span class="alert-symbol">${icon('up')}</span><span class="alert-text">활용 가능한 IP·유명인<small>${ip}명 · 엔티티 DB에서 보기</small></span></button></div></section></div>`; }
 const STATES = ['전체', '담당자 있음', '담당자 없음', '근거 없음', '장기 미접촉'];
 let entState = '전체', entSort = {k: 'name', d: 1}, entView = 'table';
@@ -198,7 +198,7 @@ function render() {
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
-  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 판테온 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 이그드라실 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
   document.title = title[0] + ' · ' + BRAND;
@@ -214,7 +214,7 @@ function render() {
   if (page === 'manual') html = manualView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
-  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
+  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
   if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 쓸 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
   if (page === 'chart') html = srcView();
@@ -758,7 +758,7 @@ async function waitAsk(id, onTick, limitSec = 120) {
   return null;
 }
 /* ---------- 사용 매뉴얼 (11-03 홍석진 대표님 「궁니르 쓰는 법 매뉴얼 … hr 시스템에 올린 거 참조 … 이그드라실도 같이」) ----------
-   본문은 web/manual/<앱>.md → build_web.py 가 manual.md 로 함께 올린다. 「매뉴얼에 물어보기」는 pt_ask(kind manual_<앱>) → 판테온 봇이 매뉴얼 내용으로만 답 */
+   본문은 web/manual/<앱>.md → build_web.py 가 manual.md 로 함께 올린다. 「매뉴얼에 물어보기」는 pt_ask(kind manual_<앱>) → 이그드라실 봇이 매뉴얼 내용으로만 답 */
 const MAN_EX = APP === 'gungnir' ? ['파트너 추천이 마음에 안 들어요', '작업 취소를 잘못 눌렀어요', '수신사를 바꾸고 싶어요', '제안서를 PPTX로 받을 수 있나요?']
   : ['비밀번호를 잊었어요', '명함으로 연락처 등록하는 법', '관계 단계는 누가 바꾸나요?', '헤임달 미팅은 어떻게 들어오나요?'];
 const man = {md: '', err: '', answer: '', busy: false};
@@ -832,14 +832,14 @@ async function manAsk() {
   const q = $('#man-q').value.trim(); if (!q || man.busy) return;
   const head = `<p class="muted">질문: ${esc(q)}</p>`, put = h => { const o = $('#man-answer'); if (o) { o.hidden = false; o.innerHTML = h; } };   // 그사이 화면이 다시 그려져도 지금 칸에
   man.busy = true; $('#man-go').disabled = true;
-  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 판테온 봇에 전달했습니다' : '판테온 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 이그드라실 봇에 전달했습니다' : '이그드라실 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
   put(step(5));
   try {
     const { data, error } = await SB.from('pt_ask').insert({kind: 'manual_' + APP, question: q}).select('id').single();
     if (error) throw error;
     put(step(20));
     const res = await waitAsk(data.id, s => put(step(Math.min(95, 20 + Math.round(s * 4)))), 90);
-    man.answer = head + (!res ? '<div class="warn">판테온 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
+    man.answer = head + (!res ? '<div class="warn">이그드라실 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
       : res.status === 'done' ? res.answer.split(/\n+/).filter(Boolean).map(x => `<p>${mdInline(x.replace(/^[-•]\s+/, '· '))}</p>`).join('')
       : '<div class="warn">답변을 작성하지 못했습니다. 잠시 후 다시 질문해 주세요.</div>');
   } catch (e) { man.answer = head + `<div class="warn">질문을 보내지 못했습니다: ${esc(e?.message || '')}</div>`; }
@@ -1092,7 +1092,7 @@ function rememberModal() {
 }
 function contactModal(pre = {}) {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
-  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 판테온 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 받은 곳<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
+  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 받은 곳<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
   if (pre.name) { [['c-name', pre.name], ['c-title', pre.role], ['c-company', pre.company], ['c-where', pre.where]].forEach(([id, v]) => { if (v) $('#' + id).value = v; }); const m = (pre.orgId && byId(pre.orgId)) || (pre.company && matchCompany(pre.company)); if (m) $('#c-org').value = m.id; else if (pre.company) $('#c-org').value = '__new'; }
   let cardPath = '';
   const setStatus = s => $('#c-status').textContent = s;
@@ -1107,8 +1107,8 @@ function contactModal(pre = {}) {
       cardPath = await upload(r.blob, 'cards');
       const { data, error } = await SB.from('pt_ask').insert({kind: 'ocr', image_path: cardPath}).select('id').single();
       if (error) throw error;
-      const res = await waitAsk(data.id, s => setStatus(`판테온 봇이 명함을 읽는 중입니다… ${s}초`));
-      if (!res) { setStatus(''); $('#c-error').textContent = '판테온 봇이 2분 안에 응답하지 않았습니다. 명함을 보고 직접 입력해 주세요. 명함 이미지는 저장됩니다.'; return; }
+      const res = await waitAsk(data.id, s => setStatus(`이그드라실 봇이 명함을 읽는 중입니다… ${s}초`));
+      if (!res) { setStatus(''); $('#c-error').textContent = '이그드라실 봇이 2분 안에 응답하지 않았습니다. 명함을 보고 직접 입력해 주세요. 명함 이미지는 저장됩니다.'; return; }
       if (res.status !== 'done' || !res.result) { setStatus(''); $('#c-error').textContent = '명함을 인식하지 못했습니다. 직접 입력해 주세요. 명함 이미지는 저장됩니다.'; return; }
       const v = k => String(res.result[k] || '').trim();
       [['c-name', v('name') || v('name_en')], ['c-title', v('title')], ['c-company', v('company') || v('company_en')], ['c-email', v('email')], ['c-phone', v('phone')], ['c-mobile', v('mobile')], ['c-address', v('address')], ['c-web', v('website')]].forEach(([id, val]) => { if (val && !$('#' + id).value) $('#' + id).value = val; });
@@ -1148,7 +1148,7 @@ function contactModal(pre = {}) {
   };
 }
 
-/* ---------- 질문하기 (사무실 PC 판테온 봇 → Claude) ---------- */
+/* ---------- 질문하기 (사무실 PC 이그드라실 봇 → Claude) ---------- */
 function renderAnswer(text, sources) {
   let html = '', inList = false;
   for (let ln of esc(text).split(/\n/)) {
@@ -1167,12 +1167,12 @@ function bindAsk() {
 async function ask() {
   const q = $('#ask-input').value.trim(); if (!q) return;
   const out = $('#ask-answer'), head = `<p class="muted">질문: ${esc(q)}</p>`;
-  out.hidden = false; out.innerHTML = head + '<p class="muted">판테온 봇이 답변을 작성하는 중입니다…</p>'; $('#ask-btn').disabled = true;
+  out.hidden = false; out.innerHTML = head + '<p class="muted">이그드라실 봇이 답변을 작성하는 중입니다…</p>'; $('#ask-btn').disabled = true;
   try {
     const { data, error } = await SB.from('pt_ask').insert({kind: 'ask', question: q}).select('id').single();
     if (error) throw error;
-    const res = await waitAsk(data.id, s => { const p = out.querySelector('.muted:last-child'); if (p) p.textContent = `판테온 봇이 답변을 작성하는 중입니다… ${s}초`; }, 150);
-    out.innerHTML = head + (!res ? '<div class="warn">판테온 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
+    const res = await waitAsk(data.id, s => { const p = out.querySelector('.muted:last-child'); if (p) p.textContent = `이그드라실 봇이 답변을 작성하는 중입니다… ${s}초`; }, 150);
+    out.innerHTML = head + (!res ? '<div class="warn">이그드라실 봇이 응답하지 않습니다. 잠시 후 다시 질문해 주세요. 계속되면 AX팀에 알려 주세요.</div>'
       : res.status === 'done' ? renderAnswer(res.answer, res.result?.sources) : '<div class="warn">답변을 작성하지 못했습니다. 잠시 후 다시 질문해 주세요.</div>');
   } catch (e) { out.innerHTML = head + `<div class="warn">질문을 전송하지 못했습니다: ${esc(e?.message || '')}</div>`; }
   finally { lastAnswer = out.innerHTML; $('#ask-btn').disabled = false; bindAsk(); }
@@ -1304,7 +1304,7 @@ function healthPanel() {
   if (!admin.health) { setTimeout(loadHealth); return '<div class="empty"><p>지식 점검 결과를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   const h = admin.health;
   if (h.err) return `<div class="notice">결과를 불러오지 못했습니다: ${esc(h.err)}</div>`;
-  if (h.none) return '<div class="empty"><p>아직 점검 결과가 없습니다. 판테온 봇이 매주 월요일 오전 9시에 점검합니다.</p></div>';
+  if (h.none) return '<div class="empty"><p>아직 점검 결과가 없습니다. 이그드라실 봇이 매주 월요일 오전 9시에 점검합니다.</p></div>';
   const it = h.items || {};
   return `<div class="quality-grid">${KH.map(([k, t, d]) => `<div class="stat"><div class="stat-label">${t}</div><div class="stat-value">${(it[k] || []).length}<small>곳</small></div><div class="stat-bottom">${d}</div></div>`).join('')}</div>
     <p class="rl-note">${esc(h.week_of)} 주 점검 · ${esc(kst(h.created_at))}</p>
@@ -1372,7 +1372,7 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['erase', '개인정보 삭제'], ['bot', '판테온 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['erase', '개인정보 삭제'], ['bot', '이그드라실 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
@@ -1393,7 +1393,7 @@ function asksPanel() {
   const list = admin.asks.slice(0, 300);
   return `<section class="panel"><div class="panel-head"><div class="panel-title">질문 기록 <small>웹·슬랙</small> <span class="nav-count">${admin.asks.length}</span></div></div><div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>어디서</th><th>무엇</th><th>상태</th></tr></thead><tbody>${list.map(a => `<tr><td style="white-space:nowrap">${esc(kst(a.at))}</td><td>${esc(whoName(a.asker) || '—')}</td><td>${a.via === 'slack' ? '슬랙' : '웹'}</td><td>${a.kind === 'ocr' ? '<span class="pill">명함 읽기</span>' : a.kind === 'restart' ? '<span class="pill">봇 재시작</span>' : a.kind.startsWith('manual') ? '<span class="pill">매뉴얼</span> ' + esc(a.question) : esc(a.question)}</td><td>${{done: '답변 완료', fail: '실패', wait: '대기', work: '처리 중'}[a.status] || a.status}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">아직 질문이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
-/* 판테온 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
+/* 이그드라실 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
   const { data, error } = await SB.from('pt_bot').select('*').maybeSingle();
   admin.bot = error ? {err: error.message} : (data || {});
@@ -1409,26 +1409,26 @@ function botPanel() {
   const alive = age !== null && age < 180;
   const stateText = !b.beat_at ? '기록 없음' : !alive ? '응답 없음' : b.connected ? '정상' : '슬랙 연결 끊김';
   return `<div class="quality-grid"><div class="stat ${alive && b.connected ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${age === null ? '—' : '마지막 신호 ' + agoText(age)}</div></div><div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${b.started_at ? esc(kst(b.started_at)) : '—'}</div><div class="stat-bottom">${b.model ? '답변 모델 ' + esc(b.model) : ''}</div></div><div class="stat"><div class="stat-label">웹 요청 처리</div><div class="stat-value">${Number(b.handled || 0)}<small>건</small></div><div class="stat-bottom">시작 이후</div></div></div>
-  <section class="panel"><div class="panel-head"><div><div class="panel-title">판테온 봇 <small>슬랙 질문 · 웹 질문 · 명함 읽기</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변하지 않습니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
+  <section class="panel"><div class="panel-head"><div><div class="panel-title">이그드라실 봇 <small>슬랙 질문 · 웹 질문 · 명함 읽기</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변하지 않습니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
   <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>`;
 }
 async function restartBot() {
   const msg = t => { const el = $('#bot-msg'); if (el) el.textContent = t; };
   const before = admin.bot?.started_at || '';
   $('#bot-restart').disabled = true;
-  const { data, error } = await SB.from('pt_ask').insert({kind: 'restart', question: '판테온 봇 재시작'}).select('id').single();
+  const { data, error } = await SB.from('pt_ask').insert({kind: 'restart', question: '이그드라실 봇 재시작'}).select('id').single();
   if (error) { $('#bot-restart').disabled = false; return msg('재시작하지 못했습니다: ' + error.message); }
-  const res = await waitAsk(data.id, s => msg(`판테온 봇에 재시작을 요청했습니다… ${s}초`), 60);
-  if (!res) { $('#bot-restart').disabled = false; return msg('판테온 봇이 응답하지 않습니다. 서버 PC가 켜져 있는지 확인해 주세요. 봇이 꺼져 있으면 5분 이내에 자동으로 재시작됩니다.'); }
+  const res = await waitAsk(data.id, s => msg(`이그드라실 봇에 재시작을 요청했습니다… ${s}초`), 60);
+  if (!res) { $('#bot-restart').disabled = false; return msg('이그드라실 봇이 응답하지 않습니다. 서버 PC가 켜져 있는지 확인해 주세요. 봇이 꺼져 있으면 5분 이내에 자동으로 재시작됩니다.'); }
   if (res.status === 'fail') { $('#bot-restart').disabled = false; return msg(res.answer || '재시작하지 못했습니다.'); }
   const t0 = Date.now();
   while (Date.now() - t0 < 90000) {
     await new Promise(r => setTimeout(r, 3000));
-    msg(`판테온 봇을 재시작하는 중입니다… ${Math.round((Date.now() - t0) / 1000)}초`);
+    msg(`이그드라실 봇을 재시작하는 중입니다… ${Math.round((Date.now() - t0) / 1000)}초`);
     const b = await SB.from('pt_bot').select('*').maybeSingle();
-    if (b.data?.started_at && b.data.started_at !== before) { admin.bot = b.data; render(); toast('판테온 봇이 재시작되었습니다.'); return; }
+    if (b.data?.started_at && b.data.started_at !== before) { admin.bot = b.data; render(); toast('이그드라실 봇이 재시작되었습니다.'); return; }
   }
-  admin.bot = null; render(); toast('판테온 봇이 아직 재시작되지 않았습니다. 잠시 후 새로고침해 주세요.');
+  admin.bot = null; render(); toast('이그드라실 봇이 아직 재시작되지 않았습니다. 잠시 후 새로고침해 주세요.');
 }
 function qualityPanel() {
   const es = entities(), hidden = all.filter(e => e.hidden);
@@ -1449,7 +1449,7 @@ function scorePanel() {
     <div class="quality-grid">${Object.entries(cfg.weights).map(([k, v]) => `<div class="stat"><div class="stat-label">${W_KO[k] || k}</div><div class="stat-value">${v}<small>점</small></div></div>`).join('')}</div>
     <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">복원됨</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
-// 개인정보 삭제 요청 (PRD 8.1 · sql/024 · 11-02) — 접수 → 처리(되돌릴 수 없음) → 명함·프로필 파일과 백업은 판테온 봇이 이어서 지움
+// 개인정보 삭제 요청 (PRD 8.1 · sql/024 · 11-02) — 접수 → 처리(되돌릴 수 없음) → 명함·프로필 파일과 백업은 이그드라실 봇이 이어서 지움
 const ERASE_VIA = ['이메일', '전화', '직접 요청', '기타'];
 async function loadErase() {
   const { data, error } = await SB.from('pt_erasure_request').select('*').order('id', {ascending: false}).limit(200);
@@ -1508,17 +1508,17 @@ function bindAdmin() {
   });
   $$('[data-erase-go]').forEach(b => b.onclick = async () => {
     const x = admin.erase.rows.find(r => String(r.id) === b.dataset.eraseGo); if (!x) return;
-    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 판테온 봇이 몇 분 안에 지웁니다. <b>복원할 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
+    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 이그드라실 봇이 몇 분 안에 지웁니다. <b>복원할 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
     if (!ok) return; b.disabled = true; b.textContent = '삭제하는 중…';
     const { error } = await SB.rpc('pt_erasure_process', {p_id: x.id});
     if (error) { b.disabled = false; b.textContent = '삭제 처리'; return toast('삭제하지 못했습니다: ' + error.message); }
-    admin.erase = null; admin.changes = null; await load(); loadAdmin(); toast('개인정보를 삭제했습니다. 명함 이미지는 판테온 봇이 이어서 지웁니다.');
+    admin.erase = null; admin.changes = null; await load(); loadAdmin(); toast('개인정보를 삭제했습니다. 명함 이미지는 이그드라실 봇이 이어서 지웁니다.');
   });
   $('#metric-reload')?.addEventListener('click', () => { admin.metrics = null; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
   $('#bot-restart')?.addEventListener('click', () => {
-    modal(`<h2>판테온 봇 재시작</h2><p>판테온 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문에 답변하지 않습니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
+    modal(`<h2>이그드라실 봇 재시작</h2><p>이그드라실 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문에 답변하지 않습니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
     $('#restart-go').onclick = () => { $('#modal').close(); restartBot(); };
   });
   $('#log-who')?.addEventListener('change', e => { admin.who = e.target.value; render(); });
@@ -1533,7 +1533,7 @@ function bindAdmin() {
 
 /* ---------- 제안서 스튜디오 (2026-10-27 · 시험 기간: 홍석진·김현우·류성열만 — DB 가 pt_studio_can 으로 막음) ----------
    대표님 almighty-proposal-studio 의 흐름: IP 입력 → 인테이크 → (콜라보) 파트너 추천 → 리서치 → 컨셉 → 제안서 생성 → 이미지 계획 → 생성·삽입·QA
-   사람은 게이트에서만 결정하고, 단계 작업은 pt_proposal_job 대기열에 넣어 판테온 봇(서버 PC)이 처리한다. 엔티티는 판테온 pt_entity 를 쓴다 */
+   사람은 게이트에서만 결정하고, 단계 작업은 pt_proposal_job 대기열에 넣어 이그드라실 봇(서버 PC)이 처리한다. 엔티티는 판테온 pt_entity 를 쓴다 */
 let studioCan = false, ipcCan = false;         // IP 차트 — 11-01 전 직원 공개 (sql/022 pt_ipchart_can = pt_can_use)
 const studio = {tab: 'projects', filter: 'all', by: '', sort: {k: 'updated', d: -1}, list: null, refs: null, jobs: [], loading: false, err: ''};
 const STAGES = ['IP 입력', '기본 정보', '파트너 IP 추천', '리서치', '컨셉 설계', '제안서 생성', '이미지 계획', '생성·삽입·검수'];
@@ -1582,9 +1582,9 @@ function studioView() {
 function studioProjects() {
   const all = studio.list, live = all.filter(p => p.status !== 'done'), wait = all.filter(p => p.status === 'waiting'), work = all.filter(p => p.status === 'working'), done = all.filter(p => p.status === 'done');
   // 숫자 카드를 누르면 그 건만 (10-29 김현우) · 다시 누르면 전체
-  const F = {live: ['진행 중', live], wait: ['결정 대기', wait], work: ['판테온 봇 처리 중', work], done: ['완료', done]};
+  const F = {live: ['진행 중', live], wait: ['결정 대기', wait], work: ['이그드라실 봇 처리 중', work], done: ['완료', done]};
   // 기안자 = 프로젝트를 연 사람(pt_proposal.created_by) · 기안자로 거르고 열 머리로 정렬 (11-02 홍석진 대표님)
-  const byOf = p => memberName(p.created_by) || '판테온 봇', byNames = [...new Set(all.map(byOf))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const byOf = p => memberName(p.created_by) || '이그드라실 봇', byNames = [...new Set(all.map(byOf))].sort((a, b) => a.localeCompare(b, 'ko'));
   if (studio.by && !byNames.includes(studio.by)) studio.by = '';
   const {k: sk, d: sd} = studio.sort, sv = p => sk === 'title' ? pTitle(p) : sk === 'by' ? byOf(p) : sk === 'stage' ? p.stage : sk === 'created' ? p.created_at : p.updated_at;
   const ps = (F[studio.filter]?.[1] || all).filter(p => !studio.by || byOf(p) === studio.by).slice().sort((a, b) => { const x = sv(a), y = sv(b); return (typeof x === 'number' ? x - y : String(x || '').localeCompare(String(y || ''), 'ko')) * sd || String(b.updated_at).localeCompare(String(a.updated_at)); });
@@ -1606,7 +1606,7 @@ function studioRefs() {
 }
 
 // 이미지 아카이브 (10-31 김현우 「Aside로 찾거나 힉스필드로 만든 이미지를 종류별로 정리해 나중에도 쓰게」)
-// 판테온 봇이 이미지 작업이 끝날 때마다 pt_image_archive 에 복사본을 쌓는다(bot/src/archive.py). 여기선 보고·내려받고·다른 제안서에 넣는다
+// 이그드라실 봇이 이미지 작업이 끝날 때마다 pt_image_archive 에 복사본을 쌓는다(bot/src/archive.py). 여기선 보고·내려받고·다른 제안서에 넣는다
 const AR_KIND = [['logo', '로고'], ['symbol', '심볼'], ['artist', '아티스트 사진'], ['official', '공식 이미지'], ['capture', '캡처'], ['reference', '참고 사례'], ['ai_concept', 'AI 컨셉'], ['mockup', '굿즈·목업'], ['texture', '배경·질감']];
 const AR_KO = Object.fromEntries(AR_KIND), AR_SRC = {aside: 'Aside', higgsfield: '힉스필드', search: '자동 검색'};
 const arF = {kind: '', source: '', ip: '', q: ''};
@@ -1725,13 +1725,13 @@ async function useArchive(p, key, a) {
     await proposalEvent(p.id, `이미지 ${key} 교체를 취소했습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 복원했습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
   return true;
 }
-// 레퍼런스 분석 진행률 — 판테온 봇이 pt_proposal_job.result 에 3초마다 적는 값(1~100% · 남은 초)을 읽어 막대로
+// 레퍼런스 분석 진행률 — 이그드라실 봇이 pt_proposal_job.result 에 3초마다 적는 값(1~100% · 남은 초)을 읽어 막대로
 const refJob = r => studio.jobs.find(j => j.ref_id === r.id && j.kind === 'analyze_reference');
 function refProg(r) {
   const j = refJob(r), g = j?.result;
   if (!j || j.status === 'wait' || !g) {
     const long = j && Date.now() - Date.parse(j.at) > 120000;
-    return `<span class="ref-prog" data-ref-prog="${r.id}"><span class="pill">분석 대기</span><small>판테온 봇 작업 대기 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small>${long ? '<small class="warn">2분 넘게 대기 중입니다. DB 관리에서 판테온 봇을 재시작해 주세요.</small>' : ''}</span>`;
+    return `<span class="ref-prog" data-ref-prog="${r.id}"><span class="pill">분석 대기</span><small>이그드라실 봇 작업 대기 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small>${long ? '<small class="warn">2분 넘게 대기 중입니다. DB 관리에서 이그드라실 봇을 재시작해 주세요.</small>' : ''}</span>`;
   }
   return `<span class="ref-prog" data-ref-prog="${r.id}" data-k="r${r.id}" data-eta="${g.eta}" data-at="${esc(g.at)}" data-step="${esc(g.step || '')}"><span class="row"><span class="bar" role="progressbar" aria-valuenow="${g.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${g.progress}%"></i></span><b>${g.progress}%</b></span><small>${esc(g.step || '분석 중')}</small></span>`;
 }
@@ -1821,12 +1821,12 @@ function openRef(id) {
 const SCORE_KO = {fandom: '팬덤', world: '세계관', asset: '자산 결합', business: '사업성', timing: '타이밍', risk: '리스크'};
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return '출처'; } };
 const srcLinks = urls => (urls || []).map(u => `<a class="src" href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join('');
-// 단계 작업 진행률 — 판테온 봇이 job.result 에 3초마다 적는 값을 막대로 (레퍼런스 분석과 같은 모양)
+// 단계 작업 진행률 — 이그드라실 봇이 job.result 에 3초마다 적는 값을 막대로 (레퍼런스 분석과 같은 모양)
 function jobProg(j) {
   const g = j?.result;
   // 진행률을 남기지 않는 작업(자동 검수·Aside 등)도 돌고 있으면 움직이는 막대 + 경과 시간 (10-30)
   if (j && j.status === 'work' && !g) return `<div class="ref-prog wide job-prog run" data-since="${esc(j.claimed_at || j.at)}"><span class="row"><span class="bar indet" role="progressbar" aria-label="진행 중"><i></i></span></span><small>${esc(jobName(j) || '작업')} 진행 중</small></div>`;
-  if (!j || j.status === 'wait' || !g) return `<p class="job-wait">${j?.kind === 'aside' ? 'Aside 작업 대기 중' : '판테온 봇 작업 대기 중'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>`;
+  if (!j || j.status === 'wait' || !g) return `<p class="job-wait">${j?.kind === 'aside' ? 'Aside 작업 대기 중' : '이그드라실 봇 작업 대기 중'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>`;
   return `<div class="ref-prog wide job-prog" data-k="j${j.id}" data-eta="${g.eta}" data-at="${esc(g.at)}" data-step="${esc(g.step || '')}"><span class="row"><span class="bar" role="progressbar" aria-valuenow="${g.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${g.progress}%"></i></span><b>${g.progress}%</b></span><small>${esc(g.step || '진행 중')}</small></div>`;
 }
 // 한 단계에 작업이 둘일 때(리서치 = 공개 웹 + 팬·SNS) 막대를 이름과 함께 나란히 (10-28)
@@ -1884,7 +1884,7 @@ function partnersPanel(p) {
     }).join('');
     return `<div class="pcat"><div class="pcat-head"><div><b>${esc(cat.name)}</b><small>${esc(cat.reason || '')}</small></div><button class="text-btn" data-reroll="${esc(cat.name)}">다른 후보</button></div>${cards}</div>`;
   }).join('');
-  return `<div class="detail-block"><h3>결정 · 파트너 IP 선택</h3><p>카드 하나를 선택하면 판테온 봇이 두 IP 리서치를 시작합니다. 점수는 1~5점이며, 리스크 점수가 높을수록 위험합니다.</p>${P.ip_a_card?.summary ? `<p class="muted-box">${esc(p.ip_a_name)} · ${esc(P.ip_a_card.summary)}</p>` : ''}${cats}<div class="pcat"><div class="pcat-head"><div><b>직접 입력</b><small>추천 IP 중 적합한 IP가 없으면 원하는 IP를 직접 입력해 진행합니다.</small></div></div><datalist id="pb-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist><div class="ask-row"><input id="pb-own" list="pb-ents" maxlength="80" placeholder="예: 산리오" aria-label="파트너 IP"><button class="button primary" id="pb-own-go" type="button">이 IP로 진행</button></div><small class="atnote" id="pb-own-note"></small></div><div class="drawer-actions"><button class="button" id="recategorize">카테고리 변경 후 재추천</button></div></div>`;
+  return `<div class="detail-block"><h3>결정 · 파트너 IP 선택</h3><p>카드 하나를 선택하면 이그드라실 봇이 두 IP 리서치를 시작합니다. 점수는 1~5점이며, 리스크 점수가 높을수록 위험합니다.</p>${P.ip_a_card?.summary ? `<p class="muted-box">${esc(p.ip_a_name)} · ${esc(P.ip_a_card.summary)}</p>` : ''}${cats}<div class="pcat"><div class="pcat-head"><div><b>직접 입력</b><small>추천 IP 중 적합한 IP가 없으면 원하는 IP를 직접 입력해 진행합니다.</small></div></div><datalist id="pb-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist><div class="ask-row"><input id="pb-own" list="pb-ents" maxlength="80" placeholder="예: 산리오" aria-label="파트너 IP"><button class="button primary" id="pb-own-go" type="button">이 IP로 진행</button></div><small class="atnote" id="pb-own-note"></small></div><div class="drawer-actions"><button class="button" id="recategorize">카테고리 변경 후 재추천</button></div></div>`;
 }
 const conceptCard = (c, i) => `<div class="pcard"><div class="pcard-head"><b>${esc(c.name)}</b></div>${c.key_copy ? `<p class="key-copy">“${esc(c.key_copy)}”</p>` : ''}<p>${esc(c.summary || '')}</p>${c.world ? `<details><summary>세계관</summary><p>${esc(c.world)}</p></details>` : ''}${(c.axes || []).length ? `<p class="sub-label">연결 포인트</p><ul class="axes">${c.axes.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}${(c.formats || []).length ? `<p class="sub-label">실행 포맷</p><ul class="axes">${c.formats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}${c.why ? `<small class="why">${esc(c.why)}</small>` : ''}${i !== undefined ? `<div class="pcard-foot"><span></span><button class="button primary small" data-concept="${i}">이 컨셉으로 확정</button></div>` : ''}</div>`;
 const DECK_PARTS = [['space', '공간·체험'], ['product', '상품'], ['content', '콘텐츠']];
@@ -1960,10 +1960,10 @@ async function loadImgThumbs(slots) {
 }
 // 이미지 크게 보기 (10-29 김현우) — 원본 전체 + 제안서 자리 비율로 가운데를 잘라 넣은 모양(실제 제안서와 같은 방식)
 // 이미지 크게 보기 · 위치 맞추기 (10-29 김현우) — 원본 전체 + 제안서 상자(실제 그려진 크기) 안에서 끌어 옮기기
-// 판테온 봇이 그릴 때와 같은 방식: 채우기는 x·y(0~1) 위치를 남기고 자르고, 맞춤는 자르지 않는다
+// 이그드라실 봇이 그릴 때와 같은 방식: 채우기는 x·y(0~1) 위치를 남기고 자르고, 맞춤는 자르지 않는다
 const POS_TOP = ['official', 'capture', 'reference'];
 const defaultPos = s => ({x: 0.5, y: POS_TOP.includes(s?.kind) ? 0.15 : 0.5, fit: s?.kind === 'logo' ? 'contain' : 'cover', zoom: 1});
-// 다시 만들기 (10-29 김현우) — 고친 프롬프트·아쉬운 점은 제안서 데이터(prompt_log)에 쌓이고, 다음 원고를 쓸 때 판테온 봇이 참고한다
+// 다시 만들기 (10-29 김현우) — 고친 프롬프트·아쉬운 점은 제안서 데이터(prompt_log)에 쌓이고, 다음 원고를 쓸 때 이그드라실 봇이 참고한다
 const AI_KINDS = ['ai_concept', 'mockup', 'texture'];
 const regenBox = s => { const ai = AI_KINDS.includes(s.kind) && !s.widened;
   return `<details class="regen"><summary>이미지 다시 생성</summary>
@@ -1982,7 +1982,7 @@ function imgViewer(el) {
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => $('#modal').classList.remove('wide'), {once: true});
   const bx = $('#imgv-box'); if (!bx) return;
   const nat = new Image(); nat.src = src;
-  // 꽉 채운 크기 × 확대 — 판테온 봇이 그릴 때와 같은 계산 (위치 %는 남는 부분 중 어디를 보이게 할지)
+  // 꽉 채운 크기 × 확대 — 이그드라실 봇이 그릴 때와 같은 계산 (위치 %는 남는 부분 중 어디를 보이게 할지)
   const scale = () => Math.max(bx.clientWidth / nat.naturalWidth, bx.clientHeight / nat.naturalHeight) * (pos.zoom || 1);
   const paint = () => {
     const fit = pos.fit === 'contain';
@@ -2498,15 +2498,15 @@ async function openProposal(id, keep) {
   const ent = (eid, name) => eid && byId(eid) ? `<button class="ref" type="button" data-open="${eid}">${esc(name)}</button>` : esc(name || '—');
   const d = p.data || {};
   let action = '';
-  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '판테온 봇이 파트너 IP 후보를 추천합니다.' : '판테온 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">인테이크 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
+  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '이그드라실 봇이 파트너 IP 후보를 추천합니다.' : '이그드라실 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">인테이크 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
   else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 나가거나 새로 고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
   else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 만든 결과는 그대로 남아 있습니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
-  else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '판테온 봇이 작업을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
+  else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '이그드라실 봇이 작업을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
   else if (p.status === 'waiting' && p.stage === 3 && d.partners) action = partnersPanel(p);
   else if (p.status === 'waiting' && p.stage === 5 && d.concepts) action = conceptsPanel(p);
   else if (p.status === 'waiting' && p.stage >= 7 && d.images) action = imagesPanel(p);
-  else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>판테온 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
+  else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>이그드라실 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 만들기</h3><p>수신사 피드백을 입력하면 원고를 고쳐 다음 버전을 만듭니다. 새로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 만들기</button></div></div>`;
   const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영돼 있습니다. PDF·PPTX를 받거나 완료할 때 전체 파일에 한 번 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지가 들어갈 위치는 회색 상자로 비워 두었습니다. 이미지 수급 단계에서 채웁니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 고칠 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞쪽 팬 반응 페이지를 빼고 콜라보 명분을 더 강하게, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 만들기</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
@@ -2517,7 +2517,7 @@ async function openProposal(id, keep) {
   showDrawer(`<span class="entity-avatar">${esc(p.ip_a_name.slice(0, 2))}</span><h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
-  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '판테온 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '판테온 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
+  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   const go = async (row, nextJob, msg, okMsg) => {
     const lp = studio.list?.find(z => z.id === p.id), before = lp && {...lp}, jobs0 = studio.jobs;
@@ -2606,7 +2606,7 @@ async function openProposal(id, keep) {
     const usd = +ev.target.dataset.usd, n = d.images.ai_estimate.count;
     if (!(await confirmBox({title: `이미지 ${n}장을 만들까요?`, body: `<b>예상 비용 약 $${usd}</b>가 회사 힉스필드 잔액에서 나갑니다. 실패하거나 부적절 판정된 이미지는 청구되지 않습니다. 만든 이미지는 들어갈 페이지만 다시 그립니다.`, ok: `${n}장 만들기 · 약 $${usd}`}))) return;
     ev.target.disabled = true;
-    go({status: 'working'}, {kind: 'generate', input: {approved_usd: usd}}, `AI 이미지 ${n}장 생성을 승인했습니다 (예상 $${usd})`, '승인했습니다. 판테온 봇이 생성을 시작합니다.');
+    go({status: 'working'}, {kind: 'generate', input: {approved_usd: usd}}, `AI 이미지 ${n}장 생성을 승인했습니다 (예상 $${usd})`, '승인했습니다. 이그드라실 봇이 생성을 시작합니다.');
   });
   $$('#drawer [data-aside]').forEach(b => b.onclick = () => {
     const k = b.dataset.aside, sl = d.images.slots[k];
@@ -2697,7 +2697,7 @@ async function openProposal(id, keep) {
   if (p.status === 'working') propPoll = setTimeout(() => pollProposal(p.id), 3000);      // 작업 중이면 단계와 상관없이 항상
   const { data } = await SB.from('pt_proposal_event').select('at,actor_name,message').eq('proposal_id', id).order('at', {ascending: false}).limit(50);
   const box = $('#proposal-events'); if (!box || activeDetail !== 'p:' + id) return;
-  const li = e => `<li><time>${esc(kst(e.at))}</time><span>${esc(e.message)}<br><small>${esc(e.actor_name || '판테온 봇')}</small></span></li>`;
+  const li = e => `<li><time>${esc(kst(e.at))}</time><span>${esc(e.message)}<br><small>${esc((e.actor_name || '이그드라실 봇').replace('판테온' + ' 봇', '이그드라실 봇'))}</small></span></li>`;
   box.innerHTML = data?.length ? `<ol class="owner-hist">${data.slice(0, 6).map(li).join('')}</ol>${data.length > 6 ? `<details class="pv-more"><summary>이전 기록 ${data.length - 6}개</summary><ol class="owner-hist">${data.slice(6).map(li).join('')}</ol></details>` : ''}` : '<p>기록이 없습니다.</p>';
 }
 
@@ -2705,13 +2705,13 @@ function studioProjectModal(p) {
   const refs = studio.refs || [], def = p?.ref_id || refs.find(r => r.is_default)?.id || refs[0]?.id || '';
   const names = entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('');
   const lockIp = !!p && p.stage > 2, dis = lockIp ? 'disabled' : '';
-  modal(`<form id="sp-form"><h2>${p ? '기본 정보 수정' : '새 제안서 프로젝트'}</h2><p>${lockIp ? '리서치가 시작된 뒤에는 IP와 제안 방식을 바꿀 수 없습니다. 다른 IP로 하려면 새 프로젝트를 만들어 주세요.' : 'IP 하나로 시작합니다. 판테온에 등록된 엔티티를 선택하면 담당자·연락처도 함께 연결됩니다.'}</p><datalist id="sp-ents">${names}</datalist>
+  modal(`<form id="sp-form"><h2>${p ? '기본 정보 수정' : '새 제안서 프로젝트'}</h2><p>${lockIp ? '리서치가 시작된 뒤에는 IP와 제안 방식을 바꿀 수 없습니다. 다른 IP로 하려면 새 프로젝트를 만들어 주세요.' : 'IP 하나로 시작합니다. 이그드라실에 등록된 엔티티를 선택하면 담당자·연락처도 함께 연결됩니다.'}</p><datalist id="sp-ents">${names}</datalist>
   <label>IP *<input id="sp-a" list="sp-ents" required maxlength="80" value="${esc(p?.ip_a_name || '')}" placeholder="예: 에스파" ${dis}></label><small class="atnote" id="sp-a-note"></small>
   <div class="field"><span class="flabel">제안 방식</span><div class="seg-pick"><label><input type="radio" name="sp-mode" value="collab" ${p?.mode !== 'single' ? 'checked' : ''} ${dis}> 콜라보 제안 <small>IP A × IP B</small></label><label><input type="radio" name="sp-mode" value="single" ${p?.mode === 'single' ? 'checked' : ''} ${dis}> 단독 제안 <small>IP 하나</small></label></div></div>
-  <div id="sp-b-field"><label>파트너 IP<input id="sp-b" list="sp-ents" maxlength="80" value="${esc(p?.ip_b_name || '')}" placeholder="비워 두면 판테온 봇이 후보를 추천합니다" ${dis}></label><small class="atnote" id="sp-b-note"></small></div>
+  <div id="sp-b-field"><label>파트너 IP<input id="sp-b" list="sp-ents" maxlength="80" value="${esc(p?.ip_b_name || '')}" placeholder="비워 두면 이그드라실 봇이 후보를 추천합니다" ${dis}></label><small class="atnote" id="sp-b-note"></small></div>
   <label>수신사<input id="sp-to" list="sp-ents" maxlength="80" value="${esc(p?.recipient || '')}" placeholder="예: SM엔터테인먼트"></label>
   <label>레퍼런스 포맷<select id="sp-ref">${refs.length ? refs.map(r => `<option value="${r.id}" ${r.id === def ? 'selected' : ''}>${esc(r.title)}${r.is_default ? ' (기본)' : ''}</option>`).join('') : '<option value="">등록된 레퍼런스 없음</option>'}</select></label>
-  <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 판테온 봇이 정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
+  <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 이그드라실 봇이 정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
@@ -2736,7 +2736,7 @@ function studioProjectModal(p) {
 }
 
 function studioRefModal() {
-  modal(`<form id="sr-form"><h2>레퍼런스 등록</h2><p>팀이 작성한 완성 제안서(PDF·PPTX)를 업로드합니다. 판테온 봇이 페이지 구성과 이미지 배치를 분석해 새 제안서 포맷으로 사용합니다.</p>
+  modal(`<form id="sr-form"><h2>레퍼런스 등록</h2><p>팀이 작성한 완성 제안서(PDF·PPTX)를 업로드합니다. 이그드라실 봇이 페이지 구성과 이미지 배치를 분석해 새 제안서 포맷으로 사용합니다.</p>
   <label>파일 * (PDF·PPTX, 100MB 이하)<input id="sr-file" type="file" accept=".pdf,.pptx,application/pdf" required></label>
   <label>제안서 이름 *<input id="sr-title" required maxlength="120" placeholder="예: 바비 × 장원영 IP 콜라보레이션 제안서"></label>
   <datalist id="sr-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist>
@@ -2885,7 +2885,7 @@ function bindChart() {
     const { error } = await SB.from('pt_ip_run').insert({status: 'wait'});
     if (error) { ipc.run = prev; render(); return toast('갱신을 요청하지 못했습니다: ' + error.message); }
     const { data } = await SB.from('pt_ip_run').select(IP_RUN).order('at', {ascending: false}).limit(1); ipc.run = data?.[0] || ipc.run;
-    toast('순위 갱신을 요청했습니다. 판테온 봇이 바로 시작합니다.'); ipPoll();
+    toast('순위 갱신을 요청했습니다. 이그드라실 봇이 바로 시작합니다.'); ipPoll();
   });
 }
 /* ---------- 소싱 (11-01 · Phase 2 · sql/018 · 봇 sourcing.py) — IP 스코어 · 조합 · 워닝·감시. 공개 범위는 IP 차트와 같음 ---------- */
@@ -2997,7 +2997,7 @@ function srcPoll() {
 }
 // IP 직접 추가 (11-02 홍석진 대표님 「제안하지 않은 IP 를 내가 넣어서 스코어 확인 · 내가 제안한 IP 로 진행」) — sql/028 pt_ip_add
 function ipAddModal() {
-  modal(`<form id="ipadd-form"><h2>IP 직접 추가</h2><p>IP 차트에 없는 IP도 넣으면 판테온 봇이 일정을 찾아 IP 스코어를 매기고, 조합 시뮬레이션도 바로 시작합니다. 이미 등록된 IP면 그 IP에 이어 붙입니다.</p>
+  modal(`<form id="ipadd-form"><h2>IP 직접 추가</h2><p>IP 차트에 없는 IP도 넣으면 이그드라실 봇이 일정을 찾아 IP 스코어를 매기고, 조합 시뮬레이션도 바로 시작합니다. 이미 등록된 IP면 그 IP에 이어 붙입니다.</p>
     <label>IP 이름<input id="ipa-name" required maxlength="100" placeholder="예: 리락쿠마"></label>
     <label>영문 이름 (선택)<input id="ipa-en" maxlength="100" placeholder="예: Rilakkuma"></label>
     <label>종류<select id="ipa-kind">${Object.entries(IPK).map(([k, t]) => `<option value="${k}" ${k === 'character' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
@@ -3014,7 +3014,7 @@ function ipAddModal() {
     if (error) { if (btn) btn.disabled = false; $('#ipa-error').textContent = '추가하지 못했습니다: ' + error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close();
     await load(); src.d = null; src.open = data; src.tab = 'ips'; render();
-    toast(`${name}을(를) 추가했습니다. 판테온 봇이 몇 분 안에 일정을 찾고 IP 스코어를 매깁니다.`);
+    toast(`${name}을(를) 추가했습니다. 이그드라실 봇이 몇 분 안에 일정을 찾고 IP 스코어를 매깁니다.`);
   };
 }
 function bindSrc() {
@@ -3057,7 +3057,7 @@ function bindSrc() {
     b.disabled = true;
     const { error } = await SB.from('pt_combo_run').insert({ip_entity_id: b.dataset.comboRun, instruction: $('#combo-ins')?.value.trim() || '', status: 'wait'});
     if (error) { b.disabled = false; return toast('요청하지 못했습니다: ' + error.message); }
-    await redo('조합 시뮬레이션을 요청했습니다. 판테온 봇이 곧 시작합니다.');
+    await redo('조합 시뮬레이션을 요청했습니다. 이그드라실 봇이 곧 시작합니다.');
   });
   $$('[data-cb-branch]').forEach(b => b.onclick = async () => {
     const [id, br] = b.dataset.cbBranch.split('|'); b.disabled = true;
@@ -3265,7 +3265,7 @@ async function start() {
   $('#login').hidden = true;
   $('#profile').innerHTML = `<span class="avatar">${esc(myName.slice(0, 1))}</span><span>${esc(myName)}<small>${isAdmin ? 'DB 관리자' : '구성원'}</small></span>${isAdmin ? '<span class="admin">ADMIN</span>' : ''}`;
   $('.top-avatar').textContent = myName.slice(0, 1);
-  SB.from('pt_profile').select('slack_image').eq('member_id', me.id).maybeSingle().then(({data}) => {   // 판테온 봇이 채운 슬랙 프로필 사진
+  SB.from('pt_profile').select('slack_image').eq('member_id', me.id).maybeSingle().then(({data}) => {   // 이그드라실 봇이 채운 슬랙 프로필 사진
     const u = data?.slack_image; if (!u) return;
     const img = `<img src="${esc(u)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
     $('.top-avatar').innerHTML = img; const a = $('#profile .avatar'); if (a) { a.innerHTML = img; a.style.overflow = 'hidden'; }
