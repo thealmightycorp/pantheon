@@ -662,3 +662,6 @@ dialog.wide .text-btn,dialog.review .text-btn{font-size:13px;min-height:40px}
 #tour .tour-end{display:flex;gap:8px}
 #demo-btn{gap:6px}
 @media(max-width:600px){#tour .tour-card,#tour .tour-card.mid{left:12px!important;right:12px;top:auto!important;bottom:12px;transform:none;width:auto;max-width:none}#tour .tour-acts .button{min-height:42px}}
+.dl-tip{margin-top:10px;font-size:12px;line-height:1.6}
+.rv-tlayer .tbox.edit{cursor:text}
+#rv-txtbar textarea{width:100%;margin:8px 0;border:1px solid #dde4d9;border-radius:6px;padding:8px;font:inherit;font-size:13px;line-height:1.6;resize:vertical}

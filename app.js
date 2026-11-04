@@ -2516,8 +2516,9 @@ async function pageReview(pid, start) {
     // 텍스트 위치 이동 (10-30 김현우 「텍스트도 선택해서 드래그로 위치 옮길 수 있게」) — 렌더러가 남긴 글상자 위치(boxes 「t:…」)
     const tOn = id => (B[id]?.at || [B[id]]).some(a => +a?.page === cur);
     const tids = Object.keys(B).filter(id => id.startsWith('t:') && tOn(id));
-    $('#rv-tools').innerHTML = tids.length ? '<button class="button small" id="rv-txt">텍스트 위치 이동</button>' : '';
+    $('#rv-tools').innerHTML = tids.length ? '<button class="button small" id="rv-txt">텍스트 위치 이동</button><button class="button small" id="rv-tedit">텍스트 수정</button>' : '';
     if ($('#rv-txt')) $('#rv-txt').onclick = () => textMode(tids);
+    if ($('#rv-tedit')) $('#rv-tedit').onclick = () => textEdit(tids);
     $('#rv-hot').innerHTML = keys.flatMap(k => spots(k).filter(a => +a.page === cur && a.w).map(b => [k, b])).sort((x, y) => big(y[1]) - big(x[1])).map(([k, b]) => { const bad = fl.some(f => f.key === k);
       return `<button type="button" class="${bad ? 'flag' : ''}${S[k].path ? '' : ' empty'}${big(b) ? ' bg' : ''}" data-hot="${esc(k)}" style="left:${b.x / EW * 100}%;top:${b.y / EH * 100}%;width:${b.w / EW * 100}%;height:${b.h / EH * 100}%" aria-label="${esc(KIND_KO_IMG[S[k].kind] || '')} ${esc(whatText(S[k].what))}"><span>${esc(KIND_KO_IMG[S[k].kind] || '')}</span></button>`; }).join('');
     const okd = k => !!S[k]?.path && (d.qa_ok || {})[k] === S[k].path;          // 사람이 확정한 이미지 (검수 목록에서 빠짐)
@@ -2584,6 +2585,48 @@ async function pageReview(pid, start) {
       };
       $('#tx-ok').onclick = () => save(false);
       if ($('#tx-reset')) $('#tx-reset').onclick = () => save(true);
+    }
+    // 텍스트 수정 (11-04 기획팀 시연 회의 「궁니르에서 텍스트 편집」) — 글상자를 눌러 문장을 고치면 deck.text_edit 에 남기고 이 페이지만 다시 생성
+    function textEdit(tids) {
+      if ($('.rv-tlayer')) return;
+      const wrap = $('.rv-canvas-wrap'), EW = 12192000, EH = 6858000, te = d.build?.deck?.text_edit || {};
+      const cur0 = id => (te[id] || B[id].full || [B[id].t || '']).join('\n');
+      $('#rv-hot').style.pointerEvents = 'none'; dlg.dataset.dirty = '1'; $('#rv-tedit').disabled = true; if ($('#rv-txt')) $('#rv-txt').disabled = true;
+      wrap.insertAdjacentHTML('beforeend', `<div class="rv-tlayer">${tids.map(id => { const a = (B[id].at || [B[id]]).find(z => +z.page === cur);
+        return `<div class="tbox edit${te[id] ? ' moved' : ''}" data-t="${esc(id)}" title="${esc(B[id].t || '')}" style="left:${a.x / EW * 100}%;top:${a.y / EH * 100}%;width:${a.w / EW * 100}%;height:${a.h / EH * 100}%"></div>`; }).join('')}</div>`);
+      const edits = {};
+      let sel = null;
+      wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-txtbar"><small>고칠 텍스트(점선 영역)를 눌러 문장을 수정해 주세요. 줄바꿈은 그대로 반영됩니다. 반영하면 이 페이지만 다시 생성합니다.</small>
+        <textarea id="te-text" rows="4" maxlength="2000" placeholder="먼저 페이지에서 텍스트를 선택해 주세요" disabled></textarea>${tids.some(id => te[id]) ? '<small class="muted">색이 칠해진 영역은 이미 수정한 텍스트입니다.</small>' : ''}
+        <div class="ibtns"><button class="button primary small" id="te-ok">수정한 문장으로 반영</button>${tids.some(id => te[id]) ? '<button class="button small" id="te-reset">이 페이지 원래 문장으로</button>' : ''}<button class="button small" id="te-no">수정 취소</button></div></div>`);
+      const keep = () => { if (sel) { const v = $('#te-text').value; if (v !== cur0(sel)) edits[sel] = v; else delete edits[sel]; } };
+      $$('.rv-tlayer .tbox').forEach(t => { t.onclick = ev => { ev.stopPropagation(); keep();
+        $$('.rv-tlayer .tbox.sel').forEach(o => o.classList.remove('sel')); t.classList.add('sel'); sel = t.dataset.t;
+        const ta = $('#te-text'); ta.disabled = false; ta.value = edits[sel] ?? cur0(sel); ta.focus(); }; });
+      $('#te-no').onclick = () => { dlg.dataset.dirty = ''; show(cur); };
+      const save = async reset => {
+        keep();
+        const ids = reset ? tids.filter(id => te[id]) : Object.keys(edits);
+        if (!ids.length) return toast('수정한 텍스트가 없습니다. 페이지에서 텍스트를 선택해 문장을 고쳐 주세요.');
+        $('#te-ok').disabled = true;
+        const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+        if (e0) { $('#te-ok').disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
+        const f = row.data, deck0 = f.build.deck, ed = {...(deck0.text_edit || {})};
+        ids.forEach(id => { if (reset) delete ed[id]; else { const ls = edits[id].split('\n').map(s => s.trimEnd()); ed[id] = ls.some(s => s.trim()) ? ls : undefined; if (!ed[id]) delete ed[id]; } });
+        const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, deck: {...deck0, text_edit: ed}}}, status: 'working'}).eq('id', p.id);
+        if (error) { $('#te-ok').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
+        await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
+        await proposalEvent(p.id, `${cur}페이지 텍스트 ${ids.length}개를 ${reset ? '원래 문장으로 복원했습니다' : '수정했습니다'} → 이 페이지만 다시 생성합니다`);
+        dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur);
+        toast(reset ? '원래 문장으로 복원합니다. 이 페이지를 다시 생성하는 중입니다.' : '수정한 문장을 반영합니다. 이 페이지를 다시 생성하는 중입니다.', {fn: async () => {
+          const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
+          await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, deck: {...d2.build.deck, text_edit: deck0.text_edit || {}}}}, status: 'working'}).eq('id', p.id);
+          await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
+          await proposalEvent(p.id, `${cur}페이지 텍스트 수정을 취소했습니다`);
+          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 생성하는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+      };
+      $('#te-ok').onclick = () => save(false);
+      if ($('#te-reset')) $('#te-reset').onclick = () => save(true);
     }
     // 이미지 영역 크기 조절 — 페이지 위 상자 가장자리·모서리를 끌어 늘리고 줄인다 → 그 페이지만 다시 그림 (10-30 김현우)
     function sizeBox(k) {
@@ -2737,7 +2780,8 @@ async function openProposal(id, keep) {
   else if (p.status === 'waiting' && p.stage >= 7 && d.images) action = imagesPanel(p);
   else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>이그드라실 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
-  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
+  const dlTip = '<p class="muted-box dl-tip">PPTX 파일은 <b>키노트</b>에서 바로 열립니다. <b>Figma</b>는 Figma Slides 파일 목록의 「가져오기」에서 PPTX를 올리면 편집할 수 있습니다. Figma에 Pretendard 글꼴이 없으면 기본 글꼴로 바뀝니다.</p>';
+  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
