@@ -2113,13 +2113,13 @@ const jobName = j => { const base = j.kind === 'aside' ? (j.input?.task === 'soc
   return w ? `${base} · ${w}` : base; };
 const jobsProg = list => `<div id="job-progs">${list.length > 1 || (list[0] && jobWhere(list[0])) ? list.map(j => `<p class="sub-label">${esc(j ? jobName(j) : '')}</p>${jobProg(j)}`).join('') : jobProg(list[0])}</div>`;
 const liveJobs = id => studio.jobs.filter(j => j.proposal_id === id && ['wait', 'work'].includes(j.status)).sort((a, b) => a.id - b.id);
-let propPoll;
+let propPoll, propShown = '';     // 상세 화면이 지금 그리고 있는 상태(상태|단계) — 목록이 먼저 바뀌어도 화면을 다시 그리게 (11-04)
 async function pollProposal(id) {
   if (activeDetail !== 'p:' + id) return;
   const [p, j] = await Promise.all([SB.from('pt_proposal').select('*').eq('id', id).single(), SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').eq('proposal_id', id).order('id', {ascending: false}).limit(4)]);
   if (activeDetail !== 'p:' + id || p.error || !studio.list) { if (activeDetail === 'p:' + id) propPoll = setTimeout(() => pollProposal(id), 3000); return; }
-  const old = studio.list.find(x => x.id === id);
-  if (old && (p.data.status !== old.status || p.data.stage !== old.stage)) { studio.list = null; await loadStudio(); return openProposal(id, true); }
+  // 화면에 그린 상태와 비교한다 — 목록(studio.list)은 따로 새로 고쳐져 먼저 바뀔 수 있어, 그것과 비교하면 파트너 추천이 끝나도 화면이 「진행 중」에 머물렀다 (11-04 김현우)
+  if (`${p.data.status}|${p.data.stage}` !== propShown) { studio.list = null; await loadStudio(); return openProposal(id, true); }
   const got = j.data || [];
   if (got.length) {
     studio.jobs = [...studio.jobs.filter(x => !got.some(g => g.id === x.id)), ...got];
@@ -2998,7 +2998,7 @@ function resumeOf(p) {
 }
 async function openProposal(id, keep) {
   const p = studio.list?.find(x => x.id === id); if (!p) return;
-  activeDetail = 'p:' + id;
+  activeDetail = 'p:' + id; propShown = `${p.status}|${p.stage}`;
   if (!keep) setRoute(id);
   // 진행 단계는 맨 위 가로 막대로 (10-30 · 대표님 설계) — 사람이 결정하는 단계는 점으로 표시
   const stages = STAGES.map((s, i) => { const n = i + 1, skip = p.mode === 'single' && n === 3, cls = skip ? 'skip' : n < p.stage || p.status === 'done' ? 'done' : n === p.stage ? 'now' : ''; return `<li class="${cls}" title="${esc(s)}${GATES[n] && !skip ? ' · 결정: ' + esc(GATES[n]) : ''}${skip ? ' · 단독 제안은 생략' : ''}"><span>${n}</span><b>${esc(s)}</b>${GATES[n] && !skip ? '<i class="gate" aria-label="결정 단계"></i>' : ''}</li>`; }).join('');
