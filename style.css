@@ -724,3 +724,9 @@ dialog.olx .ol-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.
 .pv-logo-one b{font-size:20px;color:#8a5b55}
 .pv-logo i{font-style:normal;font-size:18px;color:var(--ink-muted)}
 @media(max-width:600px){.pv-logo-one{width:84px;height:64px}}
+/* 내가 할 일 · 진행 중 (11-04) */
+.todo-sub{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:16px 0 6px;font-weight:600;font-size:var(--text-body);border-top:1px solid #edf0ee;margin-top:8px}
+.todo-sub small{font-weight:400;font-size:var(--text-meta)}
+.alert-symbol.live{background:#edf4ef;color:#285541}
+.todo-prog{display:block;margin-top:6px;max-width:360px}
+.todo-prog .row-prog{display:block}

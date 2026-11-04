@@ -1660,10 +1660,14 @@ const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간 경과`
 const todoWhat = p => p.status === 'failed' ? '작업 중단 · 확인 후 재시도 필요' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 재시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
 const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>처리 지연</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
 
+// 진행 중인 내 프로젝트 (11-04 김현우 「진행 중 따로 보이게」) — 궁니르 봇이 작업 중인 것, 진행률은 3초마다 pollProjects 가 갱신
+const liveRow = p => `<button class="alert-row todo-row" data-proposal="${p.id}"><span class="alert-symbol live">${icon('clock')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(STAGES[p.stage - 1] || '')} 진행 중${p.visibility === 'private' ? ' · 나만 보기' : ''}</small><span class="todo-prog" data-prow="${p.id}">${rowProg(p)}</span></span></button>`;
+
 function studioProjects() {
   const all = studio.list, F = pjSets(), ps = pjFiltered();
   const isMine = p => !!me && p.created_by === me.id;
   const todo = all.filter(p => isMine(p) && (p.status === 'waiting' || p.status === 'failed')).sort((a, b) => (b.status === 'failed') - (a.status === 'failed') || waitH(b) - waitH(a));
+  const mineLive = all.filter(p => isMine(p) && p.status === 'working').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
   const others = F.wait[1].filter(p => !isMine(p)).sort((a, b) => waitH(b) - waitH(a));
   const byNames = [...new Set(all.map(pjByOf))].sort((a, b) => a.localeCompare(b, 'ko'));
   if (studio.by && !byNames.includes(studio.by)) studio.by = '';
@@ -1675,7 +1679,7 @@ function studioProjects() {
     + sel('data-pby', '기안자별 보기', [['', '기안자 전체'], ...byNames.map(x => [x, `${x} (${all.filter(p => pjByOf(p) === x).length})`])], studio.by)
     + `<button class="text-btn" type="button" data-pclear${pjAny() ? '' : ' hidden'}>조건 초기화</button></div>`;
   const stat = (key, num, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${num}<small>건</small></div><div class="stat-bottom">${bottom}</div></div>`;
-  return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">대기 기간이 긴 순서</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}</section>
+  return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">대기 기간이 긴 순서</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}${mineLive.length ? `<div class="todo-sub">진행 중 <span class="alert-count">${mineLive.length}건</span><small class="muted">궁니르 봇이 작업 중입니다. 끝나면 위 목록으로 올라옵니다.</small></div><div class="alert-list todo-list">${mineLive.map(liveRow).join('')}</div>` : ''}</section>
   <div class="stats">${stat('live', F.live[1].length, `전체 ${all.length}건`)}${stat('wait', F.wait[1].length, '담당자 확인이 필요한 단계')}${stat('work', F.work[1].length, '리서치·생성 등 자동 단계')}${stat('done', F.done[1].length, '제안서 전달 완료', true)}</div>
   <div class="main-grid studio-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? F[studio.filter][0] : '전체'} 프로젝트${studio.by ? ` · ${esc(studio.by)}` : ''} <small id="pj-count">${ps.length}건 · ${SORT_KO[studio.sort.k]}</small></div></div>${bar}<div id="pj-body">${pjTable(ps)}</div></section>
   <section class="panel"><div class="panel-head"><div class="panel-title">다른 담당자 결정 대기</div>${others.length ? `<span class="alert-count">${others.length}건</span>` : ''}</div><div class="alert-list">${others.length ? others.map(p => todoRow(p, false)).join('') : '<p class="panel-caption" style="padding:0 0 18px">다른 담당자가 결정할 프로젝트가 없습니다.</p>'}</div></section></div>`;
@@ -1986,7 +1990,7 @@ async function pollProjects() {
   if (ps.error || js.error || page !== 'studio' || !studio.list) return;          // 그 사이 목록을 새로 읽는 중이면 그쪽에 맡긴다
   if (ps.data.some(x => { const o = studio.list.find(p => p.id === x.id); return o && (o.status !== x.status || o.stage !== x.stage); })) { studio.list = null; return loadStudio(); }
   studio.jobs = [...studio.jobs.filter(j => !ids.includes(j.proposal_id)), ...js.data];
-  ids.forEach(id => { const el = document.querySelector(`[data-prow="${id}"]`), p = studio.list.find(x => x.id === id); if (el && p) el.innerHTML = rowProg(p); });
+  ids.forEach(id => { const p = studio.list.find(x => x.id === id); if (p) document.querySelectorAll(`[data-prow="${id}"]`).forEach(el => { el.innerHTML = rowProg(p); }); });
   listPoll = setTimeout(pollProjects, 3000);
 }
 function bindStudio() {
