@@ -2132,7 +2132,7 @@ const olFromTpl = k => OL_TPL[k][1].split(' ').map(olType).filter(Boolean).map(o
 const olOf = p => p.data?.outline?.length ? p.data.outline : olFromTpl(olDefault(p));
 function olSummary(p) {
   const ol = olOf(p), saved = !!p.data?.outline?.length;
-  return `<div class="ol-sum"><div class="ol-sum-h"><b>제안서 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(OL_TPL[olDefault(p)][0]) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
+  return `<div class="ol-sum"><div class="ol-sum-h"><b>페이지 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(OL_TPL[olDefault(p)][0]) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
     <ol class="ol-strip">${ol.map((x, i) => `<li title="${i + 1}. ${esc(x.name)}"><span style="background-image:url('${olImg(x)}')"></span><small>${i + 1}</small></li>`).join('')}</ol></div>`;
 }
 function olEditor(p) {
@@ -2166,7 +2166,7 @@ function olEditor(p) {
       li.querySelector('b').textContent = x.name;
       li.querySelector('small').textContent = x.from ? `${x.grp} · 「${x.from}」에서 학습` : x.grp;
       li.querySelector('.ol-ck').onclick = e => { e.stopPropagation(); r.ck = e.target.checked; draw(); };
-      li.onclick = e => { if (e.target.closest('button, input')) return; sel = i; syncCarousel(); draw(); };
+      li.onclick = e => { if (e.target.closest('button, input')) return; sel = i; syncCarousel(); draw(); if (matchMedia('(max-width:900px)').matches) S.scrollIntoView({block: 'center', behavior: 'smooth'}); };
       li.querySelector('.add').onclick = () => { rows.splice(i + 1, 0, {k: ++uid, x: olSnap(olType('statement') || types[0])}); sel = i + 1; touch(); syncCarousel(); draw(); toast(`${i + 2}번에 페이지 구역을 추가했습니다. 오른쪽에서 종류를 선택해 주세요.`); };
       li.querySelector('.ol-ib:not(.add)').onclick = () => { if (rows.length <= 1) return toast('페이지 구역은 하나 이상 있어야 합니다.'); const before = rows.slice(), [g] = rows.splice(i, 1); sel = Math.min(sel, rows.length - 1); touch(); syncCarousel(); draw();
         toast(`「${g.x.name}」 구역을 삭제했습니다.`, {fn: () => { rows = before; syncCarousel(); draw(); toast('삭제한 구역을 되돌렸습니다.'); }}); };
