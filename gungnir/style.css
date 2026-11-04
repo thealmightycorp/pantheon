@@ -703,3 +703,13 @@ dialog.olx .ol-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.
 @media(prefers-reduced-motion:reduce){.olx .ol-card{transition:none}}
 @media(max-width:900px){dialog.olx .ol-grid{grid-template-columns:1fr}.olx .ol-list{max-height:none}}
 @media(max-width:600px){.olx .ol-row{grid-template-columns:26px 18px 20px 56px minmax(0,1fr) auto;gap:6px}.olx .ol-thumb{width:56px}.olx .ol-stage{height:250px}.olx .ol-card{width:86%}.olx .ol-ib{width:36px;height:36px}.olx .ol-tpl select{font-size:16px}}
+/* 레퍼런스 포맷 고르기 카드 (11-04) */
+.ref-pick{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;padding:2px}
+.ref-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid #e3e8e5;border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff}
+.ref-opt:has(input:checked){border-color:#285541;box-shadow:0 0 0 2px rgba(40,85,65,.18);background:#f6faf7}
+.ref-opt input{margin-top:3px;accent-color:#285541;flex-shrink:0}
+.ref-opt-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ref-opt-body b{font-size:var(--text-body);line-height:1.4}
+.ref-opt-body small{font-size:var(--text-meta);color:var(--ink-muted)}
+.ref-opt-fmt{font-size:13px;color:#3d4a43;line-height:1.55}
+.ref-opt .text-btn{align-self:flex-start;font-size:var(--text-meta);padding:4px 0;min-height:32px}

@@ -1687,6 +1687,18 @@ const refA = r => r.ip_names || r.profile?.collab?.a || '';
 const refB = r => r.partner || r.profile?.collab?.b || '';
 const refType = r => r.collab_type || r.profile?.collab?.type || '';
 const refPair = r => { const xs = refA(r).split(/\s*,\s*/).filter(Boolean), b = refB(r); if (b && !xs.some(x => x.toLowerCase() === b.toLowerCase())) xs.push(b); return xs.join(' × '); };
+// 레퍼런스를 파일 이름 대신 「누구 × 누구 콜라보 제안서」와 포맷 한 줄로 보여 준다 (11-04 김현우 「파일명처럼 말고」)
+const refKind = r => { const t = refType(r); return /×/.test(t) ? '콜라보 제안서' : /브랜드|전략/.test(t) ? '브랜드 전략 제안서' : '제안서'; };
+const refName = r => { const k = refKind(r), who = k === '브랜드 전략 제안서' ? refA(r).split(/\s*,\s*/)[0] : refPair(r); return who ? `${who} ${k}` : r.title; };
+const refFormat = r => { const f = r.profile?.format_line || (r.profile?.summary || '').split(/\s*→\s*/).slice(0, 4).join(' → '); return f ? `${f} 포맷의 제안서입니다.` : '학습이 끝나면 어떤 포맷인지 표시됩니다.'; };
+document.addEventListener('click', ev => { const b = ev.target.closest?.('[data-ref-pdf]'); if (!b) return; ev.preventDefault(); ev.stopPropagation(); refPdf(b.dataset.refPdf); }, true);
+async function refPdf(id) {
+  const r = (studio.refs || []).find(x => x.id === id); if (!r?.file_path) return toast('레퍼런스 파일을 찾지 못했습니다.');
+  const w = window.open('', '_blank');           // 휴대폰은 기다린 뒤 여는 새 창을 막으므로 먼저 열어 둔다
+  const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(r.file_path, 3600);
+  if (error || !data) { w?.close(); return toast('레퍼런스를 열지 못했습니다: ' + (error?.message || '')); }
+  if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
 const refLearned = r => !!r.profile?.pages;
 const refDeep = r => !!r.profile?.writing?.register;
 const refBusy = r => r.status === 'uploaded' || r.status === 'analyzing';
@@ -2338,7 +2350,7 @@ function deckStyleBox(p) {
   const chosen = st.refs || (p.ref_id ? [p.ref_id] : refs.filter(r => r.is_default).map(r => r.id));
   return `<details class="pv-fold" open><summary><b>제안서 구성</b> <small>확정 전에 선택</small></summary>
     ${olSummary(p)}
-    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(r.title)}</label>`).join('')}<small class="muted">선택한 레퍼런스의 문체·디자인·이미지 활용 방식을 조합해 반영합니다. 페이지 순서는 위 구성을 따릅니다.</small></div></div>` : ''}
+    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk" title="${esc(refFormat(r))}"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(refName(r))}</label>`).join('')}<small class="muted">선택한 레퍼런스의 문체·디자인·이미지 활용 방식을 조합해 반영합니다. 페이지 순서는 위 구성을 따릅니다.</small></div></div>` : ''}
     <div class="ds-row"><span>추가 요청</span><div><input id="ds-note" maxlength="300" value="${esc(st.note || '')}" placeholder="예: 굿즈 비중 확대, 팝업은 1곳으로 한정"></div></div>
   </details>`;
 }
@@ -3015,7 +3027,7 @@ async function openProposal(id, keep) {
   showDrawer(`<span class="entity-avatar">${esc(p.ip_a_name.slice(0, 2))}</span><h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
-  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
+  <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${ref ? `${esc(refName(ref))} <button type="button" class="text-btn" data-ref-pdf="${ref.id}">확인하기</button>` : '—'}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
   <div class="detail-block"><h3>공개 범위</h3><div class="detail-row"><span>보기</span><b>${p.visibility === 'private' ? '<span class="pill">나만 보기</span>' : '궁니르 전체'}</b></div>${p.visibility === 'private' && me && p.created_by === me.id ? `<div class="drawer-actions"><button class="button" id="pv-share">궁니르 전체에 공유</button></div>` : ''}${me && (p.created_by === me.id || isAdmin) ? `<div class="drawer-actions"><button class="button danger" id="pv-delete">프로젝트 삭제</button></div>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   const go = async (row, nextJob, msg, okMsg) => {
@@ -3227,7 +3239,7 @@ function studioProjectModal(p) {
   <div class="field"><span class="flabel">제안 방식</span><div class="seg-pick"><label><input type="radio" name="sp-mode" value="collab" ${p?.mode !== 'single' ? 'checked' : ''} ${dis}> 콜라보 제안 <small>IP A × IP B</small></label><label><input type="radio" name="sp-mode" value="single" ${p?.mode === 'single' ? 'checked' : ''} ${dis}> 단독 제안 <small>IP 하나</small></label></div></div>
   <div id="sp-b-field"><label>파트너 IP<input id="sp-b" list="sp-ents" maxlength="80" value="${esc(p?.ip_b_name || '')}" placeholder="입력하지 않으면 이그드라실 봇이 후보를 추천합니다" ${dis}></label><small class="atnote" id="sp-b-note"></small></div>
   <label>수신사<input id="sp-to" list="sp-ents" maxlength="80" value="${esc(p?.recipient || '')}" placeholder="예: SM엔터테인먼트"></label>
-  <label>레퍼런스 포맷<select id="sp-ref">${refs.length ? refs.map(r => `<option value="${r.id}" ${r.id === def ? 'selected' : ''}>${esc(r.title)}${r.is_default ? ' (기본)' : ''}</option>`).join('') : '<option value="">등록된 레퍼런스 없음</option>'}</select></label>
+  <div class="field"><span class="flabel">레퍼런스 포맷</span>${refs.length ? `<div class="ref-pick" role="radiogroup" aria-label="레퍼런스 포맷">${refs.map(r => `<label class="ref-opt"><input type="radio" name="sp-ref" value="${r.id}" ${r.id === def ? 'checked' : ''}><span class="ref-opt-body"><b>${esc(refName(r))}${r.is_default ? ' <span class="pill good">기본</span>' : ''}</b><small>${esc([refType(r), r.recipient, r.profile?.page_count ? r.profile.page_count + '페이지' : ''].filter(Boolean).join(' · '))}</small><span class="ref-opt-fmt">${esc(refFormat(r))}</span><button type="button" class="text-btn" data-ref-pdf="${r.id}">레퍼런스 확인하기</button></span></label>`).join('')}</div>` : '<p class="muted-box">등록된 레퍼런스가 없습니다. 레퍼런스 탭에서 먼저 등록해 주세요.</p>'}</div>
   <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 이그드라실 봇이 지정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
   ${p ? '' : `<div class="field"><span class="flabel">공개 범위</span><div class="seg-pick"><label><input type="radio" name="sp-vis" value="team" checked> 궁니르 전체 <small>모든 궁니르 사용자</small></label><label><input type="radio" name="sp-vis" value="private"> 나만 보기 <small>시험용 · 나중에 공유 가능</small></label></div></div>
@@ -3246,7 +3258,7 @@ function studioProjectModal(p) {
     const ea = entityByName(a), eb = b ? entityByName(b) : null;
     const btn = $('#sp-form [type=submit]'); btn.disabled = true;
     const cur = p ? (await SB.from('pt_proposal').select('data').eq('id', p.id).single()).data?.data || p.data : {};   // 봇이 그사이 쓴 data 를 덮지 않게 최신본에 강조색만 얹음
-    const row = {...(lockIp ? {} : {mode, ip_a_name: ea?.name || a, ip_a_id: ea?.id || null, ip_b_name: eb?.name || b, ip_b_id: eb?.id || null}), recipient: $('#sp-to').value.trim(), ref_id: $('#sp-ref').value || null, note: $('#sp-note').value.trim(), data: {...(cur || {}), accent: $('input[name=sp-acc]:checked').value === 'pick' ? $('#sp-color').value.toUpperCase() : ''}};
+    const row = {...(lockIp ? {} : {mode, ip_a_name: ea?.name || a, ip_a_id: ea?.id || null, ip_b_name: eb?.name || b, ip_b_id: eb?.id || null}), recipient: $('#sp-to').value.trim(), ref_id: $('input[name="sp-ref"]:checked')?.value || null, note: $('#sp-note').value.trim(), data: {...(cur || {}), accent: $('input[name=sp-acc]:checked').value === 'pick' ? $('#sp-color').value.toUpperCase() : ''}};
     if (!p) { row.visibility = $('input[name=sp-vis]:checked')?.value || 'team'; row.data = {...row.data, stop_at: $('#sp-stop')?.value || '', concept_count: Number($('#sp-cc')?.value) || 0}; }   // 11-04 기획팀 회의
     const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: 2, status: 'waiting'}).select().single();
     const { data, error } = await q;
