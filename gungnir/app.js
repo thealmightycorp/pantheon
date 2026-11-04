@@ -1686,7 +1686,8 @@ const REF_TYPES = ['아티스트 × 패션', '아티스트 × 캐릭터', '아�
 const refA = r => r.ip_names || r.profile?.collab?.a || '';
 const refB = r => r.partner || r.profile?.collab?.b || '';
 const refType = r => r.collab_type || r.profile?.collab?.type || '';
-const refPair = r => { const xs = refA(r).split(/\s*,\s*/).filter(Boolean), b = refB(r); if (b && !xs.some(x => x.toLowerCase() === b.toLowerCase())) xs.push(b); return xs.join(' × '); };
+// IP 칸에 두 이름을 적었으면 학습한 상대 이름(영문)을 또 붙이지 않는다 (11-04)
+const refPair = r => { const xs = refA(r).split(/\s*,\s*/).filter(Boolean), b = xs.length > 1 && !r.partner ? '' : refB(r); if (b && !xs.some(x => x.toLowerCase() === b.toLowerCase())) xs.push(b); return xs.join(' × '); };
 // 레퍼런스를 파일 이름 대신 「누구 × 누구 콜라보 제안서」와 포맷 한 줄로 보여 준다 (11-04 김현우 「파일명처럼 말고」)
 const refKind = r => { const t = refType(r); return /×/.test(t) ? '콜라보 제안서' : /브랜드|전략/.test(t) ? '브랜드 전략 제안서' : '제안서'; };
 const refName = r => { const k = refKind(r), who = k === '브랜드 전략 제안서' ? refA(r).split(/\s*,\s*/)[0] : refPair(r); return who ? `${who} ${k}` : r.title; };
