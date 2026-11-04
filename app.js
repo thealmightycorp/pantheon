@@ -1622,7 +1622,7 @@ function pjTable(ps) {
   if (!ps.length) return `<div class="empty"><p>${pjAny() ? '조건에 맞는 프로젝트가 없습니다.' : '아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP를 입력해 시작해 주세요.'}</p></div>`;
   const {k: sk, d: sd} = studio.sort;
   const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
-  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
+  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${p.visibility === 'private' ? ' <span class="pill">나만 보기</span>' : ''}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
   return `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 // 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 대기 기간이 긴 순서, 하루가 넘으면 눈에 띄게
@@ -2730,6 +2730,7 @@ async function openProposal(id, keep) {
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
   else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 벗어나거나 새로고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
   else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 생성된 결과는 그대로 유지됩니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
+  else if (p.status === 'waiting' && d.paused?.next) action = `<div class="detail-block pv-decide"><h3>설정한 진행 범위에서 멈췄습니다 · ${esc(STAGES[(d.paused.stage || p.stage) - 1])}</h3><p>${d.paused.next === 'concepts' ? '리서치가 끝났습니다. 자료를 확인한 뒤 컨셉 설계를 이어서 진행해 주세요.' : '제안서 초안이 생성되었습니다. 초안을 확인한 뒤 이미지 수급을 이어서 진행해 주세요.'}</p><div class="drawer-actions"><button class="button primary" id="pause-go">${d.paused.next === 'concepts' ? '컨셉 설계 이어서 진행' : '이미지 수급 이어서 진행'}</button></div></div>`;
   else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '이그드라실 봇이 작업을 완료하지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
   else if (p.status === 'waiting' && p.stage === 3 && d.partners) action = partnersPanel(p);
   else if (p.status === 'waiting' && p.stage === 5 && d.concepts) action = conceptsPanel(p);
@@ -2746,6 +2747,7 @@ async function openProposal(id, keep) {
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
   <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${esc(ref?.title || '—')}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
+  <div class="detail-block"><h3>공개 범위</h3><div class="detail-row"><span>보기</span><b>${p.visibility === 'private' ? '<span class="pill">나만 보기</span>' : '궁니르 전체'}</b></div>${p.visibility === 'private' && me && p.created_by === me.id ? `<div class="drawer-actions"><button class="button" id="pv-share">궁니르 전체에 공유</button></div>` : ''}${me && (p.created_by === me.id || isAdmin) ? `<div class="drawer-actions"><button class="button danger" id="pv-delete">프로젝트 삭제</button></div>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   const go = async (row, nextJob, msg, okMsg) => {
     const lp = studio.list?.find(z => z.id === p.id), before = lp && {...lp}, jobs0 = studio.jobs;
@@ -2800,6 +2802,25 @@ async function openProposal(id, keep) {
     $('#intake-ok').disabled = true;
     const next = p.mode === 'collab' && !p.ip_b_name ? 3 : 4;
     go({stage: next, status: 'working'}, {kind: JOB_OF[next], input: {}}, `기본 정보를 확정했습니다 → ${STAGES[next - 1]} 시작`, '기본 정보를 확정했습니다.');
+  });
+  $('#pause-go')?.addEventListener('click', () => {
+    $('#pause-go').disabled = true;
+    const kind = d.paused.next, {paused: _p, ...rest} = d;
+    go({status: 'working', ...(kind === 'concepts' ? {stage: 5} : {}), data: rest}, {kind, input: {after: 'pause'}}, kind === 'concepts' ? '컨셉 설계를 이어서 진행합니다' : '이미지 수급을 이어서 진행합니다');
+  });
+  $('#pv-share')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: '궁니르 전체에 공유할까요?', body: '공유하면 모든 궁니르 사용자가 이 프로젝트를 보고 결정 단계에 참여할 수 있습니다. 공유한 뒤에는 다시 「나만 보기」로 되돌릴 수 없습니다.', ok: '공유'}))) return;
+    ev.target.disabled = true;
+    const { error } = await SB.from('pt_proposal').update({visibility: 'team'}).eq('id', p.id);
+    if (error) { ev.target.disabled = false; return toast('공유하지 못했습니다: ' + error.message); }
+    await proposalEvent(p.id, '궁니르 전체에 공유했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('궁니르 전체에 공유했습니다.');
+  });
+  $('#pv-delete')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: '프로젝트를 삭제할까요?', body: `「${esc(pTitle(p))}」 프로젝트를 목록에서 삭제합니다. 진행 중인 작업은 함께 중단됩니다. 힉스필드·Aside로 확보한 이미지는 이미지 아카이브에 보관되어 다른 제안서에서 다시 쓸 수 있습니다.`, ok: '삭제', danger: true}))) return;
+    ev.target.disabled = true;
+    const { error } = await SB.rpc('pt_proposal_delete', {p_id: p.id});
+    if (error) { ev.target.disabled = false; return toast('삭제하지 못했습니다: ' + error.message); }
+    closeDrawer(); studio.list = null; await loadStudio(); toast('프로젝트를 삭제했습니다. 이미지는 이미지 아카이브에 보관됩니다.');
   });
   $('#job-retry')?.addEventListener('click', () => {
     $('#job-retry').disabled = true;
@@ -2941,6 +2962,9 @@ function studioProjectModal(p) {
   <label>레퍼런스 포맷<select id="sp-ref">${refs.length ? refs.map(r => `<option value="${r.id}" ${r.id === def ? 'selected' : ''}>${esc(r.title)}${r.is_default ? ' (기본)' : ''}</option>`).join('') : '<option value="">등록된 레퍼런스 없음</option>'}</select></label>
   <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 이그드라실 봇이 지정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
+  ${p ? '' : `<div class="field"><span class="flabel">공개 범위</span><div class="seg-pick"><label><input type="radio" name="sp-vis" value="team" checked> 궁니르 전체 <small>모든 궁니르 사용자</small></label><label><input type="radio" name="sp-vis" value="private"> 나만 보기 <small>시험용 · 나중에 공유 가능</small></label></div></div>
+  <label>진행 범위<select id="sp-stop"><option value="">끝까지 진행 (결정 단계에서만 확인)</option><option value="research">리서치까지만</option><option value="draft">원고 초안까지 (이미지 수급 전)</option></select></label>
+  <label>컨셉 후보 수<select id="sp-cc"><option value="">5~7개 (기본)</option><option value="10">10개</option></select></label>`}
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
@@ -2955,6 +2979,7 @@ function studioProjectModal(p) {
     const btn = $('#sp-form [type=submit]'); btn.disabled = true;
     const cur = p ? (await SB.from('pt_proposal').select('data').eq('id', p.id).single()).data?.data || p.data : {};   // 봇이 그사이 쓴 data 를 덮지 않게 최신본에 강조색만 얹음
     const row = {...(lockIp ? {} : {mode, ip_a_name: ea?.name || a, ip_a_id: ea?.id || null, ip_b_name: eb?.name || b, ip_b_id: eb?.id || null}), recipient: $('#sp-to').value.trim(), ref_id: $('#sp-ref').value || null, note: $('#sp-note').value.trim(), data: {...(cur || {}), accent: $('input[name=sp-acc]:checked').value === 'pick' ? $('#sp-color').value.toUpperCase() : ''}};
+    if (!p) { row.visibility = $('input[name=sp-vis]:checked')?.value || 'team'; row.data = {...row.data, stop_at: $('#sp-stop')?.value || '', concept_count: Number($('#sp-cc')?.value) || 0}; }   // 11-04 기획팀 회의
     const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: 2, status: 'waiting'}).select().single();
     const { data, error } = await q;
     if (error) { btn.disabled = false; $('#sp-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
