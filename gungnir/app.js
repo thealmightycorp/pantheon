@@ -3793,9 +3793,13 @@ function bindContent() {
 // 슬랙으로 로그인 (11-04) — 슬랙 앱 「Heimdall」 · Supabase Slack(OIDC). 헤임달 계정과 같은 계정으로 들어간다
 const SLACK_SVG = '<svg width="16" height="16" viewBox="0 0 122.8 122.8" aria-hidden="true" style="stroke:none;flex-shrink:0"><path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9zm6.5 0a12.9 12.9 0 0 1 25.8 0v32.3a12.9 12.9 0 1 1-25.8 0z" fill="#e01e5a"/><path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9zm0 6.5a12.9 12.9 0 0 1 0 25.8H12.9a12.9 12.9 0 0 1 0-25.8z" fill="#36c5f0"/><path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97zm-6.5 0a12.9 12.9 0 0 1-25.8 0V12.9a12.9 12.9 0 1 1 25.8 0z" fill="#2eb67d"/><path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97zm0-6.5a12.9 12.9 0 0 1 0-25.8h32.3a12.9 12.9 0 0 1 0 25.8z" fill="#ecb22e"/></svg>';
 const slackSignIn = () => SB.auth.signInWithOAuth({provider: 'slack_oidc', options: {redirectTo: location.origin + location.pathname}});
+// 휴대폰은 슬랙 앱 로그인이 브라우저와 따로라 처음엔 브라우저에서 슬랙 로그인이 필요 — 휴대폰마다 한 번 미리 안내 (11-04 김현우)
+const mobileDevice = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+const slackHintDue = () => { if (!mobileDevice()) return false; try { return localStorage.getItem('pt_slack_hint') !== '1'; } catch { return false; } };
+const SLACK_HINT = '휴대폰에서는 슬랙 앱이 아니라 브라우저에서 슬랙 로그인 화면이 열립니다. 처음 한 번은 회사 슬랙 계정으로 로그인해 주세요(이메일로 받은 코드로도 로그인할 수 있습니다). 한 번 로그인하면 다음부터는 바로 들어옵니다.';
 function loginScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인할 수 있습니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인할 수 있습니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><p id="lg-hint" hidden style="margin:10px 0 0;padding:10px 12px;border-radius:8px;background:#f1f5f2;color:#3d4a43;font-size:13px;line-height:1.6;text-align:left">${SLACK_HINT}</p><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
   $('#login-form').onsubmit = async ev => {
     ev.preventDefault(); $('#lg-err').textContent = ''; $('#lg-err').style.color = '#ba775e';
     const { error } = await SB.auth.signInWithPassword({email: $('#lg-email').value.trim(), password: $('#lg-pw').value});
@@ -3803,7 +3807,10 @@ function loginScreen(msg) {
     start();
   };
   $('#lg-slack').onclick = async () => {
-    const b = $('#lg-slack'); b.disabled = true; b.lastChild.textContent = '슬랙으로 이동하는 중…';
+    const b = $('#lg-slack');
+    if (slackHintDue() && $('#lg-hint').hidden) { $('#lg-hint').hidden = false; b.lastChild.textContent = '확인했습니다 · 슬랙으로 이동'; return; }
+    try { localStorage.setItem('pt_slack_hint', '1'); } catch {}
+    b.disabled = true; b.lastChild.textContent = '슬랙으로 이동하는 중…';
     sessionStorage.setItem('pt_slack', '1');
     const { error } = await slackSignIn();
     if (error) { sessionStorage.removeItem('pt_slack'); b.disabled = false; b.lastChild.textContent = '슬랙으로 로그인'; $('#lg-err').textContent = '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.'; }
