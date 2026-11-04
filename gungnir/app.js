@@ -1421,8 +1421,9 @@ function asksPanel() {
 }
 /* 궁니르 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
-  const { data, error } = await SB.from('pt_bot').select('*').maybeSingle();
+  const [{ data, error }, a] = await Promise.all([SB.from('pt_bot').select('*').maybeSingle(), SB.from('pt_aside_worker').select('*').maybeSingle()]);
   admin.bot = error ? {err: error.message} : (data || {});
+  admin.aside = a.error ? {err: a.error.message} : (a.data || {});
   if (page === 'admin' && admin.tab === 'bot') render();
   return admin.bot;
 }
@@ -1436,7 +1437,29 @@ function botPanel() {
   const stateText = !b.beat_at ? '기록 없음' : !alive ? '응답 없음' : b.connected ? '정상' : '슬랙 연결 끊김';
   return `<div class="quality-grid"><div class="stat ${alive && b.connected ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${age === null ? '—' : '마지막 응답 ' + agoText(age)}</div></div><div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${b.started_at ? esc(kst(b.started_at)) : '—'}</div><div class="stat-bottom">${b.model ? '답변 모델 ' + esc(b.model) : ''}</div></div><div class="stat"><div class="stat-label">웹 요청 처리</div><div class="stat-value">${Number(b.handled || 0)}<small>건</small></div><div class="stat-bottom">시작 이후</div></div></div>
   <section class="panel"><div class="panel-head"><div><div class="panel-title">궁니르 봇 <small>슬랙 질문 · 웹 질문 · 명함 인식</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변이 중단됩니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
-  <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>`;
+  <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>${asidePanel()}`;
+}
+// Aside (서버 PC 의 SNS·이미지 검색) — 원격 일시 정지·다시 시작 (11-04 김현우 「aside 원격으로 켜고 끄는 기능」)
+function asidePanel() {
+  const a = admin.aside || {};
+  if (a.err) return `<section class="panel"><div class="panel-head"><div class="panel-title">Aside</div></div><p class="panel-caption" style="padding:0 23px 18px">상태를 불러오지 못했습니다: ${esc(a.err)}</p></section>`;
+  const age = a.beat_at ? Math.max(0, Math.round((Date.now() - new Date(a.beat_at)) / 1000)) : null;
+  const alive = age !== null && age < 180;
+  const stateText = a.paused ? '일시 정지' : !a.beat_at ? '기록 없음' : !alive ? '응답 없음' : a.busy ? '작업 중' : '대기 중';
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">Aside <small>SNS·커뮤니티 조사 · 이미지 찾기 · 로그인 유지</small></div>
+    <p class="panel-caption">서버 PC의 메모리가 부족하거나 다른 작업을 먼저 처리해야 할 때 일시 정지해 주세요. 진행 중이던 작업은 대기 상태로 돌아가고, 다시 시작하면 이어서 진행합니다.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${a.paused ? '<button class="button primary" id="aside-resume">다시 시작</button>' : '<button class="button danger" id="aside-pause">일시 정지</button>'}</div></div>
+    <div class="quality-grid" style="padding:0 23px 18px"><div class="stat ${a.paused ? '' : alive ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${a.paused ? esc((a.paused_by || '관리자') + ' · ' + (a.paused_at ? kst(a.paused_at) : '')) : age === null ? '—' : '마지막 응답 ' + agoText(age)}</div></div>
+    <div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${a.started_at ? esc(kst(a.started_at)) : '—'}</div><div class="stat-bottom">${a.host ? esc(a.host) : ''}</div></div></div>
+    <div id="aside-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${a.last_error && !a.paused ? '최근 알림: ' + esc(a.last_error) : ''}</div></section>`;
+}
+async function setAsidePaused(on) {
+  const msg = t => { const el = $('#aside-msg'); if (el) el.textContent = t; };
+  const btn = $(on ? '#aside-pause' : '#aside-resume'); if (btn) btn.disabled = true;
+  const { error } = await SB.rpc('pt_aside_set_paused', {p_paused: on});
+  if (error) { if (btn) btn.disabled = false; return msg((on ? '일시 정지하지 못했습니다: ' : '다시 시작하지 못했습니다: ') + error.message); }
+  await loadBot(); render();
+  toast(on ? 'Aside를 일시 정지했습니다. 10초 안에 서버 PC에서 Aside가 종료됩니다.' : 'Aside를 다시 시작했습니다. 대기 중인 작업부터 이어서 진행합니다.');
 }
 async function restartBot() {
   const msg = t => { const el = $('#bot-msg'); if (el) el.textContent = t; };
@@ -1543,6 +1566,11 @@ function bindAdmin() {
   $('#metric-reload')?.addEventListener('click', () => { admin.metrics = null; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
+  $('#aside-pause')?.addEventListener('click', async () => {
+    if (!(await confirmBox({title: 'Aside를 일시 정지하시겠습니까?', body: '진행 중인 SNS 조사·이미지 찾기를 멈추고 서버 PC의 Aside를 종료합니다. 멈춘 작업은 대기 상태로 남았다가 다시 시작하면 이어서 진행합니다.', ok: '일시 정지', cancel: '계속 실행', danger: true}))) return;
+    setAsidePaused(true);
+  });
+  $('#aside-resume')?.addEventListener('click', () => setAsidePaused(false));
   $('#bot-restart')?.addEventListener('click', () => {
     modal(`<h2>궁니르 봇 재시작</h2><p>궁니르 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문 답변이 중단됩니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
     $('#restart-go').onclick = () => { $('#modal').close(); restartBot(); };
