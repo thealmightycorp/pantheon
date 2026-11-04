@@ -2602,7 +2602,19 @@ async function pageReview(pid, start) {
       const keep = () => { if (sel) { const v = $('#te-text').value; if (v !== cur0(sel)) edits[sel] = v; else delete edits[sel]; } };
       $$('.rv-tlayer .tbox').forEach(t => { t.onclick = ev => { ev.stopPropagation(); keep();
         $$('.rv-tlayer .tbox.sel').forEach(o => o.classList.remove('sel')); t.classList.add('sel'); sel = t.dataset.t;
-        const ta = $('#te-text'); ta.disabled = false; ta.value = edits[sel] ?? cur0(sel); ta.focus(); }; });
+        const ta = $('#te-text');
+        // 11-04 이전 초안은 글상자 문장을 앞 40자만 남겼다 — 그대로 고치면 뒷부분이 사라지므로 페이지를 한 번 다시 생성해 전체 문장을 받는다
+        if (!te[sel] && !B[sel].full && (B[sel].t || '').length >= 40) { ta.disabled = true; ta.value = '';
+          ta.placeholder = '이 초안은 전체 문장을 불러오려면 페이지를 한 번 다시 생성해야 합니다. 아래 「이 페이지 다시 생성」을 눌러 주세요.';
+          if (!$('#te-refresh')) $('#te-ok').insertAdjacentHTML('beforebegin', '<button class="button small" id="te-refresh">이 페이지 다시 생성</button>');
+          $('#te-refresh').onclick = async () => { $('#te-refresh').disabled = true;
+            const { error } = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: tids}});
+            if (error) { $('#te-refresh').disabled = false; return toast('요청하지 못했습니다: ' + error.message); }
+            await SB.from('pt_proposal').update({status: 'working'}).eq('id', p.id);
+            await proposalEvent(p.id, `${cur}페이지 텍스트 수정을 위해 이 페이지를 다시 생성합니다`);
+            dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur); toast('이 페이지를 다시 생성하는 중입니다. 끝나면 텍스트를 수정할 수 있습니다.'); };
+          return; }
+        ta.disabled = false; ta.placeholder = ''; ta.value = edits[sel] ?? cur0(sel); ta.focus(); }; });
       $('#te-no').onclick = () => { dlg.dataset.dirty = ''; show(cur); };
       const save = async reset => {
         keep();
