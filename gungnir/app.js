@@ -1656,7 +1656,7 @@ const REF_TYPES = ['아티스트 × 패션', '아티스트 × 캐릭터', '아�
 const refA = r => r.ip_names || r.profile?.collab?.a || '';
 const refB = r => r.partner || r.profile?.collab?.b || '';
 const refType = r => r.collab_type || r.profile?.collab?.type || '';
-const refPair = r => [refA(r), refB(r)].filter(Boolean).join(' × ');
+const refPair = r => { const xs = refA(r).split(/\s*,\s*/).filter(Boolean), b = refB(r); if (b && !xs.some(x => x.toLowerCase() === b.toLowerCase())) xs.push(b); return xs.join(' × '); };
 const refLearned = r => !!r.profile?.pages;
 const refDeep = r => !!r.profile?.writing?.register;
 const refBusy = r => r.status === 'uploaded' || r.status === 'analyzing';
