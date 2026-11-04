@@ -1586,13 +1586,14 @@ const entityByName = name => { const n = normCo(name); return n.length < 2 ? nul
 async function loadStudio() {
   if (studio.loading) return; studio.loading = true; studio.err = '';
   try {
-    const [p, r, j, , cj] = await Promise.all([
+    const [p, r, j, , cj, pty] = await Promise.all([
       SB.from('pt_proposal').select('*').order('updated_at', {ascending: false}),
       SB.from('pt_proposal_ref').select('*').eq('hidden', false).order('created_at', {ascending: false}),
       SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('status', ['wait', 'work']), loadMembers(),
-      SB.from('pt_proposal_job').select('id,proposal_id,kind,status,at,error,input').eq('status', 'fail').like('error', '%취소%').order('at', {ascending: false}).limit(200)]);
+      SB.from('pt_proposal_job').select('id,proposal_id,kind,status,at,error,input').eq('status', 'fail').like('error', '%취소%').order('at', {ascending: false}).limit(200),
+      SB.from('pt_page_type').select('*').eq('hidden', false).order('sort')]);
     if (p.error) throw p.error; if (r.error) throw r.error; if (j.error) throw j.error;
-    studio.list = p.data; studio.refs = r.data; studio.jobs = j.data;
+    studio.list = p.data; studio.refs = r.data; studio.jobs = j.data; studio.ptypes = pty.data || [];
     studio.cancelled = {}; (cj.data || []).forEach(x => { if (x.proposal_id && !studio.cancelled[x.proposal_id]) studio.cancelled[x.proposal_id] = x; });
   } catch (e) { studio.err = '제안서 스튜디오를 불러오지 못했습니다: ' + (e?.message || ''); }
   studio.loading = false; if (page === 'studio') render();
@@ -2115,21 +2116,184 @@ function partnersPanel(p) {
   return `<div class="detail-block"><h3>결정 · 파트너 IP 선택</h3><p>카드 하나를 선택하면 궁니르 봇이 두 IP 리서치를 시작합니다. 점수는 1~5점이며, 리스크 점수가 높을수록 위험합니다.</p>${P.ip_a_card?.summary ? `<p class="muted-box">${esc(p.ip_a_name)} · ${esc(P.ip_a_card.summary)}</p>` : ''}${cats}<div class="pcat"><div class="pcat-head"><div><b>직접 입력</b><small>추천 IP 중 적합한 IP가 없으면 원하는 IP를 직접 입력해 진행합니다.</small></div></div><datalist id="pb-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist><div class="ask-row"><input id="pb-own" list="pb-ents" maxlength="80" placeholder="예: 산리오" aria-label="파트너 IP"><button class="button primary" id="pb-own-go" type="button">이 IP로 진행</button></div><small class="atnote" id="pb-own-note"></small></div><div class="drawer-actions"><button class="button" id="recategorize">카테고리 변경 후 재추천</button></div></div>`;
 }
 const conceptCard = (c, i) => `<div class="pcard"><div class="pcard-head"><b>${esc(c.name)}</b></div>${c.key_copy ? `<p class="key-copy">“${esc(c.key_copy)}”</p>` : ''}<p>${esc(c.summary || '')}</p>${c.world ? `<details><summary>세계관</summary><p>${esc(c.world)}</p></details>` : ''}${(c.axes || []).length ? `<p class="sub-label">연결 포인트</p><ul class="axes">${c.axes.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}${(c.formats || []).length ? `<p class="sub-label">실행 포맷</p><ul class="axes">${c.formats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}${c.why ? `<small class="why">${esc(c.why)}</small>` : ''}${i !== undefined ? `<div class="pcard-foot"><span></span><button class="button primary small" data-concept="${i}">이 컨셉으로 확정</button></div>` : ''}</div>`;
-const DECK_PARTS = [['space', '공간·체험'], ['product', '상품'], ['content', '콘텐츠']];
-// 제안서 구성 — 실행 파트·분량·참고할 레퍼런스(여럿 조합)를 골라 원고를 만든다 (10-30 원태 이사님 「한 템플릿만 따라간다 · 선택해서 조합」)
+// ── 제안서 구성 편집기 (11-04 김현우 PRD · 나원태 이사님 요청 · 대표님 승인) — ② 기본 정보 확정에서 뼈대를 정하고 ⑤ 컨셉 확정에서 다듬는다 → data.outline
+//    페이지 종류 = pt_page_type (기본 27종 + 레퍼런스 학습으로 자동 추가) · 견본은 궁니르 page_types/<레이아웃>.jpg · 봇은 deck.outline_structure 로 이 순서 그대로 원고를 쓴다
+const OL_GROUPS = ['전체', '도입', '배경', '컨셉', '실행', '비즈니스', '공통', '학습한 페이지'];
+const OL_TPL = {
+  collab: ['콜라보 제안 기본', 'cover disclaimer full_image statement points cases section stats ip_detail compare section hero concept_detail moodboard pillars feature journey big_word product product section columns timeline circles roadmap closing'],
+  brand: ['브랜딩·전략 기본', 'cover disclaimer r_3dc0b02eca r_4520bdaf7b r_aded38ed3b r_31c3394339 section r_2cbcbd216e hero concept_detail r_14d45d349d section columns roadmap closing'],
+  short: ['요약 제안', 'cover statement points stats compare hero concept_detail pillars feature product columns closing'],
+  blank: ['빈 구성', 'cover closing']};
+const olType = id => (studio.ptypes || []).find(t => t.id === id);
+const olSnap = t => ({id: t.id, name: t.name, layout: t.layout, grp: t.grp, descr: t.descr || '', ...(t.learned && (t.source_refs || []).length ? {from: t.source_refs.map(s => s.title).join(', ').slice(0, 120)} : {})});
+const olImg = x => `page_types/${encodeURIComponent(x.layout)}.jpg`;
+const olDefault = p => p.mode === 'collab' ? 'collab' : 'brand';
+const olFromTpl = k => OL_TPL[k][1].split(' ').map(olType).filter(Boolean).map(olSnap);
+const olOf = p => p.data?.outline?.length ? p.data.outline : olFromTpl(olDefault(p));
+function olSummary(p) {
+  const ol = olOf(p), saved = !!p.data?.outline?.length;
+  return `<div class="ol-sum"><div class="ol-sum-h"><b>제안서 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(OL_TPL[olDefault(p)][0]) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
+    <ol class="ol-strip">${ol.map((x, i) => `<li title="${i + 1}. ${esc(x.name)}"><span style="background-image:url('${olImg(x)}')"></span><small>${i + 1}</small></li>`).join('')}</ol></div>`;
+}
+function olEditor(p) {
+  const types = studio.ptypes || [];
+  if (!types.length) return toast('페이지 종류 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+  let D = $('#olx'); if (!D) { D = document.createElement('dialog'); D.id = 'olx'; D.className = 'review olx'; document.body.appendChild(D); }
+  const later = p.stage >= 5;
+  let uid = 0, rows = olOf(p).map(x => ({k: ++uid, x: {...x}})), sel = 0, group = '전체', idx = 0, drag = 0, moving = null, last = null, dirty = false,
+    tpl = p.data?.outline?.length ? (p.data.outline_tpl || '') : olDefault(p);
+  D.innerHTML = `<div class="rv-head"><div><h2>제안서 구성 · ${esc(pTitle(p))}</h2><small>${later ? '확정한 컨셉에 맞게 페이지를 넣고 빼거나 순서를 바꿉니다. 저장한 구성 그대로 제안서를 생성합니다.' : '제안 방향에 맞는 기본 구성을 불러와 뼈대를 정합니다. 저장한 구성은 리서치·컨셉 설계·제안서 생성에 반영됩니다.'}</small></div><div class="rv-nav"><button class="button" type="button" id="ol-close">닫기</button><button class="button primary" type="button" id="ol-save">이 구성으로 저장</button></div></div>
+  <div class="ol-grid">
+    <section class="ol-panel" aria-label="페이지 구역"><div class="ol-ph"><h3>페이지 구역 <small id="ol-count"></small></h3><label class="ol-tpl"><span>기본 구성</span><select id="ol-tpl" aria-label="기본 구성"><option value="">선택</option>${Object.entries(OL_TPL).map(([k, [n]]) => `<option value="${k}"${k === tpl ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+      <div class="ol-selbar" id="ol-selbar" hidden><span><b id="ol-seln">0</b>개 선택 · 선택한 구역 중 하나를 끌면 한꺼번에 이동합니다</span><span><button type="button" id="ol-seldel" class="danger">선택 삭제</button><button type="button" id="ol-selclear">선택 해제</button></span></div>
+      <ol class="ol-list" id="ol-list"></ol><button type="button" class="ol-addend" id="ol-addend">+ 맨 아래에 페이지 구역 추가</button>
+      <p class="ol-legend">⠿ 를 끌어 순서 변경 · 체크하면 여러 개를 한꺼번에 이동 · 맨 아래 칸에 놓으면 끝으로 · + 아래에 추가 · − 삭제</p></section>
+    <section class="ol-panel" aria-label="페이지 종류"><div class="ol-ph"><h3>페이지 종류 <small id="ol-target"></small></h3><small class="ol-legend">카드를 끌거나 ← → 로 넘기고 Enter로 확정 · 다시 Enter는 확정 취소</small></div>
+      <div class="ol-chips" id="ol-chips" role="group" aria-label="분류"></div>
+      <div class="ol-stage" id="ol-stage" tabindex="0" aria-roledescription="carousel" aria-label="페이지 종류 카드"></div>
+      <div class="ol-nav"><button class="button" type="button" id="ol-prev" aria-label="이전 카드">←</button><span id="ol-dots"></span><button class="button" type="button" id="ol-next" aria-label="다음 카드">→</button></div>
+      <p class="ol-desc" id="ol-desc"></p><button class="button primary" type="button" id="ol-apply"></button></section></div>`;
+  const q = s => D.querySelector(s), L = q('#ol-list'), S = q('#ol-stage');
+  const touch = () => { dirty = true; };
+  const list = () => types.filter(t => group === '전체' || (group === '학습한 페이지' ? t.learned : t.grp === group));
+  function draw() {
+    L.replaceChildren();
+    rows.forEach((r, i) => {
+      const x = r.x, li = document.createElement('li');
+      li.className = 'ol-row' + (i === sel ? ' sel' : '') + (x.layout === 'section' ? ' sec' : '') + (r.ck ? ' checked' : ''); li.draggable = true;
+      li.innerHTML = `<span class="ol-handle" aria-hidden="true">⠿</span><input type="checkbox" class="ol-ck"${r.ck ? ' checked' : ''} aria-label="${i + 1}번 구역 선택"><span class="ol-no">${i + 1}</span><span class="ol-thumb" style="background-image:url('${olImg(x)}')"></span>
+        <span class="ol-rt"><b></b><small></small></span><span class="ol-rbtn"><button type="button" class="ol-ib add" aria-label="아래에 추가" title="아래에 페이지 구역 추가">+</button><button type="button" class="ol-ib" aria-label="삭제" title="이 페이지 구역 삭제">−</button></span>`;
+      li.querySelector('b').textContent = x.name;
+      li.querySelector('small').textContent = x.from ? `${x.grp} · 「${x.from}」에서 학습` : x.grp;
+      li.querySelector('.ol-ck').onclick = e => { e.stopPropagation(); r.ck = e.target.checked; draw(); };
+      li.onclick = e => { if (e.target.closest('button, input')) return; sel = i; syncCarousel(); draw(); };
+      li.querySelector('.add').onclick = () => { rows.splice(i + 1, 0, {k: ++uid, x: olSnap(olType('statement') || types[0])}); sel = i + 1; touch(); syncCarousel(); draw(); toast(`${i + 2}번에 페이지 구역을 추가했습니다. 오른쪽에서 종류를 선택해 주세요.`); };
+      li.querySelector('.ol-ib:not(.add)').onclick = () => { if (rows.length <= 1) return toast('페이지 구역은 하나 이상 있어야 합니다.'); const before = rows.slice(), [g] = rows.splice(i, 1); sel = Math.min(sel, rows.length - 1); touch(); syncCarousel(); draw();
+        toast(`「${g.x.name}」 구역을 삭제했습니다.`, {fn: () => { rows = before; syncCarousel(); draw(); toast('삭제한 구역을 되돌렸습니다.'); }}); };
+      // 체크한 구역 중 하나를 끌면 체크한 구역 전부를 원래 순서대로 묶어서 옮긴다 · 체크 안 한 구역을 끌면 그 하나만
+      li.ondragstart = e => { const keys = r.ck ? rows.filter(z => z.ck).map(z => z.k) : [r.k]; moving = keys;
+        L.querySelectorAll('.ol-row').forEach((el, j) => { if (keys.includes(rows[j].k)) el.classList.add('drag'); });
+        e.dataTransfer.setData('text/plain', keys.join(',')); e.dataTransfer.effectAllowed = 'move'; };
+      li.ondragend = () => { L.querySelectorAll('.drag').forEach(el => el.classList.remove('drag')); moving = null; };
+      li.ondragover = e => { e.preventDefault(); li.classList.add('over'); };
+      li.ondragleave = () => li.classList.remove('over');
+      li.ondrop = e => { e.preventDefault(); li.classList.remove('over'); moveBefore(r.k); };
+      L.append(li);
+    });
+    const nck = rows.filter(z => z.ck).length; q('#ol-selbar').hidden = !nck; q('#ol-seln').textContent = nck;
+    q('#ol-count').textContent = `${rows.length}페이지`;
+    q('#ol-target').textContent = rows[sel] ? `· ${sel + 1}번 구역에 넣을 페이지` : '';
+    L.querySelector('.sel')?.scrollIntoView({block: 'nearest'});
+  }
+  // 옮길 구역들(moving)을 빼고 대상 구역(k) 바로 앞에 원래 순서대로 끼운다 · k 가 없으면 맨 아래로
+  function moveBefore(k) {
+    if (!moving || moving.includes(k)) return;
+    const cur = rows[sel]?.k, take = rows.filter(z => moving.includes(z.k)), rest = rows.filter(z => !moving.includes(z.k));
+    rest.splice(k == null ? rest.length : rest.findIndex(z => z.k === k), 0, ...take); rows = rest;
+    sel = Math.max(0, rows.findIndex(z => z.k === cur)); moving = null; touch(); draw();
+    toast(take.length > 1 ? `${take.length}개 구역을 한꺼번에 옮겼습니다.` : '구역 순서를 변경했습니다.');
+  }
+  const AE = q('#ol-addend');
+  AE.ondragover = e => { e.preventDefault(); AE.classList.add('over'); };
+  AE.ondragleave = () => AE.classList.remove('over');
+  AE.ondrop = e => { e.preventDefault(); AE.classList.remove('over'); moveBefore(null); };
+  AE.onclick = () => { rows.push({k: ++uid, x: olSnap(olType('statement') || types[0])}); sel = rows.length - 1; touch(); syncCarousel(); draw(); };
+  q('#ol-selclear').onclick = () => { rows.forEach(z => { z.ck = false; }); draw(); };
+  // 선택 삭제 — 체크한 구역을 한꺼번에 지우고, 8초 동안 「되돌리기」로 그대로 복원
+  q('#ol-seldel').onclick = () => {
+    const del = rows.filter(z => z.ck); if (!del.length) return;
+    if (del.length === rows.length) return toast('페이지 구역은 하나 이상 있어야 합니다. 남길 구역의 체크를 해제해 주세요.');
+    const before = rows.map(z => ({...z, ck: false})), selK = rows[sel]?.k;
+    rows = rows.filter(z => !z.ck); sel = Math.max(0, rows.findIndex(z => z.k === selK)); touch(); syncCarousel(); draw();
+    toast(`${del.length}개 구역을 삭제했습니다.`, {fn: () => { rows = before; sel = Math.max(0, rows.findIndex(z => z.k === selK)); syncCarousel(); draw(); toast('삭제한 구역을 되돌렸습니다.'); }});
+  };
+  function syncCarousel() { const cur = rows[sel]?.x.id, j = list().findIndex(t => t.id === cur); if (j >= 0) idx = j; else { group = '전체'; idx = Math.max(0, types.findIndex(t => t.id === cur)); } chips(); deck(); }
+  function chips() { const C = q('#ol-chips'); C.replaceChildren(); OL_GROUPS.forEach(g => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ol-chip' + (g === group ? ' on' : ''); b.textContent = g; b.setAttribute('aria-pressed', g === group); b.onclick = () => { group = g; idx = 0; chips(); deck(); }; C.append(b); }); }
+  function deck() {
+    S.replaceChildren();
+    list().forEach((t, i) => {
+      const c = document.createElement('div'); c.className = 'ol-card'; c.dataset.i = i;
+      c.innerHTML = `<div class="ol-img" style="background-image:url('${olImg(t)}')"></div><div class="ol-cap"><b></b><small></small></div>`;
+      c.querySelector('b').textContent = t.name; if (t.learned) { const s = document.createElement('span'); s.className = 'ol-learned'; s.textContent = '학습한 페이지'; c.querySelector('b').append(s); }
+      c.querySelector('small').textContent = t.grp;
+      c.onclick = () => { if (Math.abs(drag) < 6 && i !== idx) { idx = i; place(); } };
+      S.append(c);
+    });
+    place();
+  }
+  const applied = () => last && rows[sel] && rows[sel].k === last.k && rows[sel].x.id === last.to.id && list()[idx]?.id === last.to.id;
+  function place() {
+    const Ls = list(), W = S.clientWidth || 600;
+    S.querySelectorAll('.ol-card').forEach(c => {
+      const dd = +c.dataset.i - idx + drag / (W * 0.45), a = Math.abs(dd);
+      c.style.transform = `translateX(calc(-50% + ${dd * 42}%)) translateY(${a * 18}px) rotate(${dd * 4}deg) scale(${1 - Math.min(a, 3) * 0.1})`;
+      c.style.zIndex = 100 - Math.round(a * 10); c.style.opacity = a > 3.2 ? 0 : 1 - Math.min(a, 3) * 0.12;
+    });
+    const t = Ls[idx]; q('#ol-dots').textContent = Ls.length ? `${idx + 1} / ${Ls.length}` : '0 / 0';
+    q('#ol-desc').textContent = t ? (t.descr || '') + (t.learned && (t.source_refs || []).length ? ` · 「${t.source_refs.map(s => s.title).join(', ')}」 레퍼런스에서 학습한 페이지입니다.` : '') : '이 분류에는 아직 페이지 종류가 없습니다.';
+    const on = applied(); q('#ol-apply').textContent = on ? '확정 취소 (Enter)' : '이 페이지로 확정 (Enter)'; q('#ol-apply').classList.toggle('primary', !on); q('#ol-apply').disabled = !t;
+  }
+  // 끌어서 넘기기
+  let x0 = null;
+  S.onpointerdown = e => { x0 = e.clientX; drag = 0; S.setPointerCapture(e.pointerId); S.classList.add('dragging'); };
+  S.onpointermove = e => { if (x0 === null) return; drag = x0 - e.clientX; place(); };
+  const end = () => { if (x0 === null) return; S.classList.remove('dragging'); const n = Math.round(drag / ((S.clientWidth || 600) * 0.45)); idx = Math.max(0, Math.min(list().length - 1, idx + n)); x0 = null; const was = drag; drag = 0; place(); if (Math.abs(was) >= 6) setTimeout(() => { drag = 0; }, 0); };
+  S.onpointerup = end; S.onpointercancel = end;
+  // Enter 로 확정 · 같은 카드에서 Enter 를 다시 누르면 확정 취소(바꾸기 전 페이지로)
+  const toggle = () => {
+    const t = list()[idx]; if (!rows[sel] || !t) return;
+    if (applied()) { rows[sel].x = last.from; toast(`확정을 취소했습니다. ${sel + 1}번 구역을 「${last.from.name}」(으)로 되돌렸습니다.`); last = null; }
+    else { const nx = olSnap(t); last = {k: rows[sel].k, from: rows[sel].x, to: nx}; rows[sel].x = nx; toast(`${sel + 1}번 구역을 「${t.name}」(으)로 확정했습니다. Enter를 다시 누르면 취소됩니다.`); }
+    touch(); draw(); place();
+  };
+  D.onkeydown = e => {
+    if (e.target.closest('select, input, textarea') || $('#ask')?.open) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); idx = Math.min(list().length - 1, idx + 1); place(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); idx = Math.max(0, idx - 1); place(); }
+    else if (e.key === 'Enter' && !e.target.closest('button')) { e.preventDefault(); toggle(); }
+  };
+  q('#ol-prev').onclick = () => { idx = Math.max(0, idx - 1); place(); };
+  q('#ol-next').onclick = () => { idx = Math.min(list().length - 1, idx + 1); place(); };
+  q('#ol-apply').onclick = toggle;
+  q('#ol-tpl').onchange = async e => {
+    const k = e.target.value; if (!k) return;
+    if (dirty && !(await confirmBox({title: `「${OL_TPL[k][0]}」 구성을 불러올까요?`, body: '지금 편집한 페이지 구역이 이 기본 구성으로 바뀝니다.', ok: '기본 구성 불러오기', cancel: '지금 구성 유지'}))) { e.target.value = tpl; return; }
+    tpl = k; rows = olFromTpl(k).map(x => ({k: ++uid, x})); sel = 0; last = null; touch(); syncCarousel(); draw(); toast('기본 구성을 불러왔습니다. 필요한 페이지를 넣고 빼 주세요.');
+  };
+  const close = async () => {
+    if (dirty && !(await confirmBox({title: '저장하지 않고 닫을까요?', body: '편집한 제안서 구성이 저장되지 않습니다.', ok: '저장하지 않고 닫기', cancel: '계속 편집', danger: true}))) return;
+    D.close();
+  };
+  q('#ol-close').onclick = close;
+  D.oncancel = e => { e.preventDefault(); close(); };
+  q('#ol-save').onclick = async ev => {
+    ev.target.disabled = true;
+    const outline = rows.map(r => r.x);
+    const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+    if (e0) { ev.target.disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
+    const { error } = await SB.from('pt_proposal').update({data: {...row.data, outline, outline_tpl: tpl}}).eq('id', p.id);
+    if (error) { ev.target.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
+    await proposalEvent(p.id, `제안서 구성을 ${outline.length}페이지로 저장했습니다`);
+    dirty = false; D.close(); studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
+    toast(`${outline.length}페이지 구성으로 저장했습니다.`);
+  };
+  D.showModal();
+  addEventListener('resize', place);
+  D.addEventListener('close', () => removeEventListener('resize', place), {once: true});
+  syncCarousel(); draw();
+  requestAnimationFrame(place);
+}
+// 제안서 구성 — 페이지 순서는 구성 편집기(11-04), 참고할 레퍼런스(여럿 조합)·추가 요청은 여기서 (10-30 원태 이사님 「한 템플릿만 따라간다 · 선택해서 조합」)
 function deckStyleBox(p) {
-  const st = p.data.deck_style || {}, parts = st.parts || DECK_PARTS.map(x => x[0]), refs = (studio.refs || []).filter(r => r.status === 'ready');
+  const st = p.data.deck_style || {}, refs = (studio.refs || []).filter(r => r.status === 'ready');
   const chosen = st.refs || (p.ref_id ? [p.ref_id] : refs.filter(r => r.is_default).map(r => r.id));
   return `<details class="pv-fold" open><summary><b>제안서 구성</b> <small>확정 전에 선택</small></summary>
-    <div class="ds-row"><span>실행 파트</span><div>${DECK_PARTS.map(([k, n]) => `<label class="chk"><input type="checkbox" data-ds-part="${k}"${parts.includes(k) ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>
-    <div class="ds-row"><span>분량</span><div>${[['full', '전체 30~45페이지'], ['short', '요약 15~20페이지']].map(([k, n]) => `<label class="chk"><input type="radio" name="ds-len" value="${k}"${(st.length || 'full') === k ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>
-    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(r.title)}</label>`).join('')}<small class="muted">여러 개를 선택하면 문체와 이미지 활용 방식을 조합해 반영합니다.</small></div></div>
-    <div class="ds-row"><span>레퍼런스 반영</span><div>${[['tone', '문체·디자인만 참고(구성은 위 선택 기준)'], ['follow', '구성까지 동일하게 적용']].map(([k, n]) => `<label class="chk"><input type="radio" name="ds-ref" value="${k}"${(st.ref_mode || 'tone') === k ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>` : ''}
+    ${olSummary(p)}
+    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(r.title)}</label>`).join('')}<small class="muted">선택한 레퍼런스의 문체·디자인·이미지 활용 방식을 조합해 반영합니다. 페이지 순서는 위 구성을 따릅니다.</small></div></div>` : ''}
     <div class="ds-row"><span>추가 요청</span><div><input id="ds-note" maxlength="300" value="${esc(st.note || '')}" placeholder="예: 굿즈 비중 확대, 팝업은 1곳으로 한정"></div></div>
   </details>`;
 }
-const readDeckStyle = () => ({parts: $$('[data-ds-part]').filter(x => x.checked).map(x => x.dataset.dsPart), length: $('input[name="ds-len"]:checked')?.value || 'full',
-  refs: $$('[data-ds-ref]').filter(x => x.checked).map(x => x.dataset.dsRef), ref_mode: $('input[name="ds-ref"]:checked')?.value || 'tone', note: ($('#ds-note')?.value || '').trim()});
+const readDeckStyle = p => ({...(p.data.deck_style || {}), refs: $$('[data-ds-ref]').filter(x => x.checked).map(x => x.dataset.dsRef), ref_mode: 'tone', note: ($('#ds-note')?.value || '').trim()});
 const conceptsPanel = p => `<div class="detail-block"><h3>결정 · 컨셉 확정</h3><p>컨셉을 하나 확정하면 아래 구성으로 제안서를 생성합니다.</p>${deckStyleBox(p)}${p.data.concepts.candidates.map((c, i) => conceptCard(c, i)).join('')}
   <details class="pv-fold"><summary><b>컨셉 수정 요청</b> <small>적합한 후보가 없을 때</small></summary><textarea id="cc-ins" rows="3" maxlength="1500" placeholder="예: 2번 컨셉을 상품 중심으로 변경, 세계관보다 팬 참여형으로 재구성"></textarea><div class="drawer-actions"><button class="button" id="cc-go">이 요청으로 컨셉 재생성</button></div></details></div>`;
 // 팬·SNS 조사 — Aside 가 인스타그램·틱톡·X·유튜브·팬 커뮤니티에서 읽은 것 (10-28)
@@ -2781,7 +2945,7 @@ async function openProposal(id, keep) {
   const ent = (eid, name) => eid && byId(eid) ? `<button class="ref" type="button" data-open="${eid}">${esc(name)}</button>` : esc(name || '—');
   const d = p.data || {};
   let action = '';
-  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '궁니르 봇이 파트너 IP 후보를 추천합니다.' : '궁니르 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">기본 정보 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
+  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '궁니르 봇이 파트너 IP 후보를 추천합니다.' : '궁니르 봇이 IP 리서치를 시작합니다.'}</p>${olSummary(p)}<div class="drawer-actions"><button class="button primary" id="intake-ok">기본 정보 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
   else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 벗어나거나 새로고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
   else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 생성된 결과는 그대로 유지됩니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
@@ -2819,6 +2983,7 @@ async function openProposal(id, keep) {
     studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
   };
   $('#intake-edit')?.addEventListener('click', () => studioProjectModal(p));
+  $('#ol-edit')?.addEventListener('click', () => olEditor(p));
   // 취소한 작업 다시 시작 (11-02 홍석진 대표님 「취소 눌러 멈췄는데 다시 재개할 방법이 없음」) — 같은 작업을 같은 입력으로 다시 넣는다
   $('#job-resume')?.addEventListener('click', () => { const r = resumeOf(p); if (!r) return; const { cancel_req: _c, ...rest } = d;
     go({stage: r.stage, status: 'working', data: rest}, {kind: r.kind, input: r.input}, `취소했던 작업을 다시 시작했습니다 (${STAGES[r.stage - 1]})`, `${STAGES[r.stage - 1]}을(를) 다시 시작합니다.`); });
@@ -2856,8 +3021,8 @@ async function openProposal(id, keep) {
   });
   $('#intake-ok')?.addEventListener('click', () => {
     $('#intake-ok').disabled = true;
-    const next = p.mode === 'collab' && !p.ip_b_name ? 3 : 4;
-    go({stage: next, status: 'working'}, {kind: JOB_OF[next], input: {}}, `기본 정보를 확정했습니다 → ${STAGES[next - 1]} 시작`, '기본 정보를 확정했습니다.');
+    const next = p.mode === 'collab' && !p.ip_b_name ? 3 : 4, ol = olOf(p);
+    go({stage: next, status: 'working', data: {...d, outline: ol, outline_tpl: d.outline?.length ? (d.outline_tpl || '') : olDefault(p)}}, {kind: JOB_OF[next], input: {}}, `기본 정보를 확정했습니다 (제안서 구성 ${ol.length}페이지) → ${STAGES[next - 1]} 시작`, '기본 정보를 확정했습니다.');
   });
   $('#pause-go')?.addEventListener('click', () => {
     $('#pause-go').disabled = true;
@@ -2986,17 +3151,15 @@ async function openProposal(id, keep) {
   $$('#drawer [data-concept]').forEach(b => b.onclick = () => {
     const c = d.concepts.candidates[+b.dataset.concept];
     $$('#drawer [data-concept]').forEach(x => x.disabled = true);
-    const ds = readDeckStyle();
-    if (!ds.parts.length) { $$('#drawer [data-concept]').forEach(x => x.disabled = false); return toast('실행 파트를 하나 이상 선택해 주세요.'); }
-    const pn = ds.parts.map(k => DECK_PARTS.find(x => x[0] === k)[1]).join('·');
-    go({stage: 6, status: 'working', data: {...d, concept_selected: c, deck_style: ds}}, {kind: 'build', input: {}}, `컨셉 「${c.name}」을(를) 확정했습니다 → 제안서 생성 (${pn} · ${ds.length === 'short' ? '요약' : '전체'})`, '컨셉을 확정했습니다.');
+    const ds = readDeckStyle(p), ol = olOf(p);
+    go({stage: 6, status: 'working', data: {...d, concept_selected: c, deck_style: ds, outline: ol, outline_tpl: d.outline?.length ? (d.outline_tpl || '') : olDefault(p)}}, {kind: 'build', input: {}}, `컨셉 「${c.name}」을(를) 확정했습니다 → 제안서 생성 (${ol.length}페이지 구성)`, '컨셉을 확정했습니다.');
   });
   $('#cc-go')?.addEventListener('click', async ev => {
     const t = $('#cc-ins').value.trim(); if (!t) { $('#cc-ins').focus(); return toast('수정 요청을 입력해 주세요.'); }
     if (!(await confirmBox({title: '이 요청으로 컨셉 후보를 다시 생성할까요?', body: '현재 후보가 요청을 반영한 새 후보로 변경됩니다. 요청 내용은 다음 제안서 컨셉에도 반영되도록 저장됩니다.', ok: '컨셉 재생성'}))) return;
     ev.target.disabled = true;
     const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'concept', instruction: t, by: myName || ''}];
-    go({status: 'working', data: {...d, deck_style: readDeckStyle(), revise_log: log}}, {kind: 'concepts', input: {instruction: t}}, `컨셉 수정을 요청했습니다 · ${t.slice(0, 120)}`, '컨셉을 다시 설계합니다. 진행률은 화면에서 확인할 수 있습니다.');
+    go({status: 'working', data: {...d, deck_style: readDeckStyle(p), revise_log: log}}, {kind: 'concepts', input: {instruction: t}}, `컨셉 수정을 요청했습니다 · ${t.slice(0, 120)}`, '컨셉을 다시 설계합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   clearTimeout(propPoll);
   if (p.status === 'working') propPoll = setTimeout(() => pollProposal(p.id), 3000);      // 작업 중이면 단계와 상관없이 항상
