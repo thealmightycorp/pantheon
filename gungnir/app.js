@@ -2673,6 +2673,68 @@ async function candPreview(p, key, after) {
   } catch (e) { $('#pv-box').innerHTML = `<p>미리보기를 불러오지 못했습니다: ${esc(e?.message || '')}</p>`; }
 }
 window.addEventListener('pt-refresh', () => { if ($('#review')?.open) window.ptRefresh?.(); else if (String(activeDetail || '').startsWith('p:')) openProposal(activeDetail.slice(2), true); });
+// 페이지 순서 변경 (11-05 김현우 「슬라이드 순서도 거기서 수정」) — 원고(deck.slides) 순서를 바꾸고 전체를 다시 생성. 내용·이미지·고친 텍스트는 그대로
+function slideOrder(p, done) {
+  if (p.status === 'working') return toast('진행 중인 작업이 끝난 뒤 순서를 바꿀 수 있습니다.');
+  const sl = p.data?.build?.deck?.slides || [];
+  let rows = sl.map((s, i) => ({i, s})), moving = null;
+  const name = s => { const t = Array.isArray(s.title) ? s.title.join(' ') : String(s.title || ''); return (t || s.eyebrow || '').replace(/\s+/g, ' ').trim() || (olType(s.layout)?.name || s.layout || '페이지'); };
+  const kind = s => olType(s.layout)?.name || s.layout || '';
+  modal(`<div><h2>페이지 순서 변경</h2><p>⠿ 를 끌거나 ↑ ↓ 로 순서를 바꿔 주세요. 저장하면 바꾼 순서로 제안서를 다시 생성합니다. 기밀·면책 페이지는 표지 다음에 자동으로 들어갑니다.</p><ol class="ol-list so-list" id="so-list"></ol><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="button" id="so-save" disabled>이 순서로 저장</button></div></div>`);
+  $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => $('#modal').classList.remove('wide'), {once: true});
+  const L = $('#so-list');
+  const changed = () => rows.some((r, j) => r.i !== j);
+  const move = (from, to) => { if (to < 0 || to >= rows.length || from === to) return; const [r] = rows.splice(from, 1); rows.splice(to, 0, r); $('#modal').dataset.dirty = '1'; draw(); };
+  function draw() {
+    L.replaceChildren();
+    rows.forEach((r, j) => {
+      const li = document.createElement('li'); li.className = 'ol-row so-row' + (r.i !== j ? ' moved' : ''); li.draggable = true;
+      li.innerHTML = `<span class="ol-handle" aria-hidden="true">⠿</span><span class="ol-no">${j + 1}</span><span class="ol-rt"><b></b><small></small></span><span class="ol-rbtn"><button type="button" class="ol-ib" data-up aria-label="위로">↑</button><button type="button" class="ol-ib" data-down aria-label="아래로">↓</button></span>`;
+      li.querySelector('b').textContent = name(r.s);
+      li.querySelector('small').textContent = kind(r.s) + (r.i !== j ? ` · 원래 ${r.i + 1}번째` : '');
+      li.querySelector('[data-up]').onclick = () => move(j, j - 1);
+      li.querySelector('[data-down]').onclick = () => move(j, j + 1);
+      li.ondragstart = e => { moving = j; e.dataTransfer.setData('text/plain', String(j)); e.dataTransfer.effectAllowed = 'move'; li.classList.add('drag'); };
+      li.ondragend = () => { li.classList.remove('drag'); moving = null; };
+      li.ondragover = e => { e.preventDefault(); li.classList.add('over'); };
+      li.ondragleave = () => li.classList.remove('over');
+      li.ondrop = e => { e.preventDefault(); li.classList.remove('over'); if (moving !== null) move(moving, j); };
+      // 폰·태블릿 — ⠿ 를 손가락으로 끌기
+      const hd = li.querySelector('.ol-handle');
+      hd.onpointerdown = e => { if (e.pointerType === 'mouse') return; e.preventDefault(); try { hd.setPointerCapture(e.pointerId); } catch {}
+        let over = null; li.classList.add('drag');
+        hd.onpointermove = ev => { const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.so-row'); if (t !== over) { over?.classList.remove('over'); over = t; t?.classList.add('over'); } };
+        hd.onpointerup = hd.onpointercancel = () => { hd.onpointermove = hd.onpointerup = hd.onpointercancel = null; over?.classList.remove('over'); li.classList.remove('drag');
+          const to = over ? [...L.children].indexOf(over) : -1; if (to >= 0) move(j, to); }; };
+      L.appendChild(li);
+    });
+    $('#so-save').disabled = !changed();
+  }
+  draw();
+  $('#so-save').onclick = async () => {
+    $('#so-save').disabled = true;
+    const { data: row, error: e0 } = await SB.from('pt_proposal').select('status,data').eq('id', p.id).single();
+    if (e0) { $('#so-save').disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
+    if (row.status === 'working') { $('#so-save').disabled = false; return toast('진행 중인 작업이 끝난 뒤 저장해 주세요.'); }
+    const f = row.data, deck0 = f.build.deck;
+    if ((deck0.slides || []).length !== sl.length) { $('#modal').dataset.dirty = ''; $('#modal').close(); return toast('그사이 제안서가 바뀌었습니다. 다시 열어 주세요.'); }
+    const order = rows.map(r => r.i), slides = order.map(i => deck0.slides[i]);
+    const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, deck: {...deck0, slides}}}, status: 'working'}).eq('id', p.id);
+    if (error) { $('#so-save').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
+    await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {}});
+    const mv = rows.filter((r, j) => r.i !== j).length;
+    await proposalEvent(p.id, `페이지 순서를 바꿨습니다(${mv}개 페이지 이동) → 제안서를 다시 생성합니다`);
+    $('#modal').dataset.dirty = ''; $('#modal').close(); done?.();
+    toast('바꾼 순서로 제안서를 다시 생성하는 중입니다.', {fn: async () => {
+      const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data, cur = d2.build.deck.slides;
+      if (cur.length !== order.length) return toast('그사이 제안서가 바뀌어 되돌리지 못했습니다.');
+      const back = []; order.forEach((i, j) => { back[i] = cur[j]; });
+      await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, deck: {...d2.build.deck, slides: back}}}, status: 'working'}).eq('id', p.id);
+      await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {}});
+      await proposalEvent(p.id, '페이지 순서 변경을 취소했습니다');
+      studio.list = null; await loadStudio(); toast('원래 순서로 다시 생성하는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+  };
+}
 async function pageReview(pid, start) {
   let p = studio.list?.find(x => x.id === pid); if (!p?.data?.build?.pdf) return toast('생성된 제안서가 없습니다.');
   let dlg = $('#review');
@@ -2746,9 +2808,20 @@ async function pageReview(pid, start) {
     // 텍스트 위치 이동 (10-30 김현우 「텍스트도 선택해서 드래그로 위치 옮길 수 있게」) — 렌더러가 남긴 글상자 위치(boxes 「t:…」)
     const tOn = id => (B[id]?.at || [B[id]]).some(a => +a?.page === cur);
     const tids = Object.keys(B).filter(id => id.startsWith('t:') && tOn(id));
-    $('#rv-tools').innerHTML = tids.length ? '<button class="button small" id="rv-txt">텍스트 위치 이동</button><button class="button small" id="rv-tedit">텍스트 수정</button>' : '';
+    $('#rv-tools').innerHTML = `<button class="button small" id="rv-tedit">텍스트 수정</button>${tids.length ? '<button class="button small" id="rv-txt">텍스트 위치 이동</button>' : ''}${(d.build?.deck?.slides || []).length > 1 ? '<button class="button small" id="rv-order">페이지 순서 변경</button>' : ''}`;
     if ($('#rv-txt')) $('#rv-txt').onclick = () => textMode(tids);
-    if ($('#rv-tedit')) $('#rv-tedit').onclick = () => textEdit(tids);
+    $('#rv-tedit').onclick = () => tids.length ? textEdit(tids) : textOld();
+    if ($('#rv-order')) $('#rv-order').onclick = () => slideOrder(p, () => { studio.list = null; loadStudio().then(() => show(cur)); });
+    // 텍스트 위치 기록이 없는 예전 초안 (11-04 이전 생성) — 전체를 한 번 다시 생성하면 모든 페이지의 텍스트를 고칠 수 있다
+    async function textOld() {
+      if (p.status === 'working') return toast('진행 중인 작업이 끝난 뒤 수정할 수 있습니다.');
+      if (!(await confirmBox({title: '텍스트를 수정하려면 제안서를 한 번 다시 생성해야 합니다', body: '이 초안은 텍스트 수정 기능이 생기기 전에 생성되었습니다. 내용과 이미지는 그대로 두고 다시 생성하며, 끝나면 모든 페이지의 텍스트를 수정할 수 있습니다.', ok: '다시 생성'}))) return;
+      const { error } = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {}});
+      if (error) return toast('요청하지 못했습니다: ' + error.message);
+      await SB.from('pt_proposal').update({status: 'working'}).eq('id', p.id);
+      await proposalEvent(p.id, '텍스트 수정을 위해 제안서를 다시 생성합니다');
+      studio.list = null; await loadStudio(); show(cur); toast('제안서를 다시 생성하는 중입니다. 끝나면 텍스트를 수정할 수 있습니다.');
+    }
     $('#rv-hot').innerHTML = keys.flatMap(k => spots(k).filter(a => +a.page === cur && a.w).map(b => [k, b])).sort((x, y) => big(y[1]) - big(x[1])).map(([k, b]) => { const bad = fl.some(f => f.key === k);
       return `<button type="button" class="${bad ? 'flag' : ''}${S[k].path ? '' : ' empty'}${big(b) ? ' bg' : ''}" data-hot="${esc(k)}" style="left:${b.x / EW * 100}%;top:${b.y / EH * 100}%;width:${b.w / EW * 100}%;height:${b.h / EH * 100}%" aria-label="${esc(KIND_KO_IMG[S[k].kind] || '')} ${esc(whatText(S[k].what))}"><span>${esc(KIND_KO_IMG[S[k].kind] || '')}</span></button>`; }).join('');
     const okd = k => !!S[k]?.path && (d.qa_ok || {})[k] === S[k].path;          // 사람이 확정한 이미지 (검수 목록에서 빠짐)
@@ -2827,6 +2900,7 @@ async function pageReview(pid, start) {
       const edits = {};
       let sel = null;
       wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-txtbar"><small>고칠 텍스트(점선 영역)를 눌러 문장을 수정해 주세요. 줄바꿈은 그대로 반영됩니다. 반영하면 이 페이지만 다시 생성합니다.</small>
+        <select id="te-pick" aria-label="수정할 텍스트">${tids.map((id, i) => `<option value="${esc(id)}">${i + 1}. ${esc(cur0(id).replace(/\n/g, ' ').slice(0, 40))}</option>`).join('')}</select>
         <textarea id="te-text" rows="4" maxlength="2000" placeholder="먼저 페이지에서 텍스트를 선택해 주세요" disabled></textarea>${tids.some(id => te[id]) ? '<small class="muted">색이 칠해진 영역은 이미 수정한 텍스트입니다.</small>' : ''}
         <div class="ibtns"><button class="button primary small" id="te-ok">수정한 문장으로 반영</button>${tids.some(id => te[id]) ? '<button class="button small" id="te-reset">이 페이지 원래 문장으로</button>' : ''}<button class="button small" id="te-no">수정 취소</button></div></div>`);
       const keep = () => { if (sel) { const v = $('#te-text').value; if (v !== cur0(sel)) edits[sel] = v; else delete edits[sel]; } };
@@ -2844,7 +2918,9 @@ async function pageReview(pid, start) {
             await proposalEvent(p.id, `${cur}페이지 텍스트 수정을 위해 이 페이지를 다시 생성합니다`);
             dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur); toast('이 페이지를 다시 생성하는 중입니다. 끝나면 텍스트를 수정할 수 있습니다.'); };
           return; }
-        ta.disabled = false; ta.placeholder = ''; ta.value = edits[sel] ?? cur0(sel); ta.focus(); }; });
+        ta.disabled = false; ta.placeholder = ''; ta.value = edits[sel] ?? cur0(sel); $('#te-pick').value = sel; ta.focus(); }; });
+      $('#te-pick').onchange = ev => $(`.rv-tlayer .tbox[data-t="${CSS.escape(ev.target.value)}"]`)?.click();
+      $('.rv-tlayer .tbox')?.click();
       $('#te-no').onclick = () => { dlg.dataset.dirty = ''; show(cur); };
       const save = async reset => {
         keep();
