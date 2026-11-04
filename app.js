@@ -2178,6 +2178,27 @@ function olEditor(p) {
       li.ondragover = e => { e.preventDefault(); li.classList.add('over'); };
       li.ondragleave = () => li.classList.remove('over');
       li.ondrop = e => { e.preventDefault(); li.classList.remove('over'); moveBefore(r.k); };
+      // 폰·태블릿 — 손가락으로 ⠿ 를 끌어 옮긴다 (터치에서는 HTML5 끌어 놓기가 동작하지 않는 기기가 있음 · 11-04)
+      const hd = li.querySelector('.ol-handle');
+      hd.onpointerdown = e => {
+        if (e.pointerType === 'mouse') return;
+        e.preventDefault(); try { hd.setPointerCapture(e.pointerId); } catch {}
+        moving = r.ck ? rows.filter(z => z.ck).map(z => z.k) : [r.k];
+        L.querySelectorAll('.ol-row').forEach((el, j) => { if (moving.includes(rows[j].k)) el.classList.add('drag'); });
+        let over = null;
+        const sc = L.scrollHeight > L.clientHeight + 4 ? L : D;
+        hd.onpointermove = ev => {
+          const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.ol-row, .ol-addend');
+          if (t !== over) { over?.classList.remove('over'); over = t; t?.classList.add('over'); }
+          const rc = sc.getBoundingClientRect(); if (ev.clientY < rc.top + 40) sc.scrollTop -= 14; else if (ev.clientY > rc.bottom - 40) sc.scrollTop += 14;
+        };
+        hd.onpointerup = hd.onpointercancel = ev => {
+          hd.onpointermove = hd.onpointerup = hd.onpointercancel = null; over?.classList.remove('over');
+          L.querySelectorAll('.drag').forEach(el => el.classList.remove('drag'));
+          if (ev.type === 'pointerup' && over) moveBefore(over.classList.contains('ol-addend') ? null : rows[[...L.children].indexOf(over)]?.k);
+          moving = null;
+        };
+      };
       L.append(li);
     });
     const nck = rows.filter(z => z.ck).length; q('#ol-selbar').hidden = !nck; q('#ol-seln').textContent = nck;
