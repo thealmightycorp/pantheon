@@ -10,7 +10,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // 비밀번호 재설정 메일 링크로 들어왔는지 — supabase 가 주소를 읽어 지우기 전에 본다 (헤임달과 같은 방식)
 let RECOVERY = /type=recovery/.test(location.hash || '');
 // 이미 쓴·만료된 메일 링크로 들어오면 주소에 error_code 만 붙어 온다 — 아무 안내 없이 로그인 화면만 뜨던 것 (11-03 정원하 대표님이 오전 메일 링크를 다시 누르심)
-const LINK_ERR = /error_code=|error=access_denied/.test(location.hash || '') ? '이미 사용했거나 만료된 링크입니다. 비밀번호 찾기를 다시 진행하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.' : '';
+// 슬랙 로그인에서 돌아왔는데 오류가 붙어 있으면 슬랙 안내 (11-04) — 우리 워크스페이스가 아니면 가입 트리거가 막아 「Database error saving new user」
+const AUTH_Q = decodeURIComponent((location.hash || '') + (location.search || '')).replace(/\+/g, ' ');
+const SLACK_ERR = sessionStorage.getItem('pt_slack') && /error/.test(AUTH_Q) ? (/saving new user/i.test(AUTH_Q) ? '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.' : /access_denied/.test(AUTH_Q) ? '슬랙 로그인을 취소했습니다.' : '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.') : '';
+if (SLACK_ERR) { sessionStorage.removeItem('pt_slack'); try { history.replaceState(null, '', location.pathname); } catch {} }
+const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? '이미 사용했거나 만료된 링크입니다. 비밀번호 찾기를 다시 진행하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.' : '';
 if (LINK_ERR) try { history.replaceState(null, '', location.pathname); } catch {}
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -3239,14 +3243,23 @@ function bindContent() {
 }
 
 /* ---------- 로그인 ---------- */
+// 슬랙으로 로그인 (11-04) — 슬랙 앱 「Heimdall」 · Supabase Slack(OIDC). 헤임달 계정과 같은 계정으로 들어간다
+const SLACK_SVG = '<svg width="16" height="16" viewBox="0 0 122.8 122.8" aria-hidden="true" style="stroke:none;flex-shrink:0"><path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9zm6.5 0a12.9 12.9 0 0 1 25.8 0v32.3a12.9 12.9 0 1 1-25.8 0z" fill="#e01e5a"/><path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9zm0 6.5a12.9 12.9 0 0 1 0 25.8H12.9a12.9 12.9 0 0 1 0-25.8z" fill="#36c5f0"/><path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97zm-6.5 0a12.9 12.9 0 0 1-25.8 0V12.9a12.9 12.9 0 1 1 25.8 0z" fill="#2eb67d"/><path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97zm0-6.5a12.9 12.9 0 0 1 0-25.8h32.3a12.9 12.9 0 0 1 0 25.8z" fill="#ecb22e"/></svg>';
+const slackSignIn = () => SB.auth.signInWithOAuth({provider: 'slack_oidc', options: {redirectTo: location.origin + location.pathname}});
 function loginScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인이 가능합니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인이 가능합니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
   $('#login-form').onsubmit = async ev => {
     ev.preventDefault(); $('#lg-err').textContent = ''; $('#lg-err').style.color = '#ba775e';
     const { error } = await SB.auth.signInWithPassword({email: $('#lg-email').value.trim(), password: $('#lg-pw').value});
     if (error) { $('#lg-err').textContent = '이메일 또는 비밀번호가 맞지 않습니다.'; return; }
     start();
+  };
+  $('#lg-slack').onclick = async () => {
+    const b = $('#lg-slack'); b.disabled = true; b.lastChild.textContent = '슬랙으로 이동하는 중…';
+    sessionStorage.setItem('pt_slack', '1');
+    const { error } = await slackSignIn();
+    if (error) { sessionStorage.removeItem('pt_slack'); b.disabled = false; b.lastChild.textContent = '슬랙으로 로그인'; $('#lg-err').textContent = '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.'; }
   };
   $('#lg-reset').onclick = async () => {
     const email = $('#lg-email').value.trim(), out = $('#lg-err');
@@ -3282,8 +3295,16 @@ function recoveryScreen(msg) {
 }
 async function start() {
   const { data: { session } } = await SB.auth.getSession();
-  if (!session) return loginScreen(LINK_ERR);
+  if (!session) return loginScreen(SLACK_ERR || LINK_ERR);
   if (RECOVERY) return recoveryScreen();
+  const slackStep = sessionStorage.getItem('pt_slack');      // 슬랙 이메일이 헤임달 로그인 이메일과 다른 직원 — 원래 계정으로 옮긴 뒤 슬랙 로그인을 한 번 더
+  if (slackStep) {
+    sessionStorage.removeItem('pt_slack');
+    const { data: r } = await SB.rpc('hd_slack_link');
+    if (r === 'linked' && slackStep === '1') { await SB.auth.signOut({scope: 'local'}); sessionStorage.setItem('pt_slack', '2'); $('#login').hidden = false; $('#login').innerHTML = '<div class="login-box"><p>헤임달 계정에 슬랙을 연결했습니다. 다시 로그인하는 중…</p></div>'; return slackSignIn(); }
+    const fail = {linked: '슬랙 계정을 연결하지 못했습니다. 관리자에게 문의해 주세요.', other_team: '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.', ambiguous: '이 슬랙 이메일로 찾은 헤임달 계정이 두 개 이상입니다. 관리자에게 문의해 주세요.', new: '헤임달에 처음 오셨습니다. 헤임달에서 이름·회사·부서를 입력하고 승인을 받은 뒤 이용할 수 있습니다.'}[r];
+    if (fail) { await SB.auth.signOut({scope: 'local'}); return loginScreen(fail); }
+  }
   me = session.user;
   const [can, adm, mem, sc, ic] = await Promise.all([SB.rpc('pt_can_use'), SB.rpc('pt_is_admin'), SB.from('hd_member').select('name,role').eq('id', me.id).maybeSingle(), SB.rpc('pt_studio_can'), SB.rpc('pt_ipchart_can')]);
   studioCan = !sc.error && !!sc.data; ipcCan = !ic.error && !!ic.data;            // 제안서 스튜디오 — 시험 기간 3명만 (함수가 없거나 거절이면 숨김)
