@@ -646,7 +646,7 @@ dialog.wide .text-btn,dialog.review .text-btn{font-size:13px;min-height:40px}
 @media(max-width:600px){.pf-bar{padding:0 15px 14px}.pf-q{flex-basis:100%;font-size:16px}.pf-bar .pf-by{flex:1 1 45%;min-height:40px}.todo-none{padding:0 15px 16px}.rn-panel{padding:18px 16px 20px}.rn-panel input:not([type=file]),.rn-panel textarea{font-size:16px}.rn-pair{grid-template-columns:1fr}.rn-pair>span{display:none}.todo-age{display:none}.ref-row{flex-direction:column;gap:4px}.ref-row b{text-align:left}}
 /* 시연 모드 · 기능 소개 (11-04 궁니르 온보딩) */
 #tour{position:fixed;inset:0;z-index:300}
-#tour .tour-hole{position:fixed;border-radius:10px;box-shadow:0 0 0 9999px rgba(14,33,26,.62);outline:2px solid #c3e4a2;outline-offset:2px;transition:left .25s,top .25s,width .25s,height .25s;pointer-events:none}
+#tour .tour-hole{position:fixed;border-radius:10px;box-shadow:0 0 0 9999px rgba(14,33,26,.62);outline:2px solid #c3e4a2;outline-offset:2px;transition:left .2s,top .2s,width .2s,height .2s;pointer-events:none}
 #tour .tour-hole[hidden]{display:block!important;left:50%;top:50%;width:0;height:0;outline:0}
 #tour .tour-card{position:fixed;width:400px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;padding:18px 20px 16px;box-shadow:0 18px 60px rgba(10,30,22,.35);transition:left .25s,top .25s,opacity .15s}
 #tour .tour-card.mid{left:50%;top:50%;transform:translate(-50%,-50%);width:480px}
@@ -660,6 +660,5 @@ dialog.wide .text-btn,dialog.review .text-btn{font-size:13px;min-height:40px}
 #tour .tour-card.mid h3{font-size:22px}
 #tour .tour-acts{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px}
 #tour .tour-end{display:flex;gap:8px}
-body.touring{overflow:hidden}
 #demo-btn{gap:6px}
 @media(max-width:600px){#tour .tour-card,#tour .tour-card.mid{left:12px!important;right:12px;top:auto!important;bottom:12px;transform:none;width:auto;max-width:none}#tour .tour-acts .button{min-height:42px}}

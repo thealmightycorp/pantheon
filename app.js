@@ -2987,7 +2987,7 @@ const TOUR = [
   {el: '[data-page="manual"]', t: '사용 매뉴얼', d: '화면별 사용법과 자주 묻는 질문을 정리했습니다. 「매뉴얼에 물어보기」에 질문하면 매뉴얼 내용으로 바로 답합니다.', go: () => tourStudio('projects')},
   {t: '소개를 마쳤습니다', d: '헤임달 계정 또는 「슬랙으로 로그인」으로 바로 쓸 수 있습니다. 궁금한 점은 사용 매뉴얼이나 AX팀에 문의해 주세요.', go: () => tourStudio('projects'), end: true},
 ];
-let tourAt = -1;
+let tourAt = -1, tourTimer = 0;
 const tourSteps = () => TOUR.filter(s => !s.skip?.());
 async function tourWait(sel, ms = 5000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width) return el; await new Promise(r => setTimeout(r, 120)); } return null; }
 function tourPlace() {
@@ -3032,10 +3032,11 @@ function tourStart() {
   box.innerHTML = '<div class="tour-hole" hidden></div><div class="tour-card mid busy"><p>준비하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   document.body.appendChild(box); document.body.classList.add('touring');
   document.addEventListener('keydown', tourKey, true); addEventListener('resize', tourPlace); addEventListener('scroll', tourPlace, true);
+  tourTimer = setInterval(tourPlace, 200);          // 목록이 늦게 그려지거나 다시 그려져도 밝힌 자리가 따라가게
   tourShow(0);
 }
 function tourEnd() {
-  $('#tour')?.remove(); document.body.classList.remove('touring'); tourAt = -1;
+  $('#tour')?.remove(); document.body.classList.remove('touring'); tourAt = -1; clearInterval(tourTimer);
   document.removeEventListener('keydown', tourKey, true); removeEventListener('resize', tourPlace); removeEventListener('scroll', tourPlace, true);
   closeDrawer(); tourStudio('projects'); window.scrollTo(0, 0);
 }
