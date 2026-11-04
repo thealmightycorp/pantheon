@@ -3,7 +3,7 @@
    · 로그인 = 헤임달 계정 (같은 Supabase · 같은 주소라 헤임달에 로그인돼 있으면 그대로 들어옴)
    · 쓰는 사람 = 헤임달 승인 구성원 (DB 가 막음 — pt_can_use)
    · 누가·언제·무엇을 = DB 트리거가 pt_change 에 남김 (화면은 그 기록을 보여 주기만)
-   · 질문·명함 읽기 = pt_ask 에 넣으면 사무실 PC 궁니르 봇이 Claude 로 처리해 답을 씀 (키는 PC 에만)
+   · 질문·명함 인식 = pt_ask 에 넣으면 사무실 PC 궁니르 봇이 Claude 로 처리해 답을 씀 (키는 PC 에만)
    · 이번 범위 = 10/21 회의 지시(엔티티 DB·등록·명함·회사 연결·연락) — 모니터링·딜은 숨김 */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -100,7 +100,7 @@ function confirmBox({title, body = '', ok, cancel = '취소', danger = false}) {
   });
 }
 // 작성 중인 내용이 있으면 닫기 전에 묻는다 — 「계속 작성」이 기본, 「닫기」를 골라야 닫힌다
-const askLeave = () => confirmBox({title: '작성 중인 내용이 있어요', body: '저장하지 않고 닫으면 입력한 내용이 사라집니다.', ok: '계속 작성', cancel: '저장하지 않고 닫기'}).then(v => v === false);
+const askLeave = () => confirmBox({title: '작성 중인 내용이 있습니다', body: '저장하지 않고 닫으면 입력한 내용이 사라집니다.', ok: '계속 작성', cancel: '저장하지 않고 닫기'}).then(v => v === false);
 
 /* ---------- 이미지 (비공개 저장소 → 잠깐 쓰는 주소) ---------- */
 const imgUrl = {}, imgLoading = new Set();
@@ -162,9 +162,9 @@ async function load() {
 const avatar = e => { const s = imgSrc(e.img); return `<span class="entity-avatar ${s ? 'has-img' : e.color || ''}">${s ? `<img src="${s}" alt="">` : esc(e.initial)}</span>`; };
 function entityCard(e) { const c = contactsOf(e).length; return `<article class="entity-card" data-detail="${e.id}" tabindex="0" role="button" aria-label="${esc(e.name)} 상세 보기"><div class="entity-top">${avatar(e)}<div><b>${esc(e.name)}</b><small>${esc(e.en || agencyOf(e))}</small></div></div><span class="entity-category">${esc(e.type)}</span>${e.parentId && byId(e.parentId) ? ` <span class="entity-category">${esc(byId(e.parentId).name)}</span>` : ''}${e.hidden ? ' <span class="entity-category">숨김</span>' : ''}${e.rel ? `<p class="entity-rel">${esc(e.rel)}</p>` : `<p class="entity-rel none">${PILL_NOREL}</p>`}<div class="card-bottom"><span>${[c ? '담당자 ' + c + '명' : noContact(e) ? '담당자 없음' : '', kidsText(kidsOf(e)), registrar(e) && '등록 ' + registrar(e)].filter(Boolean).join(' · ')}</span><span>상세 보기 ↗</span></div></article>`; }
 function stats() { const es = entities(), cs = contacts(); return `<div class="stats"><div class="stat" data-stat="전체" role="button" tabindex="0" aria-label="엔티티 전체 보기"><div class="stat-label">${icon('entities')} 등록 엔티티</div><div class="stat-value">${es.length}<small>개</small></div><div class="stat-bottom"><span class="positive">이그드라실</span> · 전 직원 공유</div></div><div class="stat" data-stat="contacts" role="button" tabindex="0" aria-label="연락처 보기"><div class="stat-label">${icon('contacts')} 거래처 담당자</div><div class="stat-value">${cs.length}<small>명</small></div><div class="stat-bottom">회사별로 연결해 관리</div></div><div class="stat" data-stat="IP·유명인" role="button" tabindex="0" aria-label="IP·유명인 보기"><div class="stat-label">${icon('up')} IP·유명인</div><div class="stat-value">${es.filter(e => e.type === 'IP·유명인').length}<small>명</small></div><div class="stat-bottom">계약·협업 중인 인물</div></div><div class="stat highlight" data-stat="담당자 연결" role="button" tabindex="0" aria-label="담당자 연결 회사 보기"><div class="stat-label">${icon('link')} 담당자 연결 회사</div><div class="stat-value">${es.filter(e => contactsOf(e).length).length}<small>곳</small></div><div class="stat-bottom">거래처 담당자가 등록된 회사</div></div></div>`; }
-const EXAMPLES = ['골포스트가 협업한 리그·매체는?', '사운드스루 제작지원 브랜드 목록', '브이티코스메틱 담당자 누구야?', '포켓몬이랑 지금 뭐 하고 있어?'];
-function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK YGGDRASIL</small></div><p class="panel-caption">이그드라실 DB를 검색해 Claude가 답변합니다. 슬랙 이그드라실 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자 누구야?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
-function alerts() { const es = entities(); const noC = es.filter(noContact).length, nr = es.filter(e => !e.rel).length, ip = es.filter(e => e.type === 'IP·유명인').length; return `<div class="side-stack"><section class="panel"><div class="panel-head"><div class="panel-title">확인이 필요한 항목</div><span class="alert-count">4건</span></div><div class="alert-list"><button class="alert-row" data-page-go="review"><span class="alert-symbol">${icon('review')}</span><span class="alert-text">확인 대기<small>${reviewCount()}건 · 시스템이 찾은 후보</small></span></button><button class="alert-row" data-state-go="장기 미접촉"><span class="alert-symbol red">${icon('clock')}</span><span class="alert-text">장기 미접촉<small>${es.filter(stale).length}곳 · 미팅 이상 관계 중 ${STALE_DAYS}일 넘게 접촉 없음</small></span></button><button class="alert-row" data-state-go="담당자 없음"><span class="alert-symbol green">${icon('link')}</span><span class="alert-text">담당자 없음<small>${noC}곳 · 명함을 등록하면 연결됩니다</small></span></button><button class="alert-row" data-state-go="근거 없음"><span class="alert-symbol red">${icon('warning')}</span><span class="alert-text">관계 근거 없음<small>${nr}개 · 내부 담당자 확인이 필요합니다</small></span></button></div></section><section class="panel"><div class="alert-list"><button class="alert-row" data-filter-go="IP·유명인"><span class="alert-symbol">${icon('up')}</span><span class="alert-text">활용 가능한 IP·유명인<small>${ip}명 · 엔티티 DB에서 보기</small></span></button></div></section></div>`; }
+const EXAMPLES = ['골포스트가 협업한 리그·매체는 어디인가요?', '사운드스루 제작지원 브랜드 목록', '브이티코스메틱 담당자는 누구인가요?', '포켓몬과 현재 진행 중인 건이 있나요?'];
+function askPanel() { return `<section class="panel ask-panel"><div class="panel-head"><div><div class="panel-title">무엇이든 물어보세요 <small>ASK YGGDRASIL</small></div><p class="panel-caption">이그드라실 DB를 검색해 Claude가 답변합니다. 슬랙 이그드라실 봇에서도 같은 답변을 받을 수 있습니다.</p></div></div><div class="ask-body"><div class="ask-row"><input id="ask-input" type="search" autocomplete="off" placeholder="예: 게티이미지 담당자는 누구인가요?"><button class="button primary" id="ask-btn" type="button">질문하기</button></div><div class="ask-examples">${EXAMPLES.map(x => `<button type="button" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="ask-answer" id="ask-answer" ${lastAnswer ? '' : 'hidden'}>${lastAnswer}</div></div></section>`; }
+function alerts() { const es = entities(); const noC = es.filter(noContact).length, nr = es.filter(e => !e.rel).length, ip = es.filter(e => e.type === 'IP·유명인').length; return `<div class="side-stack"><section class="panel"><div class="panel-head"><div class="panel-title">확인이 필요한 항목</div><span class="alert-count">4건</span></div><div class="alert-list"><button class="alert-row" data-page-go="review"><span class="alert-symbol">${icon('review')}</span><span class="alert-text">확인 대기<small>${reviewCount()}건 · 시스템이 찾은 후보</small></span></button><button class="alert-row" data-state-go="장기 미접촉"><span class="alert-symbol red">${icon('clock')}</span><span class="alert-text">장기 미접촉<small>${es.filter(stale).length}곳 · 미팅 단계 이상 거래처 중 ${STALE_DAYS}일 넘게 접촉 없음</small></span></button><button class="alert-row" data-state-go="담당자 없음"><span class="alert-symbol green">${icon('link')}</span><span class="alert-text">담당자 없음<small>${noC}곳 · 명함을 등록하면 연결됩니다</small></span></button><button class="alert-row" data-state-go="근거 없음"><span class="alert-symbol red">${icon('warning')}</span><span class="alert-text">관계 근거 없음<small>${nr}개 · 내부 담당자 확인이 필요합니다</small></span></button></div></section><section class="panel"><div class="alert-list"><button class="alert-row" data-filter-go="IP·유명인"><span class="alert-symbol">${icon('up')}</span><span class="alert-text">활용 가능한 IP·유명인<small>${ip}명 · 엔티티 DB에서 보기</small></span></button></div></section></div>`; }
 const STATES = ['전체', '담당자 있음', '담당자 없음', '근거 없음', '장기 미접촉'];
 let entState = '전체', entSort = {k: 'name', d: 1}, entView = 'table';
 try { entView = localStorage.getItem('pt-ent-view') || 'table'; } catch {}
@@ -177,15 +177,15 @@ function entityTable(arr) {
 }
 // 목록 안 검색 (②) — 입력하면 바로 거르고, 걸려 있으면 칩으로 알리고, 0건이면 지우기·등록 단추
 const localForm = ph => `<form class="table-tools local-form" id="local-form" role="search"><input class="local-search" id="local-q" type="search" placeholder="${ph} 검색" value="${esc(query)}" aria-label="이 목록에서 검색" autocomplete="off"></form>${query.trim() ? `<div class="q-chip">「${esc(query.trim())}」 검색 중 <button type="button" class="q-clear" aria-label="검색 해제">✕ 해제</button></div>` : ''}`;
-const noHits = (what, add) => `<div class="empty"><p><b>${query.trim() ? `「${esc(query.trim())}」에 맞는 ${what}가 없습니다.` : `조건에 맞는 ${what}가 없습니다.`}</b></p><p>${query.trim() ? '<button class="button q-clear" type="button">검색 지우기</button> ' : ''}<button class="button primary" type="button" data-add>${add}</button></p></div>`;
+const noHits = (what, add) => `<div class="empty"><p><b>${query.trim() ? `「${esc(query.trim())}」에 맞는 ${what}가 없습니다.` : `조건에 맞는 ${what}가 없습니다.`}</b></p><p>${query.trim() ? '<button class="button q-clear" type="button">검색어 삭제</button> ' : ''}<button class="button primary" type="button" data-add>${add}</button></p></div>`;
 const hay = e => [e.name, e.en, registrar(e), agencyOf(e), e.role, e.rel, e.note, ...e.aliases, ...e.sides, ...e.owners, ...e.facts, ...e.points, ...kidsOf(e).flatMap(k => [k.name, k.en, ...k.aliases])].join(' ').toLowerCase();
 const LINKED = '담당자 연결';   // 오버뷰 「담당자 연결 회사」 — 거래처 담당자가 연결된 회사만
 const stateOk = e => entState === '전체' || (entState === '담당자 있음' ? contactsOf(e).length > 0 : entState === '담당자 없음' ? noContact(e) : entState === '장기 미접촉' ? stale(e) : !e.rel);
 const match = e => (filter === '전체' || e.type === filter) && stateOk(e) && hay(e).includes(query.trim().toLowerCase());
-// 주소록 (PRD R-09) — 사람 단위로 지금 소속 · 휴대폰 · 이메일 · 회사 관계 단계 · 마지막 접촉 · 담당 직원 (칸은 pt_directory)
+// 주소록 (PRD R-09) — 사람 단위로 현 소속 · 휴대폰 · 이메일 · 회사 관계 단계 · 마지막 접촉 · 담당 직원 (칸은 pt_directory)
 function contactTable(arr) {
   const cell = (v, link) => v ? `${esc(v)} ${link}` : '—';
-  return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>지금 소속</th><th>직함</th><th>휴대폰</th><th>이메일</th><th>관계 단계</th><th>마지막 접촉</th><th>담당 직원</th></tr></thead><tbody>${arr.map(c => { const d = rel.dir[c.id] || {}, mob = d.mobile || '', mail = d.email || (c.points.find(p => /@/.test(p)) || ''); return `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름"><b>${esc(c.name)}</b>${c.cardImg ? ' <span class="pill muted" title="명함 있음">명함</span>' : ''}</td><td data-label="지금 소속">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="휴대폰">${cell(mob, mob ? contactLink(mob) : '')}</td><td data-label="이메일">${cell(mail, mail ? contactLink(mail) : '')}</td><td data-label="관계 단계">${d.pipeline ? stagePill(d.pipeline) : '—'}</td><td data-label="마지막 접촉">${d.last_touch ? touchText(d.last_touch) : '—'}</td><td data-label="담당 직원">${esc(c.owners[0] || registrar(c) || '—')}</td></tr>`; }).join('') || `<tr><td colspan="8"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>현 소속</th><th>직함</th><th>휴대폰</th><th>이메일</th><th>관계 단계</th><th>마지막 접촉</th><th>담당 직원</th></tr></thead><tbody>${arr.map(c => { const d = rel.dir[c.id] || {}, mob = d.mobile || '', mail = d.email || (c.points.find(p => /@/.test(p)) || ''); return `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름"><b>${esc(c.name)}</b>${c.cardImg ? ' <span class="pill muted" title="명함 있음">명함</span>' : ''}</td><td data-label="현 소속">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="휴대폰">${cell(mob, mob ? contactLink(mob) : '')}</td><td data-label="이메일">${cell(mail, mail ? contactLink(mail) : '')}</td><td data-label="관계 단계">${d.pipeline ? stagePill(d.pipeline) : '—'}</td><td data-label="마지막 접촉">${d.last_touch ? touchText(d.last_touch) : '—'}</td><td data-label="담당 직원">${esc(c.owners[0] || registrar(c) || '—')}</td></tr>`; }).join('') || `<tr><td colspan="8"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`;
 }
 
 // 통합 검색 (10-26) — 어느 메뉴에서든 엔티티·거래처 담당자 전체에서 찾는다. Enter: 하나면 바로 상세
@@ -205,7 +205,7 @@ function render() {
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
-  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','요즘 뜨는 IP 순위와 IP 스코어·조합 시뮬레이션을 봅니다. IP 차트는 하루 4번 새로 매깁니다.'], graph:['관계 그래프','회사·IP·담당자가 어떻게 이어져 있는지 점과 선으로 봅니다. 점을 누르면 연결된 곳이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 옮겨졌습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 궁니르 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 하나만 나오면 Enter로 바로 상세를 엽니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. IP 차트는 하루 4회 갱신됩니다.'], graph:['관계 그래프','회사·IP·담당자 간 연결 관계를 그래프로 확인합니다. 항목을 클릭하면 연결된 대상이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 이전되었습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 궁니르 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 결과가 하나이면 Enter 키로 상세 화면을 바로 열 수 있습니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
   document.title = title[0] + ' · ' + BRAND;
@@ -216,15 +216,15 @@ function render() {
   $('#add-btn').hidden = !['home', 'entities', 'contacts', 'studio'].includes(page) || (page === 'studio' && studio.tab === 'ref-new');
   if (APP === 'gungnir') { let b = $('#demo-btn'); if (!b) { b = document.createElement('button'); b.className = 'button'; b.id = 'demo-btn'; b.type = 'button'; b.onclick = tourStart; $('#add-btn').before(b); } b.textContent = '▶ 시연 모드'; b.hidden = !studioCan || !['studio', 'chart', 'manual'].includes(page); }   // 기능 소개 (11-04 온보딩)
   let html = '';
-  if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
+  if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 궁니르로 이전되었습니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로 유지되며, 같은 헤임달 계정으로 로그인할 수 있습니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
   if (page === 'graph') html = graphView();
   if (page === 'manual') html = manualView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
-  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 궁니르 봇이 내용을 자동으로 입력하고, 명함 이미지와 받은 곳도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
+  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 궁니르 봇이 내용을 자동으로 입력하고, 명함 이미지와 수령 경로도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
-  if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 쓸 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
+  if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 사용할 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
   if (page === 'chart') html = srcView();
   if (page === 'search') html = searchView();
   $('#content').innerHTML = html;
@@ -267,7 +267,7 @@ const linkList = arr => `<div class="link-list">${arr.map(m => `<button type="bu
 const contactLink = p => { const m = String(p).match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/); if (m) return `<a class="point-go" href="mailto:${esc(m[0])}">메일</a>`; const t = String(p).match(/\+?\d[\d\s().-]{7,}\d/); return t && t[0].replace(/\D/g, '').length >= 8 ? `<a class="point-go" href="tel:${t[0].replace(/[^\d+]/g, '')}">전화</a>` : ''; };
 const pointsBlock = e => e.points.map((p, i) => `<div class="point"><code id="pt-${e.id}-${i}">${esc(p)}</code><span class="point-acts">${contactLink(p)}<button type="button" data-copy="pt-${e.id}-${i}">복사</button></span></div>`).join('');
 const noteOf = e => e.note ?? e.facts.join('\n');
-const noteBlock = e => `<div class="detail-block"><h3>리서치 노트</h3><textarea id="research-note" placeholder="확인한 내용과 출처를 기록하세요." aria-label="리서치 노트">${esc(noteOf(e))}</textarea><button class="button primary" id="save-note">노트 저장</button><p>업무 기록의 내용으로 시작합니다. 저장한 노트는 전 직원에게 공유되며 변경 이력이 기록됩니다.</p></div>`;
+const noteBlock = e => `<div class="detail-block"><h3>리서치 노트</h3><textarea id="research-note" placeholder="확인한 내용과 출처를 기록해 주세요." aria-label="리서치 노트">${esc(noteOf(e))}</textarea><button class="button primary" id="save-note">노트 저장</button><p>업무 기록의 내용으로 시작합니다. 저장한 노트는 전 직원에게 공유되며 변경 이력이 기록됩니다.</p></div>`;
 function bindNote(e) { $('#save-note').onclick = async () => { const b = $('#save-note'); b.disabled = true; const ok = await save(e.id, {note: $('#research-note').value}); b.disabled = false; if (ok) toast('리서치 노트를 저장했습니다.'); }; }
 const adminTools = e => isAdmin ? `<button class="button" id="hide-entity">${e.hidden ? '숨김 해제' : '숨기기'}</button>` : '';
 function bindAdminTools(e) { $('#hide-entity')?.addEventListener('click', async () => { const { error } = await SB.rpc('pt_set_hidden', {entity: e.id, value: !e.hidden}); if (error) return toast('변경하지 못했습니다: ' + error.message); await load(); render(); openDetail(e.id);
@@ -307,7 +307,7 @@ function openDetail(id, keep) {
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
-  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${c.id}">그래프에서 보기</button>` : ''}${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 크게 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
+  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${c.id}">그래프에서 보기</button>` : ''}${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 확대해서 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
   bindNote(c); bindAdminTools(c); loadOwnerHistory(c.id); bindRel(byId(c.parentId) || c, c); loadCard(c);
   $('#card-where')?.addEventListener('click', () => cardWhereModal(c));
   $('#link-company').onclick = () => linkModal(c);
@@ -353,17 +353,17 @@ function stageHint(e) {
   for (const x of evOf(e.id)) { const s = x.type === 'reply' && x.outcome !== 'positive' ? null : STAGE_HINT[x.type]; if (x.status === 'confirmed' && s && s > cur && (!best || s > best.s)) best = {s, ev: x}; }
   return best;
 }
-const partsTable = st => !st?.parts?.parts ? '' : `<table class="rl-parts"><thead><tr><th>항목</th><th>비중</th><th>점수</th><th>근거</th></tr></thead><tbody>${st.parts.parts.map(p => `<tr><td>${esc(p.label)}</td><td>${p.weight}</td><td><b>${p.score}</b></td><td>${esc(p.basis)}</td></tr>`).join('')}</tbody></table><p class="rl-note">관계 점수 = 항목 점수 × 비중의 합 ÷ 100 · 기준 ${st.parts.version}판. 사람을 평가하는 점수가 아니라 회사와의 관계 상태입니다.</p>`;
+const partsTable = st => !st?.parts?.parts ? '' : `<table class="rl-parts"><thead><tr><th>항목</th><th>비중</th><th>점수</th><th>근거</th></tr></thead><tbody>${st.parts.parts.map(p => `<tr><td>${esc(p.label)}</td><td>${p.weight}</td><td><b>${p.score}</b></td><td>${esc(p.basis)}</td></tr>`).join('')}</tbody></table><p class="rl-note">관계 점수 = 항목 점수 × 비중의 합 ÷ 100 · 기준 버전 ${st.parts.version}. 사람을 평가하는 점수가 아니라 회사와의 관계 상태입니다.</p>`;
 function relBlock(e) {
   const st = rel.state[e.id], h = stageHint(e), dev = e.depthEvent && rel.events.find(x => x.id === e.depthEvent);
   return `<div class="detail-block rl"><h3>관계</h3><div class="rl-grid">
     <div class="rl-card"><small>관계 단계</small>${stagePill(e.pipeline)}${h && canRel(e) ? `<button type="button" class="rl-hint" data-rl-hint="${h.s}|${h.ev.id}">승격 후보 ${h.s} · ${esc(EV[h.ev.type])} ${dotDate(h.ev.occurred_on)}</button>` : ''}</div>
-    <div class="rl-card"><small>관계 점수</small><b>${st?.rel_score ?? '—'}${st ? '<em>/100</em>' : ''}</b>${st ? '<button type="button" class="text-btn" id="rl-why" aria-expanded="false">왜 이 점수인가</button>' : '<span>접촉 기록이 생기면 계산합니다</span>'}</div>
+    <div class="rl-card"><small>관계 점수</small><b>${st?.rel_score ?? '—'}${st ? '<em>/100</em>' : ''}</b>${st ? '<button type="button" class="text-btn" id="rl-why" aria-expanded="false">점수 산정 근거</button>' : '<span>접촉 기록이 등록되면 산정됩니다</span>'}</div>
     <div class="rl-card"><small>관계 깊이</small><b>${e.contactDepth ? e.contactDepth + '<em>/4</em>' : '—'}</b><span>${e.contactDepth ? esc(DEPTH[e.contactDepth]) + (dev ? '' : ' ' + PILL_NOREL) : '미입력'}${e.ownedIp ? ' <span class="pill good">당사 IP</span>' : ''}</span></div>
     <div class="rl-card"><small>마지막 접촉</small><b class="rl-date">${touchText(st?.last_touch)}</b>${stale(e) ? '<span class="pill warn">장기 미접촉</span>' : ''}</div></div>
     <div id="rl-parts" hidden>${partsTable(st)}</div>
     <div class="detail-row"><span>관계 담당자</span><b>${e.relOwner ? esc(memberName(e.relOwner) || '이름 확인 불가') : '미지정'}</b></div>
-    ${canRel(e) ? `<div class="drawer-actions"><button class="button" type="button" id="rl-stage-btn">단계 변경</button><button class="button" type="button" id="rl-depth-btn">관계 깊이</button><button class="button" type="button" id="rl-owner-btn">${e.relOwner ? '관계 담당자 변경' : '관계 담당자 지정'}</button></div>` : '<p class="rl-note">관계 단계·깊이는 관계 담당자가 정합니다.</p>'}</div>`;
+    ${canRel(e) ? `<div class="drawer-actions"><button class="button" type="button" id="rl-stage-btn">단계 변경</button><button class="button" type="button" id="rl-depth-btn">관계 깊이</button><button class="button" type="button" id="rl-owner-btn">${e.relOwner ? '관계 담당자 변경' : '관계 담당자 지정'}</button></div>` : '<p class="rl-note">관계 단계·깊이는 관계 담당자가 지정합니다.</p>'}</div>`;
 }
 function timelineBlock(list, forContact) {
   const li = x => { const org = forContact && x.entity_id && byId(x.entity_id), mine = x.created_by === me?.id || isAdmin;
@@ -392,7 +392,7 @@ function eventModal({entity, contact}) {
     <label>종류<select id="ev-type">${EV_ADD.map(t => `<option value="${t}">${EV[t]}</option>`).join('')}</select></label>
     <label>날짜<input id="ev-date" type="date" value="${today()}" max="${today()}" required></label>
     ${contact ? '' : `<label>상대 담당자<select id="ev-contact"><option value="">(회사 전체)</option>${people.map(p => `<option value="${p.id}">${esc(p.name)}${p.role ? ' · ' + esc(p.role) : ''}</option>`).join('')}</select></label>`}
-    <label id="ev-via-f" hidden>소개해 준 사람<select id="ev-via"><option value="">(선택)</option>${contacts().filter(p => p.id !== contact?.id).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(p => `<option value="${p.id}">${esc(p.name)}${agencyOf(p) ? ' · ' + esc(agencyOf(p)) : ''}</option>`).join('')}</select></label>
+    <label id="ev-via-f" hidden>소개자<select id="ev-via"><option value="">(선택)</option>${contacts().filter(p => p.id !== contact?.id).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(p => `<option value="${p.id}">${esc(p.name)}${agencyOf(p) ? ' · ' + esc(agencyOf(p)) : ''}</option>`).join('')}</select></label>
     <label id="ev-out-f" hidden>반응<select id="ev-out"><option value="">모름</option><option value="positive">긍정</option><option value="negative">부정·거절</option></select></label>
     <label>내용<textarea id="ev-sum" rows="3" maxlength="500" placeholder="예: KREAM 협업 제안서 메일 발송"></textarea></label>
     <div id="ev-err" class="form-err" role="alert"></div>
@@ -401,7 +401,7 @@ function eventModal({entity, contact}) {
   $('#ev-type').onchange = sync; sync();
   $('#ev-form').onsubmit = async ev => {
     ev.preventDefault(); const t = $('#ev-type').value, sum = $('#ev-sum').value.trim();
-    if (t === 'introduced' && !$('#ev-via').value) { $('#ev-err').textContent = '소개해 준 사람을 골라 주세요.'; return; }
+    if (t === 'introduced' && !$('#ev-via').value) { $('#ev-err').textContent = '소개자를 선택해 주세요.'; return; }
     if (['note', 'dead'].includes(t) && !sum) { $('#ev-err').textContent = '내용을 입력해 주세요.'; return; }
     const row = {entity_id: entity?.id || org?.id || null, contact_id: contact?.id || $('#ev-contact')?.value || null, type: t, occurred_on: $('#ev-date').value || today(), summary: sum, outcome: $('#ev-out-f').hidden ? '' : $('#ev-out').value, via_contact_id: t === 'introduced' ? $('#ev-via').value : null};
     const btn = ev.submitter; if (btn) btn.disabled = true;
@@ -409,31 +409,31 @@ function eventModal({entity, contact}) {
     if (btn) btn.disabled = false;
     if (error) { $('#ev-err').textContent = '저장하지 못했습니다: ' + error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); const back = (contact || entity).id; await relReload(back);
-    toast(`${EV[t]} 기록을 남겼습니다.`, {fn: async () => { const r = await SB.from('pt_rel_event').delete().eq('id', data.id); if (r.error) throw r.error; await relReload(back); toast('실행을 취소했습니다.'); }});
+    toast(`${EV[t]} 기록을 저장했습니다.`, {fn: async () => { const r = await SB.from('pt_rel_event').delete().eq('id', data.id); if (r.error) throw r.error; await relReload(back); toast('실행을 취소했습니다.'); }});
   };
 }
 function stageModal(e, pre) {
   const evs = evOf(e.id).filter(x => x.status === 'confirmed'), cur = e.pipeline || '', sel = pre?.s || cur;
   modal(`<form id="st-form"><h2>관계 단계 변경</h2><p>${esc(e.name)} · 지금 ${cur ? cur + ' ' + STAGE[cur] : '단계 없음'}</p>
     <div class="rl-opts" role="radiogroup" aria-label="관계 단계">${Object.entries(STAGE).map(([k, t]) => `<label class="rl-opt"><input type="radio" name="st" value="${k}" ${k === sel ? 'checked' : ''}><b>${k}</b><span>${t}</span></label>`).join('')}</div>
-    <label>근거 기록 <small>단계를 올릴 때 필요</small><select id="st-ev"><option value="">(선택 안 함)</option>${evs.map(x => `<option value="${x.id}" ${pre?.ev === x.id ? 'selected' : ''}>${dotDate(x.occurred_on)} · ${EV[x.type]}${x.summary ? ' · ' + esc(x.summary.slice(0, 40)) : ''}</option>`).join('')}</select></label>
-    ${evs.length ? '' : '<p class="rl-note">근거로 고를 기록이 없습니다. 상세의 「접촉 기록」으로 먼저 남겨 주세요.</p>'}
+    <label>근거 기록 <small>단계 상향 시 필수</small><select id="st-ev"><option value="">(선택 안 함)</option>${evs.map(x => `<option value="${x.id}" ${pre?.ev === x.id ? 'selected' : ''}>${dotDate(x.occurred_on)} · ${EV[x.type]}${x.summary ? ' · ' + esc(x.summary.slice(0, 40)) : ''}</option>`).join('')}</select></label>
+    ${evs.length ? '' : '<p class="rl-note">근거로 선택할 기록이 없습니다. 상세 화면의 「접촉 기록」에서 먼저 등록해 주세요.</p>'}
     <label>메모<input id="st-note" maxlength="200" placeholder="예: 11/3 미팅에서 하반기 협업 합의"></label><div id="st-err" class="form-err" role="alert"></div>
     <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">단계 변경</button></div></form>`);
   $('#st-form').onsubmit = async ev => {
-    ev.preventDefault(); const to = $('[name=st]:checked')?.value; if (!to) { $('#st-err').textContent = '단계를 골라 주세요.'; return; }
+    ev.preventDefault(); const to = $('[name=st]:checked')?.value; if (!to) { $('#st-err').textContent = '단계를 선택해 주세요.'; return; }
     if (to === cur) { $('#modal').close(); return; }
     const evid = Number($('#st-ev').value) || null;
-    if (to > (cur || 'R0') && !evid) { $('#st-err').textContent = '단계를 올릴 때는 근거 기록을 골라 주세요.'; return; }
+    if (to > (cur || 'R0') && !evid) { $('#st-err').textContent = '단계를 상향할 때는 근거 기록을 선택해 주세요.'; return; }
     const { error } = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: to, p_event: evid, p_note: $('#st-note').value.trim()});
     if (error) { $('#st-err').textContent = error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(`${e.name} 관계 단계를 ${to} ${STAGE[to]}(으)로 바꿨습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: cur || null, p_event: evid, p_note: '실행 취소'}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
+    toast(`${e.name} 관계 단계를 ${to} ${STAGE[to]}(으)로 변경했습니다.`, {fn: async () => { const r = await SB.rpc('pt_set_pipeline', {p_entity: e.id, p_to: cur || null, p_event: evid, p_note: '실행 취소'}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
   };
 }
 function depthModal(e) {
   const evs = evOf(e.id).filter(x => x.status === 'confirmed'), ip = e.type === 'IP·유명인';
-  modal(`<form id="dp-form"><h2>관계 깊이</h2><p>${esc(e.name)}과(와)의 딜을 움직일 수 있는 접점 수준입니다. 근거가 되는 기록을 함께 골라 주세요.</p>
+  modal(`<form id="dp-form"><h2>관계 깊이</h2><p>${esc(e.name)}과(와)의 거래를 진행할 수 있는 접점 수준입니다. 근거가 되는 기록을 함께 선택해 주세요.</p>
     <div class="rl-opts" role="radiogroup" aria-label="관계 깊이"><label class="rl-opt"><input type="radio" name="dp" value="" ${!e.contactDepth ? 'checked' : ''}><b>—</b><span>미입력</span></label>${Object.entries(DEPTH).map(([k, t]) => `<label class="rl-opt"><input type="radio" name="dp" value="${k}" ${String(e.contactDepth) === k ? 'checked' : ''}><b>${k}</b><span>${t}</span></label>`).join('')}</div>
     <label>근거 기록<select id="dp-ev"><option value="">(없음 · 「근거 없음」으로 표시)</option>${evs.map(x => `<option value="${x.id}" ${e.depthEvent === x.id ? 'selected' : ''}>${dotDate(x.occurred_on)} · ${EV[x.type]}${x.summary ? ' · ' + esc(x.summary.slice(0, 40)) : ''}</option>`).join('')}</select></label>
     ${ip ? `<label class="check"><input type="checkbox" id="dp-own" ${e.ownedIp ? 'checked' : ''}> 당사 귀속 IP (예: 《MY FIRST DREAM》) — 최고점·최우선</label>` : ''}
@@ -448,7 +448,7 @@ function depthModal(e) {
 }
 function relOwnerModal(e) {
   const ms = (MEMBERS || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  modal(`<form id="ro-form"><h2>관계 담당자</h2><p>${esc(e.name)}과(와)의 관계를 책임지는 직원입니다. 관계 단계·깊이를 정하고, 오래 연락이 없으면 슬랙으로 알림을 받습니다.</p>
+  modal(`<form id="ro-form"><h2>관계 담당자</h2><p>${esc(e.name)}과(와)의 관계를 책임지는 직원입니다. 관계 단계·깊이를 지정하고, 장기간 연락이 없으면 슬랙 알림을 받습니다.</p>
     <label>직원<select id="ro-sel"><option value="">미지정</option>${ms.map(m => `<option value="${m.id}" ${m.id === e.relOwner ? 'selected' : ''}>${esc(m.name)}${memberSub(m) ? ' · ' + esc(memberSub(m)) : ''}</option>`).join('')}</select></label>
     <div id="ro-err" class="form-err" role="alert"></div>
     <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 담당자 저장</button></div></form>`);
@@ -457,19 +457,19 @@ function relOwnerModal(e) {
     const { error } = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: v});
     if (error) { $('#ro-err').textContent = error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(v ? `관계 담당자를 ${memberName(v)}(으)로 정했습니다.` : '관계 담당자를 비웠습니다.', prev !== v && (!prev || isAdmin || prev === me.id) ? {fn: async () => { const r = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: prev}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
+    toast(v ? `관계 담당자를 ${memberName(v)}(으)로 지정했습니다.` : '관계 담당자 지정을 해제했습니다.', prev !== v && (!prev || isAdmin || prev === me.id) ? {fn: async () => { const r = await SB.rpc('pt_set_rel_owner', {p_entity: e.id, p_member: prev}); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
   };
 }
-// 사람 상세 — 소속(지금·이전) · 접촉 · 명함 받은 곳
+// 사람 상세 — 소속(지금·이전) · 접촉 · 명함 수령 경로
 function personBlock(c) {
   const d = rel.dir[c.id] || {}, past = d.past || [], card = rel.cards[c.id];
   return `<div class="detail-block"><h3>소속 · 접촉</h3>
-    <div class="detail-row"><span>지금 소속</span><b>${esc(d.entity_name || agencyOf(c) || '—')}${c.role ? ` <small>${esc(c.role)}</small>` : ''}</b></div>
+    <div class="detail-row"><span>현 소속</span><b>${esc(d.entity_name || agencyOf(c) || '—')}${c.role ? ` <small>${esc(c.role)}</small>` : ''}</b></div>
     ${past.length ? `<div class="detail-row"><span>이전 소속</span><b>${past.map(p => `${esc(p.name || '')}${p.until ? ` <small>~${esc(dotDate(p.until))}</small>` : ''}`).join('<br>')}</b></div>` : ''}
     <div class="detail-row"><span>첫 접촉</span><b>${d.first_touch ? esc(dotDate(d.first_touch)) : '—'}</b></div>
     <div class="detail-row"><span>마지막 접촉</span><b class="rl-date">${touchText(d.last_touch)}</b></div>
     ${d.pipeline ? `<div class="detail-row"><span>회사 관계 단계</span><b>${stagePill(d.pipeline)}</b></div>` : ''}
-    ${card ? `<div class="detail-row"><span>명함 받은 곳</span><b>${esc(card.received_where || '모름')} <button class="text-btn" type="button" id="card-where">수정</button></b></div>` : ''}</div>`;
+    ${card ? `<div class="detail-row"><span>명함 수령 경로</span><b>${esc(card.received_where || '모름')} <button class="text-btn" type="button" id="card-where">수정</button></b></div>` : ''}</div>`;
 }
 async function loadCard(c) {
   if (!c.cardImg) return; const { data } = await SB.from('pt_card').select('*').eq('contact_id', c.id).order('id', {ascending: false}).limit(1).maybeSingle();
@@ -477,12 +477,12 @@ async function loadCard(c) {
 }
 function cardWhereModal(c) {
   const card = rel.cards[c.id]; if (!card) return;
-  modal(`<form id="cw-form"><h2>명함 받은 곳</h2><p>어디서 누구에게 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다.</p><label>받은 곳<input id="cw-where" maxlength="200" value="${esc(card.received_where)}" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">저장</button></div></form>`);
-  $('#cw-form').onsubmit = async ev => { ev.preventDefault(); const v = $('#cw-where').value.trim(); const { error } = await SB.from('pt_card').update({received_where: v}).eq('id', card.id); if (error) return toast('저장하지 못했습니다: ' + error.message); rel.cards[c.id] = {...card, received_where: v}; $('#modal').dataset.dirty = ''; $('#modal').close(); openDetail(c.id, true); toast('명함 받은 곳을 저장했습니다.'); };
+  modal(`<form id="cw-form"><h2>명함 수령 경로</h2><p>명함을 받은 장소와 전달한 사람을 기록해 두면 이후 관계를 확인하기 쉽습니다.</p><label>수령 경로<input id="cw-where" maxlength="200" value="${esc(card.received_where)}" placeholder="예: 10/22 KREAM 미팅 · 모르면 입력하지 않아도 됩니다"></label><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">저장</button></div></form>`);
+  $('#cw-form').onsubmit = async ev => { ev.preventDefault(); const v = $('#cw-where').value.trim(); const { error } = await SB.from('pt_card').update({received_where: v}).eq('id', card.id); if (error) return toast('저장하지 못했습니다: ' + error.message); rel.cards[c.id] = {...card, received_where: v}; $('#modal').dataset.dirty = ''; $('#modal').close(); openDetail(c.id, true); toast('명함 수령 경로을 저장했습니다.'); };
 }
 
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
-const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 읽기 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별명 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처'};
+const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 인식 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별칭 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
 const reviewCount = () => rel.review.length + hints().length;
 function ipHitSelect(r) {
@@ -497,15 +497,15 @@ function reviewView() {
   const P = r => r.payload || {}, from = r => `<small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 「${esc(P(r).meeting || '')}」</small>`;
   const card = r => ['wiki', 'distill'].includes(r.kind) ? wikiCard(r) : r.kind === 'meeting' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).org || r.title)}</b>${from(r)}${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}${P(r).evidence ? `<small>근거: ${esc(P(r).evidence)}</small>` : ''}</div><span class="rq-acts"><select class="table-select" data-rq-ent="${r.id}" aria-label="연결할 회사"><option value="">연결할 회사 선택</option>${companyOptions(r.target_id, [P(r).org, r.title])}</select><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-link="${r.id}">타임라인에 연결</button></span></li>`
     : r.kind === 'ip_candidate' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).name || r.title)}</b>${P(r).name_en && P(r).name_en !== P(r).name ? ` <span>${esc(P(r).name_en)}</span>` : ''} <span class="pill">${esc(IPK[P(r).kind] || '')}</span><small>IP 차트 ${P(r).chart === 'new' ? '신규' : '전체'} ${esc(P(r).rank)}위${P(r).owner ? ' · ' + esc(P(r).owner) : ''}${P(r).holder_entity_id && byId(P(r).holder_entity_id) ? ' · 권리사 ' + esc(byId(P(r).holder_entity_id).name) : ''}</small>${P(r).summary ? `<small>${esc(P(r).summary)}</small>` : ''}</div><span class="rq-acts">${ipHitSelect(r)}<button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-ip="${r.id}">반영</button></span></li>`
-    : r.kind === 'auto' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).meeting || r.title)}</b><small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 · ${esc(P(r).by || '')} 님이 올린 미팅에서 새로 등록했습니다. 잘못 들어간 것은 숨겨 주세요.</small><ul class="rq-auto">${(P(r).created || []).map(c => { const e = byId(c.id); return `<li>${e ? `<button class="text-btn" type="button" data-detail="${esc(c.id)}">${esc(e.name)}</button>` : `<s>${esc(c.name)}</s>`} <span class="pill">${esc(c.kind)}</span>${e && isAdmin ? ` <button class="rq-hide" type="button" data-auto-hide="${esc(c.id)}" aria-label="${esc(e.name)} 숨기기">숨기기</button>` : ''}</li>`; }).join('')}</ul></div><span class="rq-acts"><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`
+    : r.kind === 'auto' ? `<li class="rq-item rq-wide"><div><b>${esc(P(r).meeting || r.title)}</b><small>${esc(dotDate(P(r).held_on))} 헤임달 미팅 · ${esc(P(r).by || '')} 님이 업로드한 미팅에서 새로 등록했습니다. 잘못 등록된 항목은 숨김 처리해 주세요.</small><ul class="rq-auto">${(P(r).created || []).map(c => { const e = byId(c.id); return `<li>${e ? `<button class="text-btn" type="button" data-detail="${esc(c.id)}">${esc(e.name)}</button>` : `<s>${esc(c.name)}</s>`} <span class="pill">${esc(c.kind)}</span>${e && isAdmin ? ` <button class="rq-hide" type="button" data-auto-hide="${esc(c.id)}" aria-label="${esc(e.name)} 숨기기">숨기기</button>` : ''}</li>`; }).join('')}</ul></div><span class="rq-acts"><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`
     : r.kind === 'mail' ? `<li class="rq-item rq-wide rq-mail"><div><b>${esc(P(r).company || r.title)}</b> <span>@${esc(P(r).domain || r.title)}</span><small>직원들이 보낸 메일 ${esc(P(r).total || 0)}통 · 마지막 ${esc(dotDate(P(r).last))}</small>
         <div class="rq-mail-org"><select class="table-select" data-mail-ent="${r.id}" aria-label="회사"><option value="">새 회사로 등록</option>${companyOptions(r.target_id, [P(r).company, P(r).domain])}</select><input class="table-select" data-mail-name="${r.id}" value="${esc(P(r).company || '')}" aria-label="새 회사 이름" ${r.target_id ? 'hidden' : ''}></div>
         <ul class="rq-mail-people">${(P(r).people || []).map((x, i) => `<li><label><input type="checkbox" data-mail-p="${r.id}|${i}" checked> <input class="rq-mail-nm" data-mail-nm="${r.id}|${i}" value="${esc(x.name || '')}" placeholder="이름" aria-label="이름"></label><span>${esc(x.email)}</span><small>${esc(x.count)}통 · ${esc(dotDate(x.last))} · ${esc((x.staff || []).join(', '))}</small></li>`).join('')}</ul></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-mail-go="${r.id}">선택한 담당자 등록</button></span></li>`
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
-  return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인하거나 제외한 항목은 목록에서 빠지고 기록에 남습니다.</div>
-    <section class="panel"><div class="panel-head"><div class="panel-title">관계 단계 승격 후보 <small>${hs.length}건</small></div></div>${hs.length ? `<ul class="rq-list">${hs.map(({e, h}) => `<li class="rq-item"><div><b>${esc(e.name)}</b> ${stagePill(e.pipeline)} → <span class="rl-stage s-${h.s}">${h.s} · ${STAGE[h.s]}</span><small>근거: ${esc(dotDate(h.ev.occurred_on))} ${esc(EV[h.ev.type])}${h.ev.summary ? ' · ' + esc(h.ev.summary.slice(0, 60)) : ''}</small></div><span class="rq-acts"><button class="button" type="button" data-detail="${e.id}">상세</button><button class="button primary" type="button" data-rq-stage="${e.id}|${h.s}|${h.ev.id}">단계 올리기</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>승격 후보가 없습니다. 접촉 기록이 쌓이면 시스템이 후보를 찾습니다.</p></div>'}</section>
-    <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${Object.keys(byKind).length > 1 ? `<div class="rq-kinds" role="group" aria-label="종류별로 보기"><button type="button" class="tab ${!byKind[rqKind] ? 'active' : ''}" data-rq-kind="" aria-pressed="${!byKind[rqKind]}">전체 ${rel.review.length}</button>${Object.keys(byKind).map(k => `<button type="button" class="tab ${rqKind === k ? 'active' : ''}" data-rq-kind="${k}" aria-pressed="${rqKind === k}">${esc(RQ[k] || k)} ${byKind[k].length}</button>`).join('')}</div>` : ''}${rel.review.length ? Object.keys(byKind).filter(k => !byKind[rqKind] || k === rqKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 여기에 쌓입니다.</p></div>'}</section>`;
+  return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인 또는 제외한 항목은 목록에서 사라지고 이력에 기록됩니다.</div>
+    <section class="panel"><div class="panel-head"><div class="panel-title">관계 단계 승격 후보 <small>${hs.length}건</small></div></div>${hs.length ? `<ul class="rq-list">${hs.map(({e, h}) => `<li class="rq-item"><div><b>${esc(e.name)}</b> ${stagePill(e.pipeline)} → <span class="rl-stage s-${h.s}">${h.s} · ${STAGE[h.s]}</span><small>근거: ${esc(dotDate(h.ev.occurred_on))} ${esc(EV[h.ev.type])}${h.ev.summary ? ' · ' + esc(h.ev.summary.slice(0, 60)) : ''}</small></div><span class="rq-acts"><button class="button" type="button" data-detail="${e.id}">상세</button><button class="button primary" type="button" data-rq-stage="${e.id}|${h.s}|${h.ev.id}">단계 상향</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>승격 후보가 없습니다. 접촉 기록이 누적되면 시스템이 후보를 찾습니다.</p></div>'}</section>
+    <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${Object.keys(byKind).length > 1 ? `<div class="rq-kinds" role="group" aria-label="종류별로 보기"><button type="button" class="tab ${!byKind[rqKind] ? 'active' : ''}" data-rq-kind="" aria-pressed="${!byKind[rqKind]}">전체 ${rel.review.length}</button>${Object.keys(byKind).map(k => `<button type="button" class="tab ${rqKind === k ? 'active' : ''}" data-rq-kind="${k}" aria-pressed="${rqKind === k}">${esc(RQ[k] || k)} ${byKind[k].length}</button>`).join('')}</div>` : ''}${rel.review.length ? Object.keys(byKind).filter(k => !byKind[rqKind] || k === rqKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 이곳에 표시됩니다.</p></div>'}</section>`;
 }
 function bindReview() {
   $$('[data-rq-kind]').forEach(b => b.onclick = () => { rqKind = b.dataset.rqKind; render(); });
@@ -548,7 +548,7 @@ function bindReview() {
   });
   $$('[data-rq-link]').forEach(b => b.onclick = async () => {
     const id = Number(b.dataset.rqLink), ent = $(`[data-rq-ent="${id}"]`)?.value;
-    if (!ent) return toast('연결할 회사를 골라 주세요. 목록에 없으면 엔티티로 먼저 등록해 주세요.');
+    if (!ent) return toast('연결할 회사를 선택해 주세요. 목록에 없으면 엔티티로 먼저 등록해 주세요.');
     b.disabled = true;
     const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
     if (error) { b.disabled = false; return toast('연결하지 못했습니다: ' + error.message); }
@@ -561,7 +561,7 @@ function bindReview() {
     const { error } = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'approved', p_note: '', p_entity: ent});
     if (error) { b.disabled = false; return toast('반영하지 못했습니다: ' + error.message); }
     await Promise.all([load(), loadRel()]); src.d = null; render();
-    toast(ent ? `${byId(ent)?.name || 'IP'}에 IP 차트를 연결했습니다.` : `${r?.payload?.name || 'IP'}를 엔티티로 등록했습니다. 소싱 「IP 스코어」에 나옵니다.`, {fn: async () => { const x = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (x.error) throw x.error; await Promise.all([load(), loadRel()]); src.d = null; render(); toast('연결을 취소했습니다. 새로 만든 엔티티는 엔티티 화면에서 숨길 수 있습니다.'); }});
+    toast(ent ? `${byId(ent)?.name || 'IP'}에 IP 차트를 연결했습니다.` : `${r?.payload?.name || 'IP'}를 엔티티로 등록했습니다. 소싱 「IP 스코어」에 표시됩니다.`, {fn: async () => { const x = await SB.rpc('pt_review_decide', {p_id: id, p_status: 'pending', p_note: ''}); if (x.error) throw x.error; await Promise.all([load(), loadRel()]); src.d = null; render(); toast('연결을 취소했습니다. 새로 등록한 엔티티는 엔티티 화면에서 숨길 수 있습니다.'); }});
   });
   $$('[data-rq-person]').forEach(b => b.onclick = () => {
     const r = rel.review.find(x => String(x.id) === b.dataset.rqPerson); if (!r) return; const p = r.payload || {};
@@ -699,7 +699,7 @@ function entityModal(e) {
 function kidsInput(host, e) {
   const orig = e ? kidsOf(e).map(k => k.id) : [];
   let rows = e ? kidsOf(e).map(k => ({id: k.id, name: k.name, en: k.en, type: k.type})) : [];
-  host.innerHTML = `<div class="kid-list"></div><div class="kid-add"><select id="kid-type" aria-label="유형">${KID_TYPES.map(t => `<option>${t}</option>`).join('')}</select><input id="kid-name" maxlength="50" placeholder="한글 이름"><input id="kid-en" maxlength="80" placeholder="영문 이름"><button type="button" class="button" id="kid-add">추가</button></div><small class="atnote">예) 브랜드 · 내셔널지오그래픽 어패럴 · NATIONAL GEOGRAPHIC APPAREL — 이미 등록된 엔티티는 그대로 연결하고, 없으면 저장할 때 새로 등록합니다. 왼쪽 상자를 누르면 로고 이미지를 등록할 수 있습니다(정사각형 500×500px 이상 권장).</small>`;
+  host.innerHTML = `<div class="kid-list"></div><div class="kid-add"><select id="kid-type" aria-label="유형">${KID_TYPES.map(t => `<option>${t}</option>`).join('')}</select><input id="kid-name" maxlength="50" placeholder="한글 이름"><input id="kid-en" maxlength="80" placeholder="영문 이름"><button type="button" class="button" id="kid-add">추가</button></div><small class="atnote">예) 브랜드 · 내셔널지오그래픽 어패럴 · NATIONAL GEOGRAPHIC APPAREL — 이미 등록된 엔티티는 그대로 연결하고, 없으면 저장할 때 새로 등록합니다. 왼쪽 이미지 영역을 클릭하면 로고 이미지를 등록할 수 있습니다(정사각형 500×500px 이상 권장).</small>`;
   const list = host.querySelector('.kid-list');
   const draw = () => {
     list.innerHTML = rows.map((r, i) => { const cur = r.id && byId(r.id);
@@ -769,8 +769,8 @@ async function waitAsk(id, onTick, limitSec = 120) {
 }
 /* ---------- 사용 매뉴얼 (11-03 홍석진 대표님 「궁니르 쓰는 법 매뉴얼 … hr 시스템에 올린 거 참조 … 이그드라실도 같이」) ----------
    본문은 web/manual/<앱>.md → build_web.py 가 manual.md 로 함께 올린다. 「매뉴얼에 물어보기」는 pt_ask(kind manual_<앱>) → 궁니르 봇이 매뉴얼 내용으로만 답 */
-const MAN_EX = APP === 'gungnir' ? ['파트너 추천이 마음에 안 들어요', '작업 취소를 잘못 눌렀어요', '수신사를 바꾸고 싶어요', '제안서를 PPTX로 받을 수 있나요?']
-  : ['비밀번호를 잊었어요', '명함으로 연락처 등록하는 법', '관계 단계는 누가 바꾸나요?', '헤임달 미팅은 어떻게 들어오나요?'];
+const MAN_EX = APP === 'gungnir' ? ['파트너 추천을 다시 받고 싶습니다', '작업 취소를 잘못 눌렀습니다', '수신사를 변경하고 싶습니다', '제안서를 PPTX로 받을 수 있나요?']
+  : ['비밀번호를 잊어버렸습니다', '명함으로 연락처를 등록하는 방법', '관계 단계는 누가 변경하나요?', '헤임달 미팅은 어떻게 연동되나요?'];
 const man = {md: '', err: '', answer: '', busy: false};
 const mdInline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 function manDoc(md) {
@@ -811,7 +811,7 @@ function manDoc(md) {
 }
 function manualView() {
   const d = manDoc(man.md);
-  const ask = `<section class="panel ask-panel man-ask"><div class="panel-head"><div><div class="panel-title">매뉴얼에 물어보기</div><p class="panel-caption">매뉴얼 내용으로만 답합니다. ${APP === 'gungnir' ? '제안서·IP 정보' : '회사·담당자 정보'} 같은 실제 데이터는 해당 메뉴에서 확인하세요.</p></div></div>
+  const ask = `<section class="panel ask-panel man-ask"><div class="panel-head"><div><div class="panel-title">매뉴얼에 물어보기</div><p class="panel-caption">매뉴얼 내용으로만 답합니다. ${APP === 'gungnir' ? '제안서·IP 정보' : '회사·담당자 정보'} 등 실제 데이터는 해당 메뉴에서 확인해 주세요.</p></div></div>
     <div class="ask-body"><div class="ask-row"><input id="man-q" type="search" autocomplete="off" placeholder="예: ${esc(MAN_EX[0])}"><button class="button primary" id="man-go" type="button" ${man.busy ? 'disabled' : ''}>질문</button></div>
     <div class="ask-examples">${MAN_EX.map(x => `<button type="button" data-man-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div>
     <div class="ask-answer" id="man-answer" ${man.answer ? '' : 'hidden'}>${man.answer}</div></div></section>`;
@@ -842,7 +842,7 @@ async function manAsk() {
   const q = $('#man-q').value.trim(); if (!q || man.busy) return;
   const head = `<p class="muted">질문: ${esc(q)}</p>`, put = h => { const o = $('#man-answer'); if (o) { o.hidden = false; o.innerHTML = h; } };   // 그사이 화면이 다시 그려져도 지금 칸에
   man.busy = true; $('#man-go').disabled = true;
-  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 궁니르 봇에 전달했습니다' : '궁니르 봇이 매뉴얼에서 답을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+  const step = pc => `${head}<div class="ref-prog wide"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${pc < 30 ? '질문을 궁니르 봇에 전달했습니다' : '궁니르 봇이 매뉴얼에서 답변을 찾고 있습니다'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
   put(step(5));
   try {
     const { data, error } = await SB.from('pt_ask').insert({kind: 'manual_' + APP, question: q}).select('id').single();
@@ -882,7 +882,7 @@ function graphData() {
     if ((ended && !S.ended) || (S.sourced && !r.source_url)) continue;
     add(r.subject_id, r.object_id, 'rel', VERB[r.verb] || r.verb, {ended, src: r.source_url || ''});
   }
-  if (graph.focus && ids.has(graph.focus)) {   // 이 점 기준으로 보기 — 1·2단계 이웃만
+  if (graph.focus && ids.has(graph.focus)) {   // 이 항목 기준으로 보기 — 1·2단계 이웃만
     const keep = new Set([graph.focus]); let edge = [graph.focus];
     for (let d = 0; d < S.depth; d++) { const nx = []; for (const l of links) for (const [a, b] of [[l.source, l.target], [l.target, l.source]]) if (edge.includes(a) && !keep.has(b)) { keep.add(b); nx.push(b); } edge = nx; }
     nodes = nodes.filter(e => keep.has(e.id)); ids = keep;
@@ -898,29 +898,29 @@ function graphView() {
   const chk = (k, label) => `<label class="g-chk"><input type="checkbox" data-gset="${k}" ${S[k] ? 'checked' : ''}> ${label}</label>`;
   const rng = (k, label, min, max, step) => `<label class="g-rng"><span>${label}</span><input type="range" data-grng="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></label>`;
   return `<div class="g-wrap"><section class="panel g-main">
-    <div class="g-bar"><div class="g-search">${icon('search')}<input id="g-q" type="search" list="g-names" placeholder="이름·별칭으로 찾기" aria-label="그래프에서 찾기" autocomplete="off"><datalist id="g-names">${all.filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist></div>
+    <div class="g-bar"><div class="g-search">${icon('search')}<input id="g-q" type="search" list="g-names" placeholder="이름·별칭 검색" aria-label="그래프에서 검색" autocomplete="off"><datalist id="g-names">${all.filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist></div>
       <span class="g-count" id="g-count"></span>
       <span id="g-focus"></span></div>
-    <div id="g-canvas" class="g-canvas" role="img" aria-label="엔티티·담당자 관계 그래프"><div class="g-loading">그래프를 그리는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></div></div>
-    <div class="g-legend" role="group" aria-label="종류별 켜고 끄기">${G_TYPES.map(t => `<button type="button" class="g-lg${S.offTypes.includes(t) ? ' off' : ''}" data-gtype="${esc(t)}" aria-pressed="${!S.offTypes.includes(t)}"><i style="background:${G_COLOR[t]}"></i>${esc(t)} <small>${cnt(t)}</small></button>`).join('')}</div>
+    <div id="g-canvas" class="g-canvas" role="img" aria-label="엔티티·담당자 관계 그래프"><div class="g-loading">그래프를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></div></div>
+    <div class="g-legend" role="group" aria-label="유형별 표시">${G_TYPES.map(t => `<button type="button" class="g-lg${S.offTypes.includes(t) ? ' off' : ''}" data-gtype="${esc(t)}" aria-pressed="${!S.offTypes.includes(t)}"><i style="background:${G_COLOR[t]}"></i>${esc(t)} <small>${cnt(t)}</small></button>`).join('')}</div>
   </section>
   <aside class="g-side">
     <section class="panel g-detail" id="g-detail"></section>
     <section class="panel g-set"><details ${isPhone() ? '' : 'open'}><summary>필터</summary>
       <div class="g-sub">선 종류</div>${Object.entries(G_EDGE).map(([k, t]) => `<label class="g-chk"><input type="checkbox" data-gedge="${k}" ${S.offEdges.includes(k) ? '' : 'checked'}> <i class="g-ln g-ln-${k}"></i>${t}</label>`).join('')}
-      <div class="g-sub">보기</div>${chk('contacts', '담당자 보이기')}${chk('orphans', '연결 없는 점 보이기')}${chk('ended', '끝난 관계 포함')}${chk('sourced', '출처 있는 관계만')}
+      <div class="g-sub">보기</div>${chk('contacts', '담당자 표시')}${chk('orphans', '연결 없는 항목 표시')}${chk('ended', '종료된 관계 포함')}${chk('sourced', '출처 있는 관계만')}
     </details>
-    <details><summary>표시 · 힘 조절</summary>
-      ${chk('labels', '이름 보이기')}${chk('arrows', '방향 화살표')}${rng('fade', '이름이 보이는 확대 배율', 0.4, 4, 0.2)}
-      ${rng('repel', '밀어내는 힘', 10, 200, 5)}${rng('dist', '선 길이', 10, 150, 5)}${rng('link', '당기는 힘', 0.05, 1, 0.05)}
-      <div class="drawer-actions"><button class="button" type="button" id="g-reheat">다시 배치</button><button class="text-btn" type="button" id="g-reset">설정 초기화</button></div>
+    <details><summary>표시 · 배치 설정</summary>
+      ${chk('labels', '이름 표시')}${chk('arrows', '방향 화살표')}${rng('fade', '이름 표시 배율', 0.4, 4, 0.2)}
+      ${rng('repel', '반발력', 10, 200, 5)}${rng('dist', '선 길이', 10, 150, 5)}${rng('link', '연결 강도', 0.05, 1, 0.05)}
+      <div class="drawer-actions"><button class="button" type="button" id="g-reheat">재배치</button><button class="text-btn" type="button" id="g-reset">설정 초기화</button></div>
     </details></section>
   </aside></div>`;
 }
 function gDetail() {
   const box = $('#g-detail'); if (!box) return;
   const e = graph.sel && byId(graph.sel);
-  if (!e) { box.innerHTML = `<div class="empty"><p>점을 누르면 연결된 회사·IP·담당자가 여기에 나옵니다.</p><p class="muted">큰 점일수록 연결이 많습니다. 끌어서 옮기고, 휠·두 손가락으로 확대합니다.</p></div>`; return; }
+  if (!e) { box.innerHTML = `<div class="empty"><p>항목을 클릭하면 연결된 회사·IP·담당자가 이곳에 표시됩니다.</p><p class="muted">원이 클수록 연결이 많은 항목입니다. 드래그해 이동하고, 마우스 휠이나 두 손가락으로 확대·축소할 수 있습니다.</p></div>`; return; }
   const data = graph.fg ? graph.fg.graphData() : {links: []};
   const rows = data.links.filter(l => (l.source.id || l.source) === e.id || (l.target.id || l.target) === e.id).map(l => {
     const out = (l.source.id || l.source) === e.id, other = byId(out ? (l.target.id || l.target) : (l.source.id || l.source));
@@ -932,8 +932,8 @@ function gDetail() {
     : [['종류', e.type], e.en ? ['영문', e.en] : null, e.aliases.length ? ['별칭', e.aliases.slice(0, 6).join(', ')] : null, ['연결', `${rows.length}개`]].filter(Boolean);
   box.innerHTML = `<div class="g-dh"><i style="background:${G_COLOR[e.type]}"></i><div><b>${esc(e.name)}</b><small>${esc(e.type)}</small></div></div>
     ${info.map(([k, v]) => `<div class="detail-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}
-    <div class="drawer-actions"><button class="button primary" type="button" data-detail="${e.id}">상세 보기</button>${graph.focus === e.id ? '' : `<button class="button" type="button" id="g-focus-go">이 점 기준으로 보기</button>`}</div>
-    ${rows.length ? `<ul class="g-nb">${rows.map(r => `<li><button type="button" data-gsel="${r.other.id}"><i style="background:${G_COLOR[r.other.type]}"></i><span>${esc(r.other.name)}</span><small>${esc(r.txt)}${r.l.ended ? ' · 끝남' : ''}</small></button>${r.l.src ? `<a href="${esc(r.l.src)}" target="_blank" rel="noopener" title="출처">출처</a>` : ''}</li>`).join('')}</ul>` : '<p class="muted">연결된 점이 없습니다. 상세 보기에서 소속 회사나 관계를 추가하면 이어집니다.</p>'}`;
+    <div class="drawer-actions"><button class="button primary" type="button" data-detail="${e.id}">상세 보기</button>${graph.focus === e.id ? '' : `<button class="button" type="button" id="g-focus-go">이 항목 기준으로 보기</button>`}</div>
+    ${rows.length ? `<ul class="g-nb">${rows.map(r => `<li><button type="button" data-gsel="${r.other.id}"><i style="background:${G_COLOR[r.other.type]}"></i><span>${esc(r.other.name)}</span><small>${esc(r.txt)}${r.l.ended ? ' · 끝남' : ''}</small></button>${r.l.src ? `<a href="${esc(r.l.src)}" target="_blank" rel="noopener" title="출처">출처</a>` : ''}</li>`).join('')}</ul>` : '<p class="muted">연결된 항목이 없습니다. 상세 화면에서 소속 회사나 관계를 추가하면 연결됩니다.</p>'}`;
   $$('#g-detail [data-detail]').forEach(b => b.onclick = () => openDetail(b.dataset.detail));
   $$('#g-detail [data-gsel]').forEach(b => b.onclick = () => gSelect(b.dataset.gsel, true));
   const f = $('#g-focus-go'); if (f) f.onclick = () => { graph.focus = e.id; gRefresh(true); };
@@ -948,7 +948,7 @@ function gFocusChip() {
 }
 // 그래프 주소 공유 (11-03 · PRD E-07) — #graph/<기준 점>/<단계>. 상세의 「그래프에서 보기」와 슬랙에 붙인 링크가 여기로 온다
 function graphGo(id) {
-  const e = byId(id); if (!e) return toast('그래프에서 찾지 못했습니다.');
+  const e = byId(id); if (!e) return toast('그래프에 해당 항목이 없습니다.');
   const d = Number(location.hash.split('/')[2]); if (d === 1 || d === 2) graph.set.depth = d;
   if (graph.set.offTypes.includes(e.type)) graph.set.offTypes = graph.set.offTypes.filter(t => t !== e.type);
   if (isContact(e)) graph.set.contacts = true;
@@ -1013,7 +1013,7 @@ async function graphMount() {
   const ro = new ResizeObserver(() => { if (graph.fg === fg && el.isConnected) fg.width(el.clientWidth).height(el.clientHeight); else ro.disconnect(); }); ro.observe(el);
   // 찾기 — 이름·영문·별칭
   const q = $('#g-q'), find = v => { const s = normCo(v); if (!s) return null; const hits = all.filter(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x) === s)); return hits[0] || all.find(e => !e.hidden && [e.name, e.en, ...e.aliases].some(x => x && normCo(x).includes(s))); };
-  const goFind = () => { const e = find(q.value); if (!e) return toast('그래프에서 찾지 못했습니다.'); if (!fg.graphData().nodes.some(n => n.id === e.id)) { graph.focus = null; if (graph.set.offTypes.includes(e.type)) graph.set.offTypes = graph.set.offTypes.filter(t => t !== e.type); if (isContact(e)) graph.set.contacts = true; graph.set.orphans = true; gSave(); gRefresh(); render(); return setTimeout(() => gSelect(e.id, true), 1200); } gSelect(e.id, true); };
+  const goFind = () => { const e = find(q.value); if (!e) return toast('그래프에 해당 항목이 없습니다.'); if (!fg.graphData().nodes.some(n => n.id === e.id)) { graph.focus = null; if (graph.set.offTypes.includes(e.type)) graph.set.offTypes = graph.set.offTypes.filter(t => t !== e.type); if (isContact(e)) graph.set.contacts = true; graph.set.orphans = true; gSave(); gRefresh(); render(); return setTimeout(() => gSelect(e.id, true), 1200); } gSelect(e.id, true); };
   q.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); goFind(); } };
   q.onchange = () => { if ([...$('#g-names').options].some(o => o.value === q.value)) goFind(); };
   $$('[data-gtype]').forEach(b => b.onclick = () => { const t = b.dataset.gtype, off = graph.set.offTypes; graph.set.offTypes = off.includes(t) ? off.filter(x => x !== t) : [...off, t]; b.classList.toggle('off'); b.setAttribute('aria-pressed', !graph.set.offTypes.includes(t)); gSave(); gRefresh(); });
@@ -1061,7 +1061,7 @@ function rmGroup(people) {
 }
 function rememberModal() {
   modal(`<form id="rm-form" class="rm-modal"><h2>리멤버에서 가져오기</h2>
-    <p>리멤버 앱 <b>설정 → 명함 내보내기</b>에서 엑셀 파일을 메일로 받은 뒤 여기에 올려 주세요. 회사별로 묶어 보여 드리고, 고른 사람만 주소록에 등록합니다. 이미 있는 연락처와 그룹사 명함은 빼 둡니다.</p>
+    <p>리멤버 앱 <b>설정 → 명함 내보내기</b>에서 엑셀 파일을 메일로 받은 뒤 이곳에 업로드해 주세요. 회사별로 정리해 보여 드리며, 선택한 사람만 주소록에 등록합니다. 이미 등록된 연락처와 그룹사 명함은 제외합니다.</p>
     <label>엑셀 파일 (xls · xlsx · csv)<input type="file" id="rm-file" accept=".xls,.xlsx,.csv"></label>
     <div id="rm-prog-wrap"></div><div id="rm-body"></div><div id="rm-error" style="color:#ba775e;margin-top:8px;font-size:12px" role="alert"></div>
     <div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="submit" id="rm-go" disabled>등록</button></div></form>`);
@@ -1071,7 +1071,7 @@ function rememberModal() {
     body.innerHTML = `<p class="rm-sum">명함 ${total}장 · 회사 ${rm.groups.length}곳 · 등록할 사람 <b>${n}명</b></p><div class="rm-list">${rm.groups.map((g, gi) => `<section class="rm-g${g.internal ? ' internal' : ''}">
       <div class="rm-gh"><b>${esc(g.company || '회사 없음')}</b>${g.internal ? ' <span class="pill">그룹사·내부</span>' : ''}
       <select class="table-select" data-rm-org="${gi}" aria-label="${esc(g.company || '회사 없음')} 연결할 회사"><option value="">${g.company ? '새 회사로 등록' : '회사 없이 등록'}</option>${companyOptions(g.orgId, [g.company])}</select></div>
-      <ul>${g.people.map((p, pi) => `<li><label><input type="checkbox" data-rm-p="${gi}|${pi}" ${p.on ? 'checked' : ''} ${p.dup ? 'disabled' : ''}> <b>${esc(p.name)}</b> <span>${esc([p.dept, p.title].filter(Boolean).join(' '))}</span></label><small>${esc(p.email || p.mobile || p.phone || '')}${p.dup ? ' · 이미 주소록에 있음' : ''}</small></li>`).join('')}</ul></section>`).join('')}</div>`;
+      <ul>${g.people.map((p, pi) => `<li><label><input type="checkbox" data-rm-p="${gi}|${pi}" ${p.on ? 'checked' : ''} ${p.dup ? 'disabled' : ''}> <b>${esc(p.name)}</b> <span>${esc([p.dept, p.title].filter(Boolean).join(' '))}</span></label><small>${esc(p.email || p.mobile || p.phone || '')}${p.dup ? ' · 주소록 등록됨' : ''}</small></li>`).join('')}</ul></section>`).join('')}</div>`;
     goBtn.disabled = !n; goBtn.textContent = n ? `${n}명 등록` : '등록';
     $$('[data-rm-p]').forEach(c => c.onchange = () => { const [gi, pi] = c.dataset.rmP.split('|').map(Number); rm.groups[gi].people[pi].on = c.checked; draw(); });
     $$('[data-rm-org]').forEach(sl => sl.onchange = () => { rm.groups[Number(sl.dataset.rmOrg)].orgId = sl.value; });
@@ -1118,7 +1118,7 @@ function rememberModal() {
 }
 function contactModal(pre = {}) {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
-  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 궁니르 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 받은 곳<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 비워 두세요"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
+  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 궁니르 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 수령 경로<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 입력하지 않아도 됩니다"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
   if (pre.name) { [['c-name', pre.name], ['c-title', pre.role], ['c-company', pre.company], ['c-where', pre.where]].forEach(([id, v]) => { if (v) $('#' + id).value = v; }); const m = (pre.orgId && byId(pre.orgId)) || (pre.company && matchCompany(pre.company)); if (m) $('#c-org').value = m.id; else if (pre.company) $('#c-org').value = '__new'; }
   let cardPath = '';
   const setStatus = s => $('#c-status').textContent = s;
@@ -1151,7 +1151,7 @@ function contactModal(pre = {}) {
     const dup = contacts().find(x => (email && x.points.some(p => p.toLowerCase() === email.toLowerCase())) || (x.name === name && (!org || x.parentId === org.id)));
     if (dup && !$('#contact-form').dataset.dupOk) { $('#c-error').innerHTML = `동일 인물로 보이는 연락처가 이미 있습니다: <b>${esc(dup.name)}</b>${agencyOf(dup) ? ' (' + esc(agencyOf(dup)) + ')' : ''}. 그래도 등록하려면 「연락처 등록」을 한 번 더 눌러 주세요.`; $('#contact-form').dataset.dupOk = '1'; return; }
     if (cardPath && !g('c-where') && !$('#contact-form').dataset.whereOk) {
-      const v = await confirmBox({title: '명함을 받은 곳을 적을까요?', body: '어디서 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다. 모르면 그대로 저장해도 됩니다.', ok: '모름으로 저장', cancel: '받은 곳 적기'});
+      const v = await confirmBox({title: '명함을 수령 경로을 적을까요?', body: '어디서 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다. 모르면 그대로 저장해도 됩니다.', ok: '모름으로 저장', cancel: '수령 경로 적기'});
       if (v !== true) { $('#c-where').focus(); return; }
       $('#contact-form').dataset.whereOk = '1';
     }
@@ -1210,7 +1210,7 @@ const VERB = {collaborates: '협업', licenses: '라이선스 제공', launches:
 const wikiOf = id => rel.wiki?.[id];
 const relsOf = id => (rel.relations || []).filter(r => r.subject_id === id || r.object_id === id);
 const canWiki = e => !!e && canRel(e);
-const WIKI_TPL = '## 개요\n\n## 협업 이력\n\n## 알아 둘 점\n';
+const WIKI_TPL = '## 개요\n\n## 협업 이력\n\n## 참고 사항\n';
 function mdHtml(md) {
   let html = '', inList = false;
   for (const raw of String(md || '').split(/\n/)) {
@@ -1232,7 +1232,7 @@ function wikiBlock(e) {
   const w = wikiOf(e.id), pend = rel.review.filter(r => ['wiki', 'distill'].includes(r.kind) && r.target_id === e.id).length;
   return `<div class="detail-block kn-wiki"><div class="rl-head"><h3>위키 ${w ? `<small>${w.version}판 · ${esc(ymd(w.updated_at))}${w.updated_via === 'distill' ? ' · 지식 정리' : ''}</small>` : ''}${w?.confidentiality === 'restricted' ? ' <span class="pill warn">관계 담당자만 열람</span>' : ''}</h3><button class="button" type="button" id="wiki-edit">${icon('plus')} ${w ? '위키 수정' : '위키 작성'}</button></div>
     ${pend ? `<p class="rl-note">검토 중인 수정 ${pend}건 · <button class="text-btn" type="button" id="wiki-pend">확인 대기에서 보기</button></p>` : ''}
-    ${w ? `<div class="kn-md">${mdHtml(w.md)}</div>${srcList(w.sources)}` : '<p>아직 위키가 없습니다. 이 거래처와 함께한 일·알아 둘 점을 정리해 두면 질문 답변의 근거로 쓰입니다.</p>'}</div>`;
+    ${w ? `<div class="kn-md">${mdHtml(w.md)}</div>${srcList(w.sources)}` : '<p>등록된 위키가 없습니다. 이 거래처와의 협업 이력과 참고 사항을 정리해 두면 질문 답변의 근거로 활용됩니다.</p>'}</div>`;
 }
 function relationsBlock(e) {
   const rs = relsOf(e.id), who = id => id === e.id ? `<b>${esc(e.name)}</b>` : `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
@@ -1245,25 +1245,25 @@ function parseSources(text) {
 }
 function wikiModal(e) {
   const w = wikiOf(e.id), own = canWiki(e);
-  modal(`<form id="wk-form" class="kn-form"><h2>${esc(e.name)} 위키 ${w ? '수정' : '작성'}</h2><p>${own ? '저장하면 바로 위키에 반영됩니다. 바뀐 내용은 판 기록으로 남습니다.' : '저장하면 확인 대기에 올라가고, 관계 담당자가 반영하면 위키가 바뀝니다.'}</p>
-    <label>내용 <small>「## 제목」으로 섹션을 나눕니다. 사실 끝에 [1]처럼 출처 번호를 붙여 주세요.</small><textarea id="wk-md" rows="14">${esc(w?.md || WIKI_TPL)}</textarea></label>
-    <label>출처 <small>한 줄에 하나 · 「이름 https://…」 (번호는 위에서부터 1, 2, 3…)</small><textarea id="wk-src" rows="4" placeholder="SM 공식 발표 https://…">${esc((w?.sources || []).map(s => [s.label, s.url].filter(Boolean).join(' ')).join('\n'))}</textarea></label>
+  modal(`<form id="wk-form" class="kn-form"><h2>${esc(e.name)} 위키 ${w ? '수정' : '작성'}</h2><p>${own ? '저장하면 바로 위키에 반영됩니다. 변경 내용은 버전 이력으로 남습니다.' : '저장하면 확인 대기에 등록되며, 관계 담당자가 반영하면 위키가 수정됩니다.'}</p>
+    <label>내용 <small>「## 제목」으로 섹션을 구분합니다. 사실 끝에 [1]처럼 출처 번호를 붙여 주세요.</small><textarea id="wk-md" rows="14">${esc(w?.md || WIKI_TPL)}</textarea></label>
+    <label>출처 <small>한 줄에 하나씩 · 「이름 https://…」 (번호는 위에서부터 1, 2, 3…)</small><textarea id="wk-src" rows="4" placeholder="SM 공식 발표 https://…">${esc((w?.sources || []).map(s => [s.label, s.url].filter(Boolean).join(' ')).join('\n'))}</textarea></label>
     ${own ? `<label>열람 범위<select id="wk-conf"><option value="internal" ${w?.confidentiality !== 'restricted' ? 'selected' : ''}>전 직원</option><option value="restricted" ${w?.confidentiality === 'restricted' ? 'selected' : ''}>관계 담당자·DB 관리자만</option></select></label>` : ''}
-    <label>무엇을 바꿨는지 <input id="wk-sum" type="text" maxlength="120" placeholder="예: 11월 미팅 내용 추가"></label>
+    <label>변경 내용 <input id="wk-sum" type="text" maxlength="120" placeholder="예: 11월 미팅 내용 추가"></label>
     <div id="wk-err" class="form-err" role="alert"></div>
-    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${own ? '위키에 반영' : '확인 대기에 올리기'}</button></div></form>`);
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${own ? '위키에 반영' : '확인 대기에 등록'}</button></div></form>`);
   $('#wk-form').onsubmit = async ev => {
     ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
     const { data: rid, error } = await SB.rpc('pt_wiki_propose', {p_entity: e.id, p_md: $('#wk-md').value, p_sources: parseSources($('#wk-src').value), p_conf: own ? $('#wk-conf').value : null, p_summary: $('#wk-sum').value.trim()});
     if (error) { if (btn) btn.disabled = false; $('#wk-err').textContent = error.message; return; }
     if (own) { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'approved', p_note: ''}); if (r.error) { if (btn) btn.disabled = false; $('#wk-err').textContent = r.error.message; return; } }
     $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
-    toast(own ? '위키에 반영했습니다.' : '확인 대기에 올렸습니다. 관계 담당자가 반영하면 위키가 바뀝니다.', own ? {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'rejected', p_note: '실행 취소'}); await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
+    toast(own ? '위키에 반영했습니다.' : '확인 대기에 등록했습니다. 관계 담당자가 반영하면 위키가 수정됩니다.', own ? {fn: async () => { const r = await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await SB.rpc('pt_wiki_decide', {p_id: rid, p_status: 'rejected', p_note: '실행 취소'}); await relReload(e.id); toast('실행을 취소했습니다.'); }} : undefined);
   };
 }
 function relationModal(e) {
   const opts = sel => entities().filter(x => !isContact(x)).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)} · ${esc(x.type)}</option>`).join('');
-  modal(`<form id="kr-form" class="kn-form"><h2>관계 추가</h2><p>「누가 · 무엇을 · 누구와」로 적습니다. 출처가 있으면 함께 남겨 주세요.</p>
+  modal(`<form id="kr-form" class="kn-form"><h2>관계 추가</h2><p>「누가 · 무엇을 · 누구와」 순서로 입력합니다. 출처가 있으면 함께 입력해 주세요.</p>
     <label>누가<select id="kr-s">${opts(e.id)}</select></label>
     <label>관계<select id="kr-v">${Object.entries(VERB).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
     <label>누구와 · 무엇을<select id="kr-o"><option value="">선택</option>${opts('')}</select></label>
@@ -1274,7 +1274,7 @@ function relationModal(e) {
     <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 저장</button></div></form>`);
   $('#kr-form').onsubmit = async ev => {
     ev.preventDefault(); const s = $('#kr-s').value, o = $('#kr-o').value;
-    if (!o || s === o) { $('#kr-err').textContent = '서로 다른 두 엔티티를 골라 주세요.'; return; }
+    if (!o || s === o) { $('#kr-err').textContent = '서로 다른 두 엔티티를 선택해 주세요.'; return; }
     const row = {subject_id: s, verb: $('#kr-v').value, object_id: o, valid_from: $('#kr-f').value || null, valid_to: $('#kr-t').value || null, source_url: $('#kr-u').value.trim(), note: $('#kr-n').value.trim()};
     const { error } = await SB.from('pt_relation').insert(row);
     if (error) { $('#kr-err').textContent = /unique|duplicate/i.test(error.message) ? '같은 관계가 이미 있습니다.' : /source_url/.test(error.message) ? '출처 주소는 http로 시작해야 합니다.' : error.message; return; }
@@ -1307,7 +1307,7 @@ function diffHtml(a, b) {
 }
 function wikiCard(r) {
   const P = r.payload || {}, e = byId(r.target_id);
-  return `<li class="rq-item rq-wide"><div><b>${esc(e?.name || r.title)}</b> <span class="pill">${r.kind === 'distill' ? '지식 정리 초안' : '위키 수정'}</span>${P.summary ? `<small>${esc(P.summary)}</small>` : ''}<small>${r.kind === 'distill' ? esc(P.from || '') : '제안 ' + esc(memberName(P.by) || '직원')} · ${esc(ymd(r.created_at))}</small><details class="kn-diffbox"><summary>바뀌는 내용 보기</summary>${diffHtml(wikiOf(r.target_id)?.md || '', P.md || '')}${srcList(P.sources, '출처')}</details></div>
+  return `<li class="rq-item rq-wide"><div><b>${esc(e?.name || r.title)}</b> <span class="pill">${r.kind === 'distill' ? '지식 정리 초안' : '위키 수정'}</span>${P.summary ? `<small>${esc(P.summary)}</small>` : ''}<small>${r.kind === 'distill' ? esc(P.from || '') : '제안 ' + esc(memberName(P.by) || '직원')} · ${esc(ymd(r.created_at))}</small><details class="kn-diffbox"><summary>변경 내용 보기</summary>${diffHtml(wikiOf(r.target_id)?.md || '', P.md || '')}${srcList(P.sources, '출처')}</details></div>
     <span class="rq-acts">${canWiki(e) ? `<button class="button" type="button" data-kw="${r.id}|rejected">제외</button><button class="button primary" type="button" data-kw="${r.id}|approved">위키에 반영</button>` : '<small>관계 담당자가 반영합니다</small>'}</span></li>`;
 }
 function bindKw() {
@@ -1320,8 +1320,8 @@ function bindKw() {
   });
 }
 // 지식 점검 (K-07) — 봇이 매주 월요일 09시에 만든 결과
-const KH = [['no_wiki', '위키 없는 활성 거래처', '관계 단계가 있거나 최근 180일 안에 접촉한 곳'], ['no_source', '출처 없는 사실', '위키·연결 관계·관계 근거에 출처가 없는 곳'],
-  ['stale', '90일 접촉 없는 제안 이상 관계', 'R3 이상인데 마지막 접촉이 90일을 넘음'], ['no_alias', '별명이 빈 IP', '별명 사전에 아무것도 없는 IP·유명인']];
+const KH = [['no_wiki', '위키 없는 활성 거래처', '관계 단계가 있거나 최근 180일 이내에 접촉한 곳'], ['no_source', '출처 없는 사실', '위키·연결 관계·관계 근거에 출처가 없는 곳'],
+  ['stale', '90일 접촉 없는 제안 이상 관계', 'R3 이상이며 마지막 접촉 후 90일 경과'], ['no_alias', '별칭 없는 IP', '별칭 사전에 등록된 항목이 없는 IP·유명인']];
 async function loadHealth() {
   const { data, error } = await SB.from('pt_health_report').select('*').order('week_of', {ascending: false}).limit(1);
   admin.health = error ? {err: error.message} : (data[0] || {none: true}); render();
@@ -1341,7 +1341,7 @@ function healthPanel() {
 const canSens = e => isAdmin || (!!e.relOwner && e.relOwner === me?.id);
 const PATH_KO = {direct: '등록된 담당자', owner: '관계 담당자', introduced: '소개', former: '예전 소속'};
 function pathBlock(e) {
-  return `<div class="detail-block"><h3>이 조직에 닿는 경로</h3><div id="kp-paths"><p class="rl-note">경로를 찾는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div><div id="kp-interest"></div></div>`
+  return `<div class="detail-block"><h3>이 조직과의 연결 경로</h3><div id="kp-paths"><p class="rl-note">경로를 찾는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div><div id="kp-interest"></div></div>`
     + (canSens(e) ? `<div class="detail-block"><h3>민감 메모 <span class="pill warn">관계 담당자·DB 관리자만</span></h3><textarea id="sens-note" placeholder="다른 직원과 질문 답변에는 보이지 않습니다." aria-label="민감 메모"></textarea><button class="button primary" id="sens-save" type="button">민감 메모 저장</button></div>` : '');
 }
 async function loadPaths(e) {
@@ -1350,9 +1350,9 @@ async function loadPaths(e) {
   if (activeDetail !== e.id) return;
   const host = $('#kp-paths'); if (!host) return;
   const ps = pr.data || [], who = x => x.contact_id && byId(x.contact_id) ? `<button class="ref" type="button" data-open="${esc(x.contact_id)}">${esc(x.via)}</button>` : `<b>${esc(x.via || '—')}</b>`;
-  const ours = x => (x.our || []).length ? ` · 우리 쪽 ${esc(x.our.join(', '))}` : '';
-  host.innerHTML = ps.length ? `<ul class="kn-rel">${ps.map(x => `<li><span><span class="pill">${PATH_KO[x.kind] || x.kind}</span> ${x.kind === 'introduced' ? `우리 직원 → ${who(x)}(${esc(x.via_org || '소속 미상')}) → <b>${esc(e.name)}</b>` : x.kind === 'former' ? `${who(x)} — ${esc(dotDate(x.until))}까지 이 조직, 지금 ${esc(x.now_org || '소속 미상')}` : x.kind === 'owner' ? `<b>${esc(x.via)}</b>` : `${who(x)}${x.title ? ' · ' + esc(x.title) : ''}`}</span><small>${ours(x).replace(/^ · /, '')}</small></li>`).join('')}</ul>`
-    : '<p>아직 닿는 경로가 없습니다. 명함을 등록하거나, 소개받은 기록(접촉 기록 → 소개)을 남기면 경로가 생깁니다.</p>';
+  const ours = x => (x.our || []).length ? ` · 당사 ${esc(x.our.join(', '))}` : '';
+  host.innerHTML = ps.length ? `<ul class="kn-rel">${ps.map(x => `<li><span><span class="pill">${PATH_KO[x.kind] || x.kind}</span> ${x.kind === 'introduced' ? `당사 직원 → ${who(x)}(${esc(x.via_org || '소속 미상')}) → <b>${esc(e.name)}</b>` : x.kind === 'former' ? `${who(x)} — ${esc(dotDate(x.until))}까지 이 조직 소속, 현재 ${esc(x.now_org || '소속 미상')}` : x.kind === 'owner' ? `<b>${esc(x.via)}</b>` : `${who(x)}${x.title ? ' · ' + esc(x.title) : ''}`}</span><small>${ours(x).replace(/^ · /, '')}</small></li>`).join('')}</ul>`
+    : '<p>연결 경로가 없습니다. 명함을 등록하거나 소개 기록(접촉 기록 → 소개)을 등록하면 경로가 표시됩니다.</p>';
   const it = ir.data; $('#kp-interest').innerHTML = it && it.n90 ? `<p class="rl-note">사내 관심 — 최근 30일 미팅 ${it.n30}건 · 90일 ${it.n90}건에서 언급(마지막 ${esc(dotDate(it.last_on))})</p>` : '';
   const ta = $('#sens-note'); if (ta) { ta.value = sr.data?.note || ''; $('#sens-save').onclick = async () => {
     const { error } = await SB.from('pt_sensitive_note').upsert({entity_id: e.id, note: ta.value}); if (error) return toast('저장하지 못했습니다: ' + error.message); toast('민감 메모를 저장했습니다.'); }; }
@@ -1367,7 +1367,7 @@ function metricsPanel() {
   if (admin.metrics.err) return `<div class="notice">운영 지표를 불러오지 못했습니다: ${esc(admin.metrics.err)}</div>`;
   const items = admin.metrics.now.items || [], hist = admin.metrics.hist;
   const past = (name, w) => (w.data?.items || []).find(x => x.name === name)?.value;
-  return `<div class="notice">PRD 12장 성공 지표입니다. 매주 월요일 9시에 한 번씩 기록을 쌓아, 운영 3개월 뒤 단계 승격을 검토할 때 씁니다.</div>
+  return `<div class="notice">PRD 12장 성공 지표입니다. 매주 월요일 9시에 기록하며, 운영 3개월 후 다음 단계 전환을 검토할 때 활용합니다.</div>
   <section class="panel"><div class="panel-head"><div class="panel-title">운영 지표 <small>${esc(kst(admin.metrics.now.at))} 기준</small></div><button class="button" type="button" id="metric-reload">${icon('clock')} 다시 계산</button></div>
   <div class="table-wrap"><table><thead><tr><th>영역</th><th>지표</th><th>목표</th><th>지금</th><th>근거</th>${hist.slice(0, 4).map(w => `<th>${esc(dotDate(w.week_of))} 주</th>`).join('')}</tr></thead><tbody>
   ${items.map(x => `<tr><td><span class="pill">${esc(x.area)}</span></td><td>${esc(x.name)}</td><td>${esc(x.target)}</td><td><b>${x.value ?? '—'}</b>${x.value != null ? esc(x.unit) : ''}</td><td><small>${esc(x.value == null && !x.base ? '측정할 기록 없음' : x.base || '')}</small></td>${hist.slice(0, 4).map(w => `<td>${past(x.name, w) ?? '—'}</td>`).join('')}</tr>`).join('')}
@@ -1376,10 +1376,10 @@ function metricsPanel() {
 
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
 const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기', pt_erasure_request: '개인정보 삭제'};
-const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 받은 곳', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
+const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 수령 경로', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
 const VIA_KO = {web: '웹', slack: '슬랙', server: '시스템 입력', sql: '시스템 입력'};
 const OP_KO = {insert: '등록', update: '수정', delete: '삭제'};
-const showVal = (k, v) => { if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return '(없음)'; if (k === 'img' || k === 'card_img') return '(이미지)'; if (k === 'parent_id') return byId(v)?.name || v; if (k === 'hidden') return v ? '숨김' : '보임'; if (Array.isArray(v)) return v.join(' / '); return String(v); };
+const showVal = (k, v) => { if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return '(없음)'; if (k === 'img' || k === 'card_img') return '(이미지)'; if (k === 'parent_id') return byId(v)?.name || v; if (k === 'hidden') return v ? '숨김' : '표시'; if (Array.isArray(v)) return v.join(' / '); return String(v); };
 let admin = {tab: 'log', changes: null, asks: null, people: {}, who: '', q: '', err: '', loading: false};
 async function loadAdmin() {
   if (admin.loading) return; admin.loading = true; admin.err = ''; render();
@@ -1412,12 +1412,12 @@ function adminView() {
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
   return tabs + `
   <section class="panel"><div class="panel-head"><div class="panel-title">변경 기록 <small>AUDIT LOG</small> <span class="nav-count">${admin.changes.length}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" type="button" id="log-reload">${icon('clock')} 새로고침</button><button class="button" type="button" id="log-export">${icon('download')} 기록 CSV</button></div></div>
-  <div class="watch-toolbar"><div style="display:flex;gap:8px;flex-wrap:wrap"><select class="table-select" id="log-who" aria-label="사람으로 거르기"><option value="">전체 사용자</option>${people.map(p => `<option value="${esc(p)}" ${admin.who === p ? 'selected' : ''}>${esc(p === '(화면 밖)' ? '시스템 입력' : whoName(p))}</option>`).join('')}</select><input class="table-select" id="log-q" type="search" placeholder="엔티티 이름" value="${esc(admin.q)}" aria-label="엔티티 이름으로 거르기"></div></div>
-  <div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>엔티티</th><th>무엇을</th><th>변경 내용 (이전 → 이후)</th><th>조치</th></tr></thead><tbody>${list.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.actor ? esc(whoName(x.actor, x.actor_name)) : `<span class="pill">${esc(VIA_KO[x.via] || x.via)}</span>`}${x.reason ? `<small style="display:block;color:#9aa29d">${esc(x.reason)}</small>` : ''}</td><td>${TABLE_KO[x.table_name] ? `<span class="pill muted">${TABLE_KO[x.table_name]}</span> ` : ''}${byId(x.entity_id) ? `<button class="text-btn" data-detail="${esc(x.entity_id)}">${esc(x.entity_name)}</button>` : esc(x.entity_name)}</td><td><span class="pill">${esc(OP_KO[x.op] || x.op)}</span></td><td style="font-size:12px;line-height:1.6">${x.op === 'insert' ? '<span style="color:#285541">새로 등록</span>' : (x.fields || []).map(k => `<div><b>${esc(FIELD_KO[k] || k)}</b>: <span style="color:#a0563a;text-decoration:line-through">${esc(showVal(k, x.before?.[k]))}</span> → <span style="color:#285541">${esc(showVal(k, x.after?.[k]))}</span></div>`).join('')}</td><td>${x.op === 'update' ? `<button class="text-btn" type="button" data-restore="${x.id}">이전 내용으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">기록이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+  <div class="watch-toolbar"><div style="display:flex;gap:8px;flex-wrap:wrap"><select class="table-select" id="log-who" aria-label="사용자별 보기"><option value="">전체 사용자</option>${people.map(p => `<option value="${esc(p)}" ${admin.who === p ? 'selected' : ''}>${esc(p === '(화면 밖)' ? '시스템 입력' : whoName(p))}</option>`).join('')}</select><input class="table-select" id="log-q" type="search" placeholder="엔티티 이름" value="${esc(admin.q)}" aria-label="엔티티 이름 검색"></div></div>
+  <div class="table-wrap"><table><thead><tr><th>일시</th><th>변경자</th><th>엔티티</th><th>변경 대상</th><th>변경 내용 (이전 → 이후)</th><th>조치</th></tr></thead><tbody>${list.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.actor ? esc(whoName(x.actor, x.actor_name)) : `<span class="pill">${esc(VIA_KO[x.via] || x.via)}</span>`}${x.reason ? `<small style="display:block;color:#9aa29d">${esc(x.reason)}</small>` : ''}</td><td>${TABLE_KO[x.table_name] ? `<span class="pill muted">${TABLE_KO[x.table_name]}</span> ` : ''}${byId(x.entity_id) ? `<button class="text-btn" data-detail="${esc(x.entity_id)}">${esc(x.entity_name)}</button>` : esc(x.entity_name)}</td><td><span class="pill">${esc(OP_KO[x.op] || x.op)}</span></td><td style="font-size:12px;line-height:1.6">${x.op === 'insert' ? '<span style="color:#285541">새로 등록</span>' : (x.fields || []).map(k => `<div><b>${esc(FIELD_KO[k] || k)}</b>: <span style="color:#a0563a;text-decoration:line-through">${esc(showVal(k, x.before?.[k]))}</span> → <span style="color:#285541">${esc(showVal(k, x.after?.[k]))}</span></div>`).join('')}</td><td>${x.op === 'update' ? `<button class="text-btn" type="button" data-restore="${x.id}">이전 내용으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">기록이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 function asksPanel() {
   const list = admin.asks.slice(0, 300);
-  return `<section class="panel"><div class="panel-head"><div class="panel-title">질문 기록 <small>웹·슬랙</small> <span class="nav-count">${admin.asks.length}</span></div></div><div class="table-wrap"><table><thead><tr><th>언제</th><th>누가</th><th>어디서</th><th>무엇</th><th>상태</th></tr></thead><tbody>${list.map(a => `<tr><td style="white-space:nowrap">${esc(kst(a.at))}</td><td>${esc(whoName(a.asker) || '—')}</td><td>${a.via === 'slack' ? '슬랙' : '웹'}</td><td>${a.kind === 'ocr' ? '<span class="pill">명함 읽기</span>' : a.kind === 'restart' ? '<span class="pill">봇 재시작</span>' : a.kind.startsWith('manual') ? '<span class="pill">매뉴얼</span> ' + esc(a.question) : esc(a.question)}</td><td>${{done: '답변 완료', fail: '실패', wait: '대기', work: '처리 중'}[a.status] || a.status}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">아직 질문이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">질문 기록 <small>웹·슬랙</small> <span class="nav-count">${admin.asks.length}</span></div></div><div class="table-wrap"><table><thead><tr><th>일시</th><th>요청자</th><th>경로</th><th>내용</th><th>상태</th></tr></thead><tbody>${list.map(a => `<tr><td style="white-space:nowrap">${esc(kst(a.at))}</td><td>${esc(whoName(a.asker) || '—')}</td><td>${a.via === 'slack' ? '슬랙' : '웹'}</td><td>${a.kind === 'ocr' ? '<span class="pill">명함 인식</span>' : a.kind === 'restart' ? '<span class="pill">봇 재시작</span>' : a.kind.startsWith('manual') ? '<span class="pill">매뉴얼</span> ' + esc(a.question) : esc(a.question)}</td><td>${{done: '답변 완료', fail: '실패', wait: '대기', work: '처리 중'}[a.status] || a.status}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">아직 질문이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 /* 궁니르 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
@@ -1434,8 +1434,8 @@ function botPanel() {
   const age = b.beat_at ? Math.max(0, Math.round((Date.now() - new Date(b.beat_at)) / 1000)) : null;
   const alive = age !== null && age < 180;
   const stateText = !b.beat_at ? '기록 없음' : !alive ? '응답 없음' : b.connected ? '정상' : '슬랙 연결 끊김';
-  return `<div class="quality-grid"><div class="stat ${alive && b.connected ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${age === null ? '—' : '마지막 신호 ' + agoText(age)}</div></div><div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${b.started_at ? esc(kst(b.started_at)) : '—'}</div><div class="stat-bottom">${b.model ? '답변 모델 ' + esc(b.model) : ''}</div></div><div class="stat"><div class="stat-label">웹 요청 처리</div><div class="stat-value">${Number(b.handled || 0)}<small>건</small></div><div class="stat-bottom">시작 이후</div></div></div>
-  <section class="panel"><div class="panel-head"><div><div class="panel-title">궁니르 봇 <small>슬랙 질문 · 웹 질문 · 명함 읽기</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변하지 않습니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
+  return `<div class="quality-grid"><div class="stat ${alive && b.connected ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${age === null ? '—' : '마지막 응답 ' + agoText(age)}</div></div><div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${b.started_at ? esc(kst(b.started_at)) : '—'}</div><div class="stat-bottom">${b.model ? '답변 모델 ' + esc(b.model) : ''}</div></div><div class="stat"><div class="stat-label">웹 요청 처리</div><div class="stat-value">${Number(b.handled || 0)}<small>건</small></div><div class="stat-bottom">시작 이후</div></div></div>
+  <section class="panel"><div class="panel-head"><div><div class="panel-title">궁니르 봇 <small>슬랙 질문 · 웹 질문 · 명함 인식</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변이 중단됩니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
   <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>`;
 }
 async function restartBot() {
@@ -1458,10 +1458,10 @@ async function restartBot() {
 }
 function qualityPanel() {
   const es = entities(), hidden = all.filter(e => e.hidden);
-  return `<div class="quality-grid"><div class="stat"><div class="stat-label">담당자 없음</div><div class="stat-value">${es.filter(noContact).length}<small>곳</small></div><div class="stat-bottom">회사·브랜드·매체 중 등록된 담당자가 없는 곳</div></div><div class="stat"><div class="stat-label">관계 근거 없음</div><div class="stat-value">${es.filter(e => !e.rel).length}<small>개</small></div><div class="stat-bottom">내부 담당자 확인 필요</div></div><div class="stat"><div class="stat-label">연락처 줄 확인 필요</div><div class="stat-value">${Object.values(rel.dir).filter(d => (d.other_points || []).length).length}<small>명</small></div><div class="stat-bottom">휴대폰·이메일 칸으로 읽지 못한 줄이 있는 사람</div></div><div class="stat"><div class="stat-label">숨긴 항목</div><div class="stat-value">${hidden.length}<small>개</small></div><div class="stat-bottom">상세 화면에서 숨김 해제</div></div></div><section class="panel"><div class="panel-head"><div class="panel-title">데이터 점검</div><button class="button" id="admin-export">${icon('download')} 엔티티 CSV</button></div><div class="table-wrap"><table><thead><tr><th>엔티티</th><th>유형</th><th>관계 근거</th><th>등록된 담당자</th><th>조치</th></tr></thead><tbody>${[...es, ...hidden.filter(isContact)].sort((a, b) => ((!b.rel) + noContact(b)) - ((!a.rel) + noContact(a))).map(e => `<tr><td>${esc(e.name)}${e.hidden ? ' <span class="pill">숨김</span>' : ''}</td><td>${esc(e.type)}</td><td>${e.rel ? '<span class="pill good">입력됨</span>' : PILL_NOREL}</td><td>${contactsOf(e).length ? contactsOf(e).length + '명' : noContact(e) ? PILL_NOC : '—'}</td><td><button class="text-btn" data-detail="${e.id}">상세 확인 ↗</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  return `<div class="quality-grid"><div class="stat"><div class="stat-label">담당자 없음</div><div class="stat-value">${es.filter(noContact).length}<small>곳</small></div><div class="stat-bottom">회사·브랜드·매체 중 등록된 담당자가 없는 곳</div></div><div class="stat"><div class="stat-label">관계 근거 없음</div><div class="stat-value">${es.filter(e => !e.rel).length}<small>개</small></div><div class="stat-bottom">내부 담당자 확인 필요</div></div><div class="stat"><div class="stat-label">연락처 항목 확인 필요</div><div class="stat-value">${Object.values(rel.dir).filter(d => (d.other_points || []).length).length}<small>명</small></div><div class="stat-bottom">휴대폰·이메일 항목으로 인식되지 않은 연락처가 있는 사람</div></div><div class="stat"><div class="stat-label">숨김 항목</div><div class="stat-value">${hidden.length}<small>개</small></div><div class="stat-bottom">상세 화면에서 숨김 해제</div></div></div><section class="panel"><div class="panel-head"><div class="panel-title">데이터 점검</div><button class="button" id="admin-export">${icon('download')} 엔티티 CSV</button></div><div class="table-wrap"><table><thead><tr><th>엔티티</th><th>유형</th><th>관계 근거</th><th>등록된 담당자</th><th>조치</th></tr></thead><tbody>${[...es, ...hidden.filter(isContact)].sort((a, b) => ((!b.rel) + noContact(b)) - ((!a.rel) + noContact(a))).map(e => `<tr><td>${esc(e.name)}${e.hidden ? ' <span class="pill">숨김</span>' : ''}</td><td>${esc(e.type)}</td><td>${e.rel ? '<span class="pill good">입력됨</span>' : PILL_NOREL}</td><td>${contactsOf(e).length ? contactsOf(e).length + '명' : noContact(e) ? PILL_NOC : '—'}</td><td><button class="text-btn" data-detail="${e.id}">상세 확인 ↗</button></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 // 관계 점수 기준 (PRD 5.1.1) — 기본 규칙으로 시작, Claude 가 월 1회·어긋날 때 항목당 ±10 안에서 조정, DB 관리자가 한 번에 되돌림
-const W_KO = {recency: '최근성', frequency: '교신 빈도', outcome: '결과', stage: '관계 단계'};
+const W_KO = {recency: '최근성', frequency: '연락 빈도', outcome: '결과', stage: '관계 단계'};
 async function loadScore() {
   const [c, l] = await Promise.all([SB.from('pt_rel_score_config').select('*').maybeSingle(), SB.from('pt_rel_score_config_log').select('*').order('id', {ascending: false}).limit(50)]);
   admin.score = {cfg: c.data, log: l.data || [], err: c.error?.message || l.error?.message || ''};
@@ -1471,9 +1471,9 @@ function scorePanel() {
   if (!admin.score) { setTimeout(loadScore); return '<div class="empty"><p>기준을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   const {cfg, log, err} = admin.score; if (err || !cfg) return `<div class="notice">기준을 불러오지 못했습니다: ${esc(err)}</div>`;
   const wl = w => Object.entries(w || {}).map(([k, v]) => `${W_KO[k] || k} ${v}`).join(' · ');
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">관계 점수 기준 <small>${cfg.version}판</small></div><p class="panel-caption">처음 기준에서 시작해 Claude가 월 1회, 또는 점수와 실제 결과가 어긋날 때 항목당 10점 안에서 조정합니다. 바뀌면 이유·근거와 함께 아래에 남고, 복원하면 같은 방향으로 30일 동안 다시 바꾸지 않습니다.</p></div></div>
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">관계 점수 기준 <small>${cfg.version}판</small></div><p class="panel-caption">초기 기준을 바탕으로 Claude가 월 1회, 또는 점수와 실제 결과가 다를 때 항목당 10점 이내에서 조정합니다. 변경 시 사유와 근거가 아래에 기록되며, 복원하면 30일 동안 같은 방향으로 다시 조정하지 않습니다.</p></div></div>
     <div class="quality-grid">${Object.entries(cfg.weights).map(([k, v]) => `<div class="stat"><div class="stat-label">${W_KO[k] || k}</div><div class="stat-value">${v}<small>점</small></div></div>`).join('')}</div>
-    <div class="table-wrap"><table><thead><tr><th>언제</th><th>판</th><th>누가</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">복원됨</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('되돌리기') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">아직 바뀐 적이 없습니다. 처음 기준을 쓰고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
+    <div class="table-wrap"><table><thead><tr><th>일시</th><th>버전</th><th>변경자</th><th>변경</th><th>이유</th><th>조치</th></tr></thead><tbody>${log.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.at))}</td><td>${x.version}</td><td>${x.changed_by === 'claude' ? '<span class="pill">Claude</span>' : esc(whoName(x.changed_member, '관리자'))}</td><td style="font-size:12px">${esc(wl(x.before?.weights))}<br>→ <b>${esc(wl(x.after?.weights))}</b></td><td style="font-size:12px">${esc(x.reason)}${x.reverted_at ? ' <span class="pill muted">복원됨</span>' : ''}</td><td>${!x.reverted_at && x.before && !x.reason.startsWith('복원') ? `<button class="text-btn" type="button" data-score-revert="${x.id}">이전 기준으로 복원</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty">변경 이력이 없습니다. 초기 기준을 적용하고 있습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 // 개인정보 삭제 요청 (PRD 8.1 · sql/024 · 11-02) — 접수 → 처리(되돌릴 수 없음) → 명함·프로필 파일과 백업은 궁니르 봇이 이어서 지움
 const ERASE_VIA = ['이메일', '전화', '직접 요청', '기타'];
@@ -1492,27 +1492,27 @@ function erasePanel() {
   const {rows, err} = admin.erase; if (err) return `<div class="notice">요청을 불러오지 못했습니다: ${esc(err)}</div>`;
   const day = x => Math.floor((Date.now() - new Date(x.requested_at)) / 86400000) + 1;
   const state = x => x.status === 'canceled' ? '<span class="pill muted">취소</span>'
-    : x.status === 'pending' ? (day(x) > 7 ? `<span class="pill warn">처리 대기 · ${day(x)}일째 (기한 지남)</span>` : `<span class="pill">처리 대기 · ${day(x)}일째</span>`)
+    : x.status === 'pending' ? (day(x) > 7 ? `<span class="pill warn">처리 대기 · ${day(x)}일째 (기한 초과)</span>` : `<span class="pill">처리 대기 · ${day(x)}일째</span>`)
     : !x.files_done_at ? `<span class="pill">명함 이미지 정리 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></span>`
     : '<span class="pill good">삭제 완료</span>';
   const done = x => x.processed_at ? `<small class="cell-sub">${esc(kst(x.processed_at))} · ${esc(whoName(x.processed_by, '관리자'))}</small>` : '';
   const got = x => Object.entries(x.result || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ');
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">개인정보 삭제 요청 <small>${rows.filter(x => x.status === 'pending').length}건 대기</small></div><p class="panel-caption">본인이 연락처 삭제를 요청하면 여기서 접수하고, 요청일로부터 7일 안에 처리해 주세요. 처리하면 연락처·명함·소속·변경 기록에서 그 사람의 정보가 지워지고, 관계 기록에는 「삭제된 연락처」로만 남습니다. 처리한 뒤에는 복원할 수 없습니다.</p></div><button class="button primary" type="button" id="erase-add">삭제 요청 접수</button></div>
-  <div class="table-wrap"><table><thead><tr><th>접수</th><th>연락처</th><th>요청 경로 · 메모</th><th>상태</th><th>조치</th></tr></thead><tbody>${rows.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.requested_at))}<small class="cell-sub">${esc(whoName(x.requested_by, '관리자'))}</small></td><td><b>${esc(eraseWho(x))}</b></td><td>${esc(x.requested_via || '—')}${x.note ? `<small class="cell-sub">${esc(x.note)}</small>` : ''}</td><td>${state(x)}${done(x)}${x.status === 'done' && got(x) ? `<small class="cell-sub">지운 것: ${esc(got(x))}</small>` : ''}</td><td style="white-space:nowrap">${x.status === 'pending' ? `<button class="button danger" type="button" data-erase-go="${x.id}">삭제 처리</button> <button class="text-btn" type="button" data-erase-cancel="${x.id}">접수 취소</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">접수된 삭제 요청이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">개인정보 삭제 요청 <small>${rows.filter(x => x.status === 'pending').length}건 대기</small></div><p class="panel-caption">본인이 연락처 삭제를 요청하면 이곳에서 접수하고, 요청일로부터 7일 이내에 처리해 주세요. 처리하면 연락처·명함·소속·변경 기록에서 해당 인물의 정보가 삭제되며, 관계 기록에는 「삭제된 연락처」로만 표시됩니다. 처리 후에는 복원할 수 없습니다.</p></div><button class="button primary" type="button" id="erase-add">삭제 요청 접수</button></div>
+  <div class="table-wrap"><table><thead><tr><th>접수</th><th>연락처</th><th>요청 경로 · 메모</th><th>상태</th><th>조치</th></tr></thead><tbody>${rows.map(x => `<tr><td style="white-space:nowrap">${esc(kst(x.requested_at))}<small class="cell-sub">${esc(whoName(x.requested_by, '관리자'))}</small></td><td><b>${esc(eraseWho(x))}</b></td><td>${esc(x.requested_via || '—')}${x.note ? `<small class="cell-sub">${esc(x.note)}</small>` : ''}</td><td>${state(x)}${done(x)}${x.status === 'done' && got(x) ? `<small class="cell-sub">삭제 항목: ${esc(got(x))}</small>` : ''}</td><td style="white-space:nowrap">${x.status === 'pending' ? `<button class="button danger" type="button" data-erase-go="${x.id}">삭제 처리</button> <button class="text-btn" type="button" data-erase-cancel="${x.id}">접수 취소</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">접수된 삭제 요청이 없습니다.</div></td></tr>'}</tbody></table></div></section>`;
 }
 function eraseAdd() {
   const list = contacts().filter(c => c.name !== '삭제된 연락처').sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const opt = arr => arr.map(c => `<option value="${esc(c.id)}">${esc(c.name)}${agencyOf(c) ? ' · ' + esc(agencyOf(c)) : ''}${c.role ? ' · ' + esc(c.role) : ''}</option>`).join('');
-  modal(`<form id="erase-form"><h2>삭제 요청 접수</h2><p>삭제를 요청한 본인의 연락처를 고르고, 어떻게 요청받았는지 남겨 주세요. 접수만으로는 지워지지 않으며, 목록에서 「삭제 처리」를 눌러야 지워집니다.</p>
+  modal(`<form id="erase-form"><h2>삭제 요청 접수</h2><p>삭제를 요청한 본인의 연락처를 선택하고, 요청 경로를 입력해 주세요. 접수만으로는 삭제되지 않으며, 목록에서 「삭제 처리」를 클릭해야 삭제됩니다.</p>
     <label>연락처 찾기<input id="ef-q" maxlength="50" placeholder="이름 또는 회사"></label>
-    <label>연락처<select id="ef-c" required><option value="">고르세요</option>${opt(list)}</select></label>
+    <label>연락처<select id="ef-c" required><option value="">선택해 주세요</option>${opt(list)}</select></label>
     <label>요청 경로<select id="ef-via">${ERASE_VIA.map(v => `<option>${v}</option>`).join('')}</select></label>
-    <label>메모<input id="ef-note" maxlength="500" placeholder="예: 11/2 본인 이메일로 요청 (받은 메일 제목)"></label>
+    <label>메모<input id="ef-note" maxlength="500" placeholder="예: 11/2 본인 이메일로 요청 (수신 메일 제목)"></label>
     <div id="ef-err" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div>
     <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="ef-go">접수</button></div></form>`);
-  $('#ef-q').oninput = e => { const q = e.target.value.trim().toLowerCase(), cur = $('#ef-c').value; $('#ef-c').innerHTML = '<option value="">고르세요</option>' + opt(list.filter(c => !q || (c.name + ' ' + agencyOf(c)).toLowerCase().includes(q))); $('#ef-c').value = cur; };
+  $('#ef-q').oninput = e => { const q = e.target.value.trim().toLowerCase(), cur = $('#ef-c').value; $('#ef-c').innerHTML = '<option value="">선택해 주세요</option>' + opt(list.filter(c => !q || (c.name + ' ' + agencyOf(c)).toLowerCase().includes(q))); $('#ef-c').value = cur; };
   $('#erase-form').onsubmit = async ev => {
-    ev.preventDefault(); const id = $('#ef-c').value; if (!id) { $('#ef-err').textContent = '연락처를 골라 주세요.'; return; }
+    ev.preventDefault(); const id = $('#ef-c').value; if (!id) { $('#ef-err').textContent = '연락처를 선택해 주세요.'; return; }
     $('#ef-go').disabled = true;
     const { error } = await SB.rpc('pt_erasure_add', {p_contact: id, p_via: $('#ef-via').value, p_note: $('#ef-note').value.trim()});
     if (error) { $('#ef-go').disabled = false; $('#ef-err').textContent = '접수하지 못했습니다: ' + error.message; return; }
@@ -1521,35 +1521,35 @@ function eraseAdd() {
 }
 function bindAdmin() {
   $$('[data-score-revert]').forEach(b => b.onclick = async () => {
-    const ok = await confirmBox({title: '이전 기준으로 복원할까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 같은 방향의 조정은 30일 동안 다시 하지 않습니다.', ok: '이전 기준으로 복원'});
+    const ok = await confirmBox({title: '이전 기준으로 복원할까요?', body: '모든 관계 점수를 이전 비중으로 다시 계산합니다. 30일 동안 같은 방향으로 다시 조정하지 않습니다.', ok: '이전 기준으로 복원'});
     if (!ok) return; const { error } = await SB.rpc('pt_rel_config_revert', {p_log: Number(b.dataset.scoreRevert)});
     if (error) return toast('복원하지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 복원했습니다.');
   });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
   $('#erase-add')?.addEventListener('click', eraseAdd);
   $$('[data-erase-cancel]').forEach(b => b.onclick = async () => {
-    const ok = await confirmBox({title: '접수를 취소할까요?', body: '잘못 접수한 요청만 취소해 주세요. 연락처는 그대로 남습니다.', ok: '접수 취소', cancel: '닫기'});
+    const ok = await confirmBox({title: '접수를 취소할까요?', body: '잘못 접수한 요청만 취소해 주세요. 연락처는 그대로 유지됩니다.', ok: '접수 취소', cancel: '닫기'});
     if (!ok) return; const { error } = await SB.rpc('pt_erasure_cancel', {p_id: Number(b.dataset.eraseCancel)});
     if (error) return toast('취소하지 못했습니다: ' + error.message); admin.erase = null; render(); toast('접수를 취소했습니다.');
   });
   $$('[data-erase-go]').forEach(b => b.onclick = async () => {
     const x = admin.erase.rows.find(r => String(r.id) === b.dataset.eraseGo); if (!x) return;
-    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 이 사람의 정보를 지우고, 관계 기록에는 「삭제된 연락처」로만 남깁니다. 명함 이미지 파일은 궁니르 봇이 몇 분 안에 지웁니다. <b>복원할 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
+    const ok = await confirmBox({title: `${eraseWho(x)} 님의 개인정보를 삭제할까요?`, body: '연락처·명함 기록·소속·변경 기록에서 해당 인물의 정보를 삭제하고, 관계 기록에는 「삭제된 연락처」로만 표시합니다. 명함 이미지 파일은 궁니르 봇이 몇 분 이내에 삭제합니다. <b>복원할 수 없습니다.</b>', ok: '삭제', cancel: '닫기', danger: true});
     if (!ok) return; b.disabled = true; b.textContent = '삭제하는 중…';
     const { error } = await SB.rpc('pt_erasure_process', {p_id: x.id});
     if (error) { b.disabled = false; b.textContent = '삭제 처리'; return toast('삭제하지 못했습니다: ' + error.message); }
-    admin.erase = null; admin.changes = null; await load(); loadAdmin(); toast('개인정보를 삭제했습니다. 명함 이미지는 궁니르 봇이 이어서 지웁니다.');
+    admin.erase = null; admin.changes = null; await load(); loadAdmin(); toast('개인정보를 삭제했습니다. 명함 이미지는 궁니르 봇이 이어서 삭제합니다.');
   });
   $('#metric-reload')?.addEventListener('click', () => { admin.metrics = null; render(); });
   $('#log-reload')?.addEventListener('click', () => { admin.changes = null; loadAdmin(); });
   $('#bot-reload')?.addEventListener('click', () => { admin.bot = null; render(); });
   $('#bot-restart')?.addEventListener('click', () => {
-    modal(`<h2>궁니르 봇 재시작</h2><p>궁니르 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문에 답변하지 않습니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
+    modal(`<h2>궁니르 봇 재시작</h2><p>궁니르 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문 답변이 중단됩니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
     $('#restart-go').onclick = () => { $('#modal').close(); restartBot(); };
   });
   $('#log-who')?.addEventListener('change', e => { admin.who = e.target.value; render(); });
   const q = $('#log-q'); if (q) q.onchange = e => { admin.q = e.target.value; render(); };
-  $('#log-export')?.addEventListener('click', () => { const rows = [['언제(KST)', '누가', '어디서', '엔티티', '무엇을', '변경 항목', '이전', '이후', '메모'], ...admin.changes.flatMap(x => (x.op === 'insert' ? ['(새로 등록)'] : x.fields || []).map(k => [kst(x.at), whoName(x.actor, x.actor_name), VIA_KO[x.via] || x.via, x.entity_name, OP_KO[x.op] || x.op, FIELD_KO[k] || k, x.op === 'insert' ? '' : showVal(k, x.before?.[k]), x.op === 'insert' ? '' : showVal(k, x.after?.[k]), x.reason]))]; download('pantheon-change-log.csv', rows); });
+  $('#log-export')?.addEventListener('click', () => { const rows = [['일시(KST)', '변경자', '경로', '엔티티', '변경 대상', '변경 항목', '이전', '이후', '메모'], ...admin.changes.flatMap(x => (x.op === 'insert' ? ['(새로 등록)'] : x.fields || []).map(k => [kst(x.at), whoName(x.actor, x.actor_name), VIA_KO[x.via] || x.via, x.entity_name, OP_KO[x.op] || x.op, FIELD_KO[k] || k, x.op === 'insert' ? '' : showVal(k, x.before?.[k]), x.op === 'insert' ? '' : showVal(k, x.after?.[k]), x.reason]))]; download('pantheon-change-log.csv', rows); });
   $$('[data-restore]').forEach(b => b.onclick = () => {
     const x = admin.changes.find(c => String(c.id) === b.dataset.restore); if (!x) return;
     modal(`<h2>복원 확인</h2><p><b>${esc(x.entity_name)}</b>을(를) ${esc(kst(x.at))}에 변경되기 <b>이전</b> 내용으로 복원합니다. 복원한 내용도 변경 기록에 남으며, 필요하면 다시 복원할 수 있습니다.</p><div class="table-wrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>항목</th><th>현재</th><th>복원 후</th></tr></thead><tbody>${(x.fields || []).map(k => { const cur = byId(x.entity_id); return `<tr><td>${esc(FIELD_KO[k] || k)}</td><td>${esc(showVal(k, cur ? toRow(cur)[k] ?? cur[k] : null))}</td><td>${esc(showVal(k, x.before?.[k]))}</td></tr>`; }).join('')}</tbody></table></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restore-go">${esc(x.entity_name)} 복원</button></div>`);
@@ -1619,16 +1619,16 @@ function pjFiltered() {
     .slice().sort((a, b) => { const x = sv(a), y = sv(b); return (typeof x === 'number' ? x - y : String(x || '').localeCompare(String(y || ''), 'ko')) * sd || String(b.updated_at).localeCompare(String(a.updated_at)); });
 }
 function pjTable(ps) {
-  if (!ps.length) return `<div class="empty"><p>${pjAny() ? '조건에 맞는 프로젝트가 없습니다.' : '아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP 하나로 시작하세요.'}</p></div>`;
+  if (!ps.length) return `<div class="empty"><p>${pjAny() ? '조건에 맞는 프로젝트가 없습니다.' : '아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP를 입력해 시작해 주세요.'}</p></div>`;
   const {k: sk, d: sd} = studio.sort;
   const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
   const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
   return `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-// 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 오래 기다린 것부터, 하루가 넘으면 눈에 띄게
+// 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 대기 기간이 긴 순서, 하루가 넘으면 눈에 띄게
 const waitH = p => (Date.now() - Date.parse(p.updated_at)) / 3600e3;
 const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간째` : `${Math.floor(h / 24)}일째`;
-const todoWhat = p => p.status === 'failed' ? '작업이 멈췄습니다 · 확인 후 다시 시도' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 다시 시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
+const todoWhat = p => p.status === 'failed' ? '작업 중단 · 확인 후 재시도 필요' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 재시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
 const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>하루 넘게 대기</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
 
 function studioProjects() {
@@ -1641,12 +1641,12 @@ function studioProjects() {
   const n = f => all.filter(p => (!studio.by || pjByOf(p) === studio.by) && f(p)).length;
   const sel = (attr, label, opts, cur) => `<select class="pf-by" ${attr} aria-label="${label}" data-nodirty>${opts.map(([v, t]) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
   const bar = `<div class="pf-bar"><input type="search" class="pf-q" data-pq placeholder="프로젝트·IP·수신사·기안자 검색" value="${esc(studio.q)}" aria-label="프로젝트 검색" data-nodirty>`
-    + sel('data-pstage', '단계로 보기', [['', '단계 전체'], ...STAGES.map((s, i) => [i + 1, `${i + 1}. ${s} (${n(p => p.stage === i + 1)})`])], studio.stage || '')
-    + sel('data-pstatus', '상태로 보기', [['all', '상태 전체'], ...Object.entries(F).map(([k, [t, xs]]) => [k, `${t} (${xs.length})`])], F[studio.filter] ? studio.filter : 'all')
-    + sel('data-pby', '기안자로 보기', [['', '기안자 전체'], ...byNames.map(x => [x, `${x} (${all.filter(p => pjByOf(p) === x).length})`])], studio.by)
+    + sel('data-pstage', '단계별 보기', [['', '단계 전체'], ...STAGES.map((s, i) => [i + 1, `${i + 1}. ${s} (${n(p => p.stage === i + 1)})`])], studio.stage || '')
+    + sel('data-pstatus', '상태별 보기', [['all', '상태 전체'], ...Object.entries(F).map(([k, [t, xs]]) => [k, `${t} (${xs.length})`])], F[studio.filter] ? studio.filter : 'all')
+    + sel('data-pby', '기안자별 보기', [['', '기안자 전체'], ...byNames.map(x => [x, `${x} (${all.filter(p => pjByOf(p) === x).length})`])], studio.by)
     + `<button class="text-btn" type="button" data-pclear${pjAny() ? '' : ' hidden'}>조건 초기화</button></div>`;
   const stat = (key, num, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${num}<small>건</small></div><div class="stat-bottom">${bottom}</div></div>`;
-  return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">오래 기다린 것부터</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}</section>
+  return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">대기 기간이 긴 순서</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}</section>
   <div class="stats">${stat('live', F.live[1].length, `전체 ${all.length}건`)}${stat('wait', F.wait[1].length, '담당자 확인이 필요한 단계')}${stat('work', F.work[1].length, '리서치·생성 등 자동 단계')}${stat('done', F.done[1].length, '제안서 전달 완료', true)}</div>
   <div class="main-grid studio-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? F[studio.filter][0] : '전체'} 프로젝트${studio.by ? ` · ${esc(studio.by)}` : ''} <small id="pj-count">${ps.length}건 · ${SORT_KO[studio.sort.k]}</small></div></div>${bar}<div id="pj-body">${pjTable(ps)}</div></section>
   <section class="panel"><div class="panel-head"><div class="panel-title">다른 담당자 결정 대기</div>${others.length ? `<span class="alert-count">${others.length}건</span>` : ''}</div><div class="alert-list">${others.length ? others.map(p => todoRow(p, false)).join('') : '<p class="panel-caption" style="padding:0 0 18px">다른 담당자가 결정할 프로젝트가 없습니다.</p>'}</div></section></div>`;
@@ -1665,57 +1665,57 @@ const refMatch = r => (!studio.refType || refType(r) === studio.refType) && (!st
 function refLearnCell(r) {
   if (refBusy(r)) return refProg(r);
   if (r.status === 'failed') return `<span class="pill bad" title="${esc(r.profile?.error || '')}">학습 실패</span> <button class="text-btn" data-ref-relearn="${r.id}">다시 학습</button>`;
-  return `<button class="text-btn" data-ref-view="${r.id}"><span class="pill good">학습 완료</span> 보기</button>${refDeep(r) ? '' : '<small class="cell-sub">문체·디자인은 다시 학습하면 자세히 배웁니다</small>'}`;
+  return `<button class="text-btn" data-ref-view="${r.id}"><span class="pill good">학습 완료</span> 보기</button>${refDeep(r) ? '' : '<small class="cell-sub">다시 학습하면 문체·디자인까지 상세히 학습합니다</small>'}`;
 }
 function refTable(rs) {
-  if (!rs.length) return `<div class="empty"><p>${(studio.refs || []).length ? '조건에 맞는 레퍼런스가 없습니다.' : '등록된 레퍼런스가 없습니다.<br>오른쪽 위 「레퍼런스 등록」에서 완성 제안서 PDF를 올려 주세요.'}</p></div>`;
+  if (!rs.length) return `<div class="empty"><p>${(studio.refs || []).length ? '조건에 맞는 레퍼런스가 없습니다.' : '등록된 레퍼런스가 없습니다.<br>오른쪽 위 「레퍼런스 등록」에서 완성 제안서 PDF를 업로드해 주세요.'}</p></div>`;
   return `<div class="table-wrap"><table class="ct"><thead><tr><th>제안서</th><th>콜라보</th><th>수신사</th><th>학습</th><th>기본 포맷</th><th>파일</th></tr></thead><tbody>${rs.map(r => `<tr${refLearned(r) ? ` class="clickable" data-ref-view="${r.id}"` : ''}><td class="wrap-cell">${esc(r.title)}<small class="cell-sub">${esc([r.author, ymd(r.created_at)].filter(Boolean).join(' · '))}</small></td><td data-label="콜라보" class="wrap-cell">${esc(refPair(r) || '—')}${refType(r) ? `<small class="cell-sub"><span class="pill">${esc(refType(r))}</span></small>` : ''}</td><td data-label="수신사">${esc(r.recipient || '—')}</td><td data-label="학습">${refLearnCell(r)}</td><td data-label="기본 포맷">${r.is_default ? '<span class="pill good">기본</span>' : `<button class="text-btn" data-ref-default="${r.id}">기본으로 지정</button>`}</td><td data-label="파일"><button class="text-btn" data-ref-open="${r.id}">열기 ↗</button></td></tr>`).join('')}</tbody></table></div>`;
 }
 function studioRefs() {
   const all = studio.refs, rs = all.filter(refMatch), types = REF_TYPES.filter(t => all.some(r => refType(r) === t));
   if (studio.refType && !types.includes(studio.refType)) studio.refType = '';
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">레퍼런스 라이브러리 <small id="ref-count">${rs.length === all.length ? `${all.length}건` : `${rs.length} / ${all.length}건`}</small></div><p class="panel-caption">팀이 작성한 완성 제안서입니다. 새 제안서는 고른 레퍼런스의 디자인·구성·문체·설득 흐름을 따라 씁니다.</p></div><button class="button primary" type="button" data-ref-new>${icon('plus')}레퍼런스 등록</button></div>
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">레퍼런스 라이브러리 <small id="ref-count">${rs.length === all.length ? `${all.length}건` : `${rs.length} / ${all.length}건`}</small></div><p class="panel-caption">팀에서 작성한 완성 제안서입니다. 새 제안서는 선택한 레퍼런스의 디자인·구성·문체·설득 흐름을 반영해 작성됩니다.</p></div><button class="button primary" type="button" data-ref-new>${icon('plus')}레퍼런스 등록</button></div>
   <div class="pf-bar">${types.length ? `<div class="ar-kinds" role="group" aria-label="콜라보 유형">${[['', '전체'], ...types.map(t => [t, t])].map(([k, t]) => `<button type="button" class="ar-chip${studio.refType === k ? ' on' : ''}" data-ref-type="${esc(k)}" aria-pressed="${studio.refType === k}">${esc(t)} <small>${k ? all.filter(r => refType(r) === k).length : all.length}</small></button>`).join('')}</div>` : ''}<input type="search" class="pf-q" data-ref-q placeholder="제안서 이름·IP·수신사·작성자 검색" value="${esc(studio.refQ)}" aria-label="레퍼런스 검색" data-nodirty></div>
   <div id="ref-body">${refTable(rs)}</div></section>`;
 }
 
 // 레퍼런스 등록 화면 (11-04 김현우 「레퍼런스 추가도 별도의 UI로 — AI가 디자인·구조·문어체·제안서 구조를 아주 상세하게 학습」)
-// 파일·콜라보 대상·유형·특히 배울 점을 받고, 올린 뒤 같은 화면에서 학습 진행을 단계별로 보여 준다
-const LEARN = [[12, '제안서 파일 받기'], [31, '처음부터 끝까지 읽기'], [88, '페이지마다 구성·원문·배치 학습'], [100, '문체·디자인·작성 기준 정리']];
+// 파일·콜라보 대상·유형·중점 학습 사항을 받고, 올린 뒤 같은 화면에서 학습 진행을 단계별로 보여 준다
+const LEARN = [[12, '제안서 파일 수신'], [31, '제안서 전체 분석'], [88, '페이지별 구성·원문·배치 학습'], [100, '문체·디자인·작성 기준 정리']];
 function refLearnCard(r) {
   if (!r) return '';
-  if (r.status === 'failed') return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습하지 못했습니다</h3><p class="muted-box">${esc(r.profile?.error || '궁니르 봇이 학습을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" data-ref-relearn="${r.id}">다시 학습</button><button class="button" data-ref-new>다른 파일 등록</button></div></div>`;
+  if (r.status === 'failed') return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습하지 못했습니다</h3><p class="muted-box">${esc(r.profile?.error || '궁니르 봇이 학습을 완료하지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" data-ref-relearn="${r.id}">다시 학습</button><button class="button" data-ref-new>다른 파일 등록</button></div></div>`;
   if (!refBusy(r)) {
     const f = r.profile || {}, w = f.writing || {};
-    return `<div class="rl-card done" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습을 마쳤습니다</h3>
+    return `<div class="rl-card done" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습을 완료했습니다</h3>
     <div class="detail-row"><span>콜라보</span><b>${esc(refPair(r) || '—')}${refType(r) ? ` · ${esc(refType(r))}` : ''}</b></div><div class="detail-row"><span>페이지</span><b>${esc(f.page_count || (f.pages || []).length)}페이지 · 이미지 ${esc(f.image_pattern?.total || 0)}장</b></div>${w.register ? `<div class="detail-row"><span>문체</span><b>${esc(w.register)}</b></div>` : ''}${f.design?.mood ? `<div class="detail-row"><span>디자인</span><b>${esc(f.design.mood)}</b></div>` : ''}
-    <div class="drawer-actions"><button class="button primary" data-ref-view="${r.id}">학습 결과 자세히 보기</button><button class="button" data-ref-new>하나 더 등록</button><button class="button" data-studio-tab="refs">레퍼런스 라이브러리</button></div></div>`;
+    <div class="drawer-actions"><button class="button primary" data-ref-view="${r.id}">학습 결과 상세 보기</button><button class="button" data-ref-new>추가 등록</button><button class="button" data-studio-tab="refs">레퍼런스 라이브러리</button></div></div>`;
   }
   const j = refJob(r), pct = j?.result?.progress || 0, work = j?.status === 'work';
   const steps = LEARN.map(([to, t], i) => { const from = i ? LEARN[i - 1][0] : 0; return `<li class="${pct >= to ? 'done' : work && pct >= from ? 'now' : ''}">${esc(t)}</li>`; }).join('');
-  return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습 중</h3>${refProg(r)}<ol class="rl-steps">${steps}</ol><p class="muted-box">화면을 나가도 학습은 계속됩니다. 끝나면 레퍼런스 라이브러리에 「학습 완료」로 표시됩니다.</p></div>`;
+  return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습 중</h3>${refProg(r)}<ol class="rl-steps">${steps}</ol><p class="muted-box">화면을 벗어나도 학습은 계속 진행됩니다. 완료되면 레퍼런스 라이브러리에 「학습 완료」로 표시됩니다.</p></div>`;
 }
 function studioRefNew() {
   const back = `<button class="text-btn rn-back" type="button" data-studio-tab="refs">← 레퍼런스 라이브러리</button>`;
   if (studio.refNew) return back + `<section class="panel rn-panel">${refLearnCard(studio.refs.find(x => x.id === studio.refNew))}</section>`;
-  return back + `<div class="rn-grid"><section class="panel rn-panel"><form id="rn-form" novalidate><div class="panel-title">레퍼런스 등록</div><p class="panel-caption">팀이 실제로 보낸 완성 제안서를 올리면 궁니르 봇이 처음부터 끝까지 읽고 배웁니다.</p>
-  <label class="rn-drop" id="rn-drop"><input id="rn-file" type="file" accept=".pdf,application/pdf" data-nodirty><span class="rn-drop-in">${icon('upload')}<b id="rn-file-name">PDF 파일을 끌어다 놓거나 눌러서 고르세요</b><small id="rn-file-sub">100MB 이하 · PPTX는 PowerPoint에서 PDF로 저장해 올려 주세요</small></span></label>
+  return back + `<div class="rn-grid"><section class="panel rn-panel"><form id="rn-form" novalidate><div class="panel-title">레퍼런스 등록</div><p class="panel-caption">팀에서 실제 발송한 완성 제안서를 업로드하면 궁니르 봇이 전체 내용을 분석해 학습합니다.</p>
+  <label class="rn-drop" id="rn-drop"><input id="rn-file" type="file" accept=".pdf,application/pdf" data-nodirty><span class="rn-drop-in">${icon('upload')}<b id="rn-file-name">PDF 파일을 드래그하거나 클릭해 선택해 주세요</b><small id="rn-file-sub">100MB 이하 · PPTX 파일은 PowerPoint에서 PDF로 변환해 업로드해 주세요</small></span></label>
   <label>제안서 이름 *<input id="rn-title" maxlength="120" placeholder="예: 바비 × 장원영 IP 콜라보레이션 제안서"></label>
   <datalist id="rn-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist>
   <div class="rn-pair"><label>IP·아티스트<input id="rn-a" list="rn-ents" maxlength="80" placeholder="예: aespa"></label><span aria-hidden="true">×</span><label>콜라보 상대<input id="rn-b" list="rn-ents" maxlength="80" placeholder="예: 사이버펑크 엣지러너"></label></div>
-  <div class="field"><span class="flabel">콜라보 유형</span><div class="ar-kinds" role="radiogroup" aria-label="콜라보 유형">${[['', '읽고 정하기'], ...REF_TYPES.map(t => [t, t])].map(([k, t], i) => `<button type="button" class="ar-chip${i ? '' : ' on'}" role="radio" aria-checked="${!i}" data-rn-type="${esc(k)}">${esc(t)}</button>`).join('')}</div><small class="muted">비워 두면 궁니르 봇이 제안서를 읽고 IP·상대·유형·수신사를 채웁니다.</small></div>
+  <div class="field"><span class="flabel">콜라보 유형</span><div class="ar-kinds" role="radiogroup" aria-label="콜라보 유형">${[['', '자동 판별'], ...REF_TYPES.map(t => [t, t])].map(([k, t], i) => `<button type="button" class="ar-chip${i ? '' : ' on'}" role="radio" aria-checked="${!i}" data-rn-type="${esc(k)}">${esc(t)}</button>`).join('')}</div><small class="muted">입력하지 않으면 궁니르 봇이 제안서를 분석해 IP·콜라보 상대·유형·수신사를 자동으로 입력합니다.</small></div>
   <label>수신사<input id="rn-to" list="rn-ents" maxlength="80"></label>
   <div class="field"><span class="flabel">작성자</span><div id="rn-author"></div></div>
-  <label>특히 배울 점<textarea id="rn-note" maxlength="500" rows="3" placeholder="예: 컨셉 3안 페이지 구성과 굿즈 페이지 디자인을 특히 참고"></textarea></label>
-  <div id="rn-up" class="ref-prog" hidden><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i style="width:0%"></i></span><b>0%</b></span><small>파일을 올리는 중</small></div>
+  <label>중점 학습 사항<textarea id="rn-note" maxlength="500" rows="3" placeholder="예: 컨셉 3안 페이지 구성과 굿즈 페이지 디자인을 특히 참고"></textarea></label>
+  <div id="rn-up" class="ref-prog" hidden><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i style="width:0%"></i></span><b>0%</b></span><small>파일 업로드 중</small></div>
   <div id="rn-error" class="err" role="alert"></div>
   <div class="modal-actions"><button class="button" type="button" data-studio-tab="refs">취소</button><button class="button primary" type="submit">등록하고 학습 시작</button></div></form></section>
-  <section class="panel rn-panel rn-side"><div class="panel-title">궁니르 봇이 배우는 것</div><ol class="rule-list rn-learn">
-  <li><b>디자인</b><br><small>바탕·여백·칸 나누기, 글꼴 크기 단계, 색을 어디에 쓰는지, 페이지 번호·라벨 같은 반복 요소</small></li>
-  <li><b>페이지 구성</b><br><small>막 순서, 페이지마다 역할과 배치, 이미지 자리와 종류</small></li>
-  <li><b>문어체</b><br><small>제목·라벨·본문 쓰는 법, 숫자 표기, 자주 쓰는 표현과 원문 예시</small></li>
-  <li><b>제안서 구조</b><br><small>첫 관심 끌기부터 마무리까지 설득 흐름, 더올마이티를 내세우는 방식</small></li></ol>
-  <p class="panel-caption">배운 내용은 새 제안서의 「제안서 구성」에서 이 레퍼런스를 고르면 그대로 씁니다.</p></section></div>`;
+  <section class="panel rn-panel rn-side"><div class="panel-title">학습 항목</div><ol class="rule-list rn-learn">
+  <li><b>디자인</b><br><small>배경·여백·레이아웃 구성, 글꼴 크기 체계, 색상별 용도, 페이지 번호·라벨 등 반복 요소</small></li>
+  <li><b>페이지 구성</b><br><small>섹션 순서, 페이지별 역할과 배치, 이미지 위치와 유형</small></li>
+  <li><b>문어체</b><br><small>제목·라벨·본문 작성 방식, 숫자 표기, 주요 표현과 원문 예시</small></li>
+  <li><b>제안서 구조</b><br><small>도입부터 마무리까지의 설득 흐름, 더올마이티 소개 방식</small></li></ol>
+  <p class="panel-caption">학습한 내용은 새 제안서의 「제안서 구성」에서 이 레퍼런스를 선택하면 반영됩니다.</p></section></div>`;
 }
 // 파일 올리기 진행률 — 서명된 업로드 주소로 직접 올려 진행률을 받는다. 안 되면 기존 방식으로
 async function uploadWithProgress(bucket, path, file, onp) {
@@ -1742,9 +1742,9 @@ function bindRefNew() {
   const pick = f => {
     $('#rn-error').textContent = '';
     if (!f) return;
-    if (!/\.pdf$/i.test(f.name)) { $('#rn-error').textContent = 'PDF 파일만 학습할 수 있습니다. PPTX는 PowerPoint에서 PDF로 저장해 올려 주세요.'; return; }
-    if (f.size > 100e6) { $('#rn-error').textContent = '100MB 이하 파일을 골라 주세요.'; return; }
-    file = f; $('#rn-drop').classList.add('picked'); $('#rn-file-name').textContent = f.name; $('#rn-file-sub').textContent = `${(f.size / 1e6).toFixed(1)}MB · 다른 파일로 바꾸려면 다시 누르세요`;
+    if (!/\.pdf$/i.test(f.name)) { $('#rn-error').textContent = 'PDF 파일만 학습할 수 있습니다. PPTX 파일은 PowerPoint에서 PDF로 변환해 업로드해 주세요.'; return; }
+    if (f.size > 100e6) { $('#rn-error').textContent = '100MB 이하 파일을 선택해 주세요.'; return; }
+    file = f; $('#rn-drop').classList.add('picked'); $('#rn-file-name').textContent = f.name; $('#rn-file-sub').textContent = `${(f.size / 1e6).toFixed(1)}MB · 다른 파일을 선택하려면 다시 클릭해 주세요`;
     if (!$('#rn-title').value) $('#rn-title').value = f.name.replace(/\.pdf$/i, '');
   };
   $('#rn-file').onchange = () => pick($('#rn-file').files[0]);
@@ -1756,9 +1756,9 @@ function bindRefNew() {
   form.onsubmit = async ev => {
     ev.preventDefault();
     const title = $('#rn-title').value.trim();
-    if (!file) { $('#rn-error').textContent = '제안서 PDF 파일을 골라 주세요.'; return; }
+    if (!file) { $('#rn-error').textContent = '제안서 PDF 파일을 선택해 주세요.'; return; }
     if (!title) { $('#rn-error').textContent = '제안서 이름을 입력해 주세요.'; $('#rn-title').focus(); return; }
-    const btn = form.querySelector('[type=submit]'), up = $('#rn-up'); btn.disabled = true; btn.textContent = '올리는 중…'; up.hidden = false;
+    const btn = form.querySelector('[type=submit]'), up = $('#rn-up'); btn.disabled = true; btn.textContent = '업로드 중…'; up.hidden = false;
     const bar = p => { if (p < 0) { up.querySelector('.bar').classList.add('indet'); up.querySelector('b').textContent = ''; return; } const n = Math.round(p * 100); up.querySelector('i').style.width = n + '%'; up.querySelector('b').textContent = n + '%'; up.querySelector('.bar').setAttribute('aria-valuenow', n); };
     const fail = m => { btn.disabled = false; btn.textContent = '등록하고 학습 시작'; up.hidden = true; $('#rn-error').textContent = m; };
     const path = `refs/${today()}/${uid()}.pdf`;
@@ -1779,7 +1779,7 @@ async function refRelearn(id) {
   if (error) return toast('다시 학습을 요청하지 못했습니다: ' + error.message);
   const jr = await SB.from('pt_proposal_job').insert({ref_id: id, kind: 'analyze_reference', input: {file_path: r.file_path, retry: true}});
   if (jr.error) return toast('다시 학습을 요청하지 못했습니다: ' + jr.error.message);
-  closeDrawer?.(); await loadStudio(); toast(refLearned(r) ? '다시 학습을 시작했습니다. 끝날 때까지는 지금 학습 결과로 제안서를 만듭니다.' : '다시 학습을 시작했습니다.');
+  closeDrawer?.(); await loadStudio(); toast(refLearned(r) ? '다시 학습을 시작했습니다. 완료 전까지는 기존 학습 결과로 제안서를 생성합니다.' : '다시 학습을 시작했습니다.');
 }
 
 // 이미지 아카이브 (10-31 김현우 「Aside로 찾거나 힉스필드로 만든 이미지를 종류별로 정리해 나중에도 쓰게」)
@@ -1807,8 +1807,8 @@ function arFilters(f, id) {
 }
 function arGrid(f, pick) {
   const xs = (studio.arch || []).filter(a => arMatch(a, f));
-  if (!xs.length) return `<div class="empty"><p>${(studio.arch || []).length ? '조건에 맞는 이미지가 없습니다.' : '아직 보관된 이미지가 없습니다.<br>제안서 이미지를 확보하거나 생성하면 여기에 자동으로 모입니다.'}</p></div>`;
-  return `<div class="ar-grid">${xs.slice(0, 300).map(a => `<button type="button" class="ar-card" data-ar="${a.id}"${pick ? ' data-ar-pick="1"' : ''}><div class="ithumb" data-ar-thumb="${esc(a.path)}"></div><span class="ar-meta"><b>${esc(AR_KO[a.kind] || a.kind)}</b><span class="pill">${esc(AR_SRC[a.source] || a.source)}</span></span><small>${esc(whatText(a.what) || '설명 없음')}</small><small class="ar-ip">${esc((a.ips || []).join(' · '))}</small></button>`).join('')}</div>${xs.length > 300 ? `<p class="panel-caption">${xs.length}장 중 300장만 보입니다. 종류·IP로 좁혀 주세요.</p>` : ''}`;
+  if (!xs.length) return `<div class="empty"><p>${(studio.arch || []).length ? '조건에 맞는 이미지가 없습니다.' : '아직 보관된 이미지가 없습니다.<br>제안서 이미지를 확보하거나 생성하면 이곳에 자동으로 보관됩니다.'}</p></div>`;
+  return `<div class="ar-grid">${xs.slice(0, 300).map(a => `<button type="button" class="ar-card" data-ar="${a.id}"${pick ? ' data-ar-pick="1"' : ''}><div class="ithumb" data-ar-thumb="${esc(a.path)}"></div><span class="ar-meta"><b>${esc(AR_KO[a.kind] || a.kind)}</b><span class="pill">${esc(AR_SRC[a.source] || a.source)}</span></span><small>${esc(whatText(a.what) || '설명 없음')}</small><small class="ar-ip">${esc((a.ips || []).join(' · '))}</small></button>`).join('')}</div>${xs.length > 300 ? `<p class="panel-caption">${xs.length}장 중 300장만 표시됩니다. 유형·IP로 범위를 좁혀 주세요.</p>` : ''}`;
 }
 async function arThumbs(root) {
   const els = [...root.querySelectorAll('[data-ar-thumb]')], paths = [...new Set(els.map(e => e.dataset.arThumb))];
@@ -1828,7 +1828,7 @@ function arBind(root, f, redraw) {
 function studioArchive() {
   if (!studio.arch) { setTimeout(loadArchive); return '<div class="empty"><p>이미지 아카이브를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
   if (studio.archErr) return `<div class="notice">${esc(studio.archErr)}</div>`;
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">이미지 아카이브 <small>${studio.arch.length}장</small></div><p class="panel-caption">제안서를 만들며 Aside로 찾거나 힉스필드로 생성한 이미지입니다. 이미지를 누르면 크게 보고 내려받을 수 있고, 제안서 이미지 확인·수정 화면의 「아카이브에서 선택」으로 다른 제안서에 넣을 수 있습니다.</p></div></div>
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">이미지 아카이브 <small>${studio.arch.length}장</small></div><p class="panel-caption">제안서를 만들며 Aside로 찾거나 힉스필드로 생성한 이미지입니다. 이미지를 클릭하면 크게 보거나 다운로드할 수 있고, 제안서 이미지 확인·수정 화면의 「아카이브에서 선택」으로 다른 제안서에 적용할 수 있습니다.</p></div></div>
   ${arFilters(arF, 'ar-tools')}<div id="ar-body">${arGrid(arF)}</div></section>`;
 }
 function bindArchive() {
@@ -1845,28 +1845,28 @@ async function arView(id) {
   const from = arProp(a);
   modal(`<div class="ar-view"><h2>${esc(AR_KO[a.kind] || a.kind)} <span class="pill">${esc(AR_SRC[a.source] || a.source)}</span></h2><div class="ar-big"><img id="ar-img" alt="${esc(whatText(a.what))}"></div>
   <div class="detail-row"><span>설명</span><b>${esc(whatText(a.what) || '—')}</b></div><div class="detail-row"><span>IP</span><b>${esc((a.ips || []).join(' · ') || '—')}</b></div>
-  ${a.w && a.h ? `<div class="detail-row"><span>크기</span><b>${a.w} × ${a.h}</b></div>` : ''}${from ? `<div class="detail-row"><span>처음 쓴 제안서</span><b>${esc(from)}${a.slide ? ` · ${a.slide}페이지` : ''}</b></div>` : ''}
-  <div class="detail-row"><span>보관한 날</span><b>${esc(kst(a.created_at))}</b></div>
+  ${a.w && a.h ? `<div class="detail-row"><span>크기</span><b>${a.w} × ${a.h}</b></div>` : ''}${from ? `<div class="detail-row"><span>최초 사용 제안서</span><b>${esc(from)}${a.slide ? ` · ${a.slide}페이지` : ''}</b></div>` : ''}
+  <div class="detail-row"><span>보관일</span><b>${esc(kst(a.created_at))}</b></div>
   ${a.source_page ? `<div class="detail-row"><span>출처</span><b><a href="${esc(a.source_page)}" target="_blank" rel="noopener">${esc(a.source_page.replace(/^https?:\/\//, '').slice(0, 60))} ↗</a></b></div>` : ''}
   ${a.prompt ? `<details class="ar-prompt"><summary>생성 프롬프트</summary><p>${esc(a.prompt)}</p><button class="text-btn" type="button" id="ar-copy">프롬프트 복사</button></details>` : ''}
   <label>종류<select id="ar-kind" data-nodirty>${AR_KIND.map(([k, t]) => `<option value="${k}"${a.kind === k ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-  <div class="modal-actions"><button class="button" type="button" id="ar-hide">아카이브에서 빼기</button><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="button" id="ar-down">${icon('download')} 원본 내려받기</button></div></div>`);
+  <div class="modal-actions"><button class="button" type="button" id="ar-hide">아카이브에서 제외</button><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="button" id="ar-down">${icon('download')} 원본 다운로드</button></div></div>`);
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => $('#modal').classList.remove('wide'), {once: true});
   SB.storage.from('pt-studio').createSignedUrl(a.path, 3600).then(({ data }) => { if (data && $('#ar-img')) $('#ar-img').src = data.signedUrl; });
   $('#ar-copy')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(a.prompt); toast('프롬프트를 복사했습니다.'); } catch { toast('복사하지 못했습니다.'); } });
   $('#ar-down').onclick = async () => {
     const ext = a.path.split('.').pop(), name = `${(a.ips || []).join('_') || 'image'}_${AR_KO[a.kind] || a.kind}_${a.id.slice(0, 6)}.${ext}`.replace(/[\\/:*?"<>|\s]+/g, '_');
     const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(a.path, 600, {download: name});
-    if (error) return toast('내려받지 못했습니다: ' + error.message);
+    if (error) return toast('다운로드하지 못했습니다: ' + error.message);
     const l = document.createElement('a'); l.href = data.signedUrl; l.download = name; document.body.appendChild(l); l.click(); l.remove();
   };
   $('#ar-kind').onchange = async ev => { const old = a.kind, k = ev.target.value;
     await optimistic(() => { a.kind = k; render(); }, () => SB.from('pt_image_archive').update({kind: k}).eq('id', a.id), () => { a.kind = old; ev.target.value = old; render(); });
-    toast(`「${AR_KO[k]}」(으)로 옮겼습니다.`); };
+    toast(`「${AR_KO[k]}」(으)로 이동했습니다.`); };
   $('#ar-hide').onclick = async () => { const i = studio.arch.indexOf(a);
     $('#modal').close();
     const done = await optimistic(() => { studio.arch.splice(i, 1); render(); }, () => SB.from('pt_image_archive').update({hidden: true}).eq('id', a.id), () => { studio.arch.splice(i, 0, a); render(); }, '삭제하지 못해 원래대로 복원했습니다');
-    if (done) toast('아카이브에서 뺐습니다.', {fn: async () => { const r = await SB.from('pt_image_archive').update({hidden: false}).eq('id', a.id); if (r.error) throw r.error; studio.arch.splice(i, 0, a); render(); toast('실행을 취소했습니다.'); }}); };
+    if (done) toast('아카이브에서 제외했습니다.', {fn: async () => { const r = await SB.from('pt_image_archive').update({hidden: false}).eq('id', a.id); if (r.error) throw r.error; studio.arch.splice(i, 0, a); render(); toast('실행을 취소했습니다.'); }}); };
 }
 // 제안서 이미지 확인·수정 카드 「아카이브에서 선택」 — 고른 이미지를 그 자리에 넣는다(복사본 그대로 · 내 이미지로 교체와 같은 흐름)
 const AR_NEAR = {official: 'official', logo: 'logo', capture: 'capture', reference: 'reference', ai_concept: 'ai_concept', mockup: 'mockup', texture: 'texture'};
@@ -1884,7 +1884,7 @@ function arPick(p, key, done) {
   const bindPick = () => { const b = $('#arp-body'); arThumbs(b); b.querySelectorAll('[data-ar-pick]').forEach(c => c.onclick = async () => {
     const a = studio.arch.find(x => x.id === c.dataset.ar); if (!a) return;
     $('#modal').close(); if (await useArchive(p, key, a)) done?.(); }); };
-  modal(`<div><h2>아카이브에서 선택</h2><p>${esc(whatText(s.what))} 위치에 넣을 이미지를 선택하세요. ${ip.length ? `${esc(ip.join(' · '))} 이미지만 보려면 IP를 선택하세요.` : ''}</p><div id="arp"></div><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button></div></div>`);
+  modal(`<div><h2>아카이브에서 선택</h2><p>${esc(whatText(s.what))} 위치에 적용할 이미지를 선택해 주세요. ${ip.length ? `${esc(ip.join(' · '))} 이미지만 보려면 IP를 선택해 주세요.` : ''}</p><div id="arp"></div><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button></div></div>`);
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => { $('#modal').classList.remove('wide'); window.removeEventListener('pt-arch', draw); }, {once: true});
   window.addEventListener('pt-arch', draw); draw(); if (!studio.arch) loadArchive();
 }
@@ -1896,7 +1896,7 @@ async function useArchive(p, key, a) {
   const { error } = await SB.from('pt_proposal').update({data: {...d, images: {...d.images, slots}}}).eq('id', p.id);
   if (error) return toast('저장하지 못했습니다: ' + error.message);
   await proposalEvent(p.id, `이미지 ${key} 을(를) 아카이브 이미지로 교체했습니다`);
-  studio.list = null; await loadStudio(); toast('아카이브 이미지로 교체했습니다. 「변경 사항 반영」을 누르면 제안서에 들어갑니다.', {fn: async () => {
+  studio.list = null; await loadStudio(); toast('아카이브 이미지로 교체했습니다. 「변경 사항 반영」을 클릭하면 제안서에 적용됩니다.', {fn: async () => {
     const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
     await SB.from('pt_proposal').update({data: {...d2, images: {...d2.images, slots: {...d2.images.slots, [key]: was}}}}).eq('id', p.id);
     await proposalEvent(p.id, `이미지 ${key} 교체를 취소했습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 복원했습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
@@ -1930,7 +1930,7 @@ function rowProg(p) {
   const js = studio.jobs.filter(x => x.proposal_id === p.id && ['wait', 'work'].includes(x.status));
   const j = js.find(x => x.status === 'work' && x.result?.progress) || js.find(x => x.status === 'work') || js[0], g = j?.result;
   if (!j) return `<small class="row-prog">다음 작업을 준비하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small>`;
-  if (j.status === 'wait') return `<small class="row-prog">${esc(jobName(j))} 시작을 기다리는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small>`;
+  if (j.status === 'wait') return `<small class="row-prog">${esc(jobName(j))} 시작 대기 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small>`;
   if (!g?.progress) return `<span class="ref-prog row-prog"><span class="row"><span class="bar indet"><i></i></span></span><small>${esc(jobName(j))} 진행 중</small></span>`;
   return `<span class="ref-prog row-prog"><span class="row"><span class="bar"><i style="width:${g.progress}%"></i></span><b>${g.progress}%</b></span><small>${esc(g.step || '')}</small></span>`;
 }
@@ -2023,18 +2023,18 @@ function openRef(id) {
   const pages = (f.pages || []).map(x => { const c = x.copy || {}; return `<tr><td>${esc(x.page)}</td><td>${esc(x.role || '')}<small class="cell-sub">${esc(x.title || '')}</small>${x.purpose ? `<small class="cell-sub">${esc(x.purpose)}</small>` : ''}</td><td>${esc(x.layout || '')}${c.headline || c.eyebrow ? `<small class="cell-sub ref-copy">${esc([c.eyebrow, c.headline, c.sub].filter(Boolean).join(' / '))}</small>` : ''}${(x.images || []).length ? `<small class="cell-sub">${x.images.map(i => esc(`${IMG_KIND[i.kind] || i.kind} ${i.ratio || ''}${i.what ? ' · ' + i.what : ''}`)).join('<br>')}</small>` : ''}</td></tr>`; }).join('');
   const busy = refBusy(r);
   showDrawer(`<span class="entity-avatar">${icon('studio')}</span><h2>${esc(r.title)}</h2><span class="detail-sub">${esc([refPair(r), refType(r), r.recipient, r.author].filter(Boolean).join(' · '))}</span>
-  ${busy ? `<div class="detail-block"><h3>다시 학습 중</h3>${refProg(r)}<p class="muted-box">끝날 때까지는 아래 학습 결과로 제안서를 만듭니다.</p></div>` : ''}
-  ${!busy && !refDeep(r) ? `<div class="detail-block"><p class="muted-box">구성·이미지 위주로 학습한 레퍼런스입니다. 다시 학습하면 문어체·디자인·설득 흐름까지 자세히 배웁니다.</p></div>` : ''}
-  ${f.relearn_error && !busy ? `<div class="detail-block"><p class="muted-box">최근 다시 학습이 실패해 이전 학습 결과를 쓰고 있습니다. (${esc(f.relearn_error)})</p></div>` : ''}
-  <div class="detail-block"><h3>구성 요약</h3><p>${esc(f.summary || '')}</p>${rows([['콜라보', refPair(r)], ['유형', refType(r)], ['페이지', `${f.page_count || (f.pages || []).length}페이지`], ['이미지', `${f.image_pattern?.total || 0}장`], ['학습일', f.analyzed_at ? ymd(f.analyzed_at) : '']])}${r.is_default ? '<div class="detail-row"><span>기본 포맷</span><b><span class="pill good">기본</span></b></div>' : ''}${r.note ? `<p class="muted-box">특히 배울 점: ${esc(r.note)}</p>` : ''}</div>
-  ${Object.values(s).some(Boolean) ? `<div class="detail-block"><h3>설득 흐름</h3>${rows([['도입', s.hook], ['설득 순서', s.logic], ['더올마이티 소개', s.why_us], ['마무리', s.close], ['페이지 리듬', s.rhythm]])}</div>` : ''}
+  ${busy ? `<div class="detail-block"><h3>다시 학습 중</h3>${refProg(r)}<p class="muted-box">완료 전까지는 아래 학습 결과로 제안서를 생성합니다.</p></div>` : ''}
+  ${!busy && !refDeep(r) ? `<div class="detail-block"><p class="muted-box">구성·이미지 위주로 학습한 레퍼런스입니다. 다시 학습하면 문어체·디자인·설득 흐름까지 상세히 학습합니다.</p></div>` : ''}
+  ${f.relearn_error && !busy ? `<div class="detail-block"><p class="muted-box">최근 재학습에 실패해 이전 학습 결과를 사용하고 있습니다. (${esc(f.relearn_error)})</p></div>` : ''}
+  <div class="detail-block"><h3>구성 요약</h3><p>${esc(f.summary || '')}</p>${rows([['콜라보', refPair(r)], ['유형', refType(r)], ['페이지', `${f.page_count || (f.pages || []).length}페이지`], ['이미지', `${f.image_pattern?.total || 0}장`], ['학습일', f.analyzed_at ? ymd(f.analyzed_at) : '']])}${r.is_default ? '<div class="detail-row"><span>기본 포맷</span><b><span class="pill good">기본</span></b></div>' : ''}${r.note ? `<p class="muted-box">중점 학습 사항: ${esc(r.note)}</p>` : ''}</div>
+  ${Object.values(s).some(Boolean) ? `<div class="detail-block"><h3>설득 흐름</h3>${rows([['도입', s.hook], ['설득 순서', s.logic], ['더올마이티 소개', s.why_us], ['마무리', s.close], ['페이지 전개', s.rhythm]])}</div>` : ''}
   ${(f.acts || []).length ? `<div class="detail-block"><h3>섹션 구성</h3><ol class="rule-list">${f.acts.map(a => `<li><b>${esc(a.name || '')}</b> <span class="muted">· ${esc(a.pages || '')}페이지</span><br><small>${esc(a.purpose || '')}</small></li>`).join('')}</ol></div>` : ''}
   ${w.register ? `<div class="detail-block"><h3>문어체</h3>${rows([['문체', w.register], ['제목', w.headline], ['라벨', w.eyebrow], ['본문', w.body], ['숫자 표기', w.numbers]])}
-    ${(w.terms || []).length ? `<div class="ref-sub">자주 쓰는 표현</div><div>${tags(w.terms)}</div>` : ''}${(w.endings || []).length ? `<div class="ref-sub">문장 끝</div><div>${tags(w.endings)}</div>` : ''}
+    ${(w.terms || []).length ? `<div class="ref-sub">주요 표현</div><div>${tags(w.terms)}</div>` : ''}${(w.endings || []).length ? `<div class="ref-sub">문장 종결</div><div>${tags(w.endings)}</div>` : ''}
     ${(w.samples || []).length ? `<div class="ref-sub">원문 예시</div><ul class="ref-samples">${w.samples.map(x => `<li><small>${esc(x.page ? x.page + '페이지' : '')}${x.kind ? ' · ' + esc({headline: '제목', eyebrow: '라벨', body: '본문', caption: '캡션', cta: '맺음말'}[x.kind] || x.kind) : ''}</small>${esc(x.text)}</li>`).join('')}</ul>` : ''}
-    ${(w.avoid || []).length ? `<div class="ref-sub">쓰지 않는 표현</div><ul class="rule-list">${w.avoid.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`
+    ${(w.avoid || []).length ? `<div class="ref-sub">지양하는 표현</div><ul class="rule-list">${w.avoid.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`
     : `<div class="detail-block"><h3>문체</h3>${rows([['문체', st.tone], ['강조', st.emphasis]])}</div>`}
-  <div class="detail-block"><h3>디자인</h3>${rows([['인상', d.mood], ['화면', d.canvas], ['바탕', d.background], ['여백·칸', d.grid], ['글꼴', d.type || st.type], ['표지', d.cover], ['섹션 표지', d.section], ['정보량', d.density]])}
+  <div class="detail-block"><h3>디자인</h3>${rows([['전체 인상', d.mood], ['판형', d.canvas], ['배경', d.background], ['여백·레이아웃', d.grid], ['글꼴', d.type || st.type], ['표지', d.cover], ['섹션 표지', d.section], ['정보량', d.density]])}
     ${(d.colors || []).length ? `<div class="ref-sub">색</div>${d.colors.filter(c => hex(c.hex)).map(c => `<div class="detail-row ref-row"><span><i class="swatch" style="background:${c.hex}"></i> ${esc(c.hex)}</span><b>${esc(c.use || '')}</b></div>`).join('')}`
       : (st.colors || []).length ? `<div class="detail-row"><span>주요 색</span><b>${st.colors.filter(hex).map(c => `<i class="swatch" style="background:${c}" title="${c}"></i>`).join('')}</b></div>` : ''}
     ${(d.components || []).length ? `<div class="ref-sub">반복 요소</div><ul class="rule-list">${d.components.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
@@ -2123,15 +2123,15 @@ function deckStyleBox(p) {
   return `<details class="pv-fold" open><summary><b>제안서 구성</b> <small>확정 전에 선택</small></summary>
     <div class="ds-row"><span>실행 파트</span><div>${DECK_PARTS.map(([k, n]) => `<label class="chk"><input type="checkbox" data-ds-part="${k}"${parts.includes(k) ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>
     <div class="ds-row"><span>분량</span><div>${[['full', '전체 30~45페이지'], ['short', '요약 15~20페이지']].map(([k, n]) => `<label class="chk"><input type="radio" name="ds-len" value="${k}"${(st.length || 'full') === k ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>
-    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(r.title)}</label>`).join('')}<small class="muted">여러 개를 선택하면 문체·이미지 쓰는 법을 섞어 씁니다.</small></div></div>
-    <div class="ds-row"><span>레퍼런스 반영</span><div>${[['tone', '문체·디자인만 참고(구성은 위 선택대로)'], ['follow', '구성까지 그대로 따르기']].map(([k, n]) => `<label class="chk"><input type="radio" name="ds-ref" value="${k}"${(st.ref_mode || 'tone') === k ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>` : ''}
-    <div class="ds-row"><span>추가 요청</span><div><input id="ds-note" maxlength="300" value="${esc(st.note || '')}" placeholder="예: 굿즈 비중을 크게, 팝업은 한 곳만"></div></div>
+    ${refs.length ? `<div class="ds-row"><span>참고 레퍼런스</span><div>${refs.map(r => `<label class="chk"><input type="checkbox" data-ds-ref="${esc(r.id)}"${chosen.includes(r.id) ? ' checked' : ''}> ${esc(r.title)}</label>`).join('')}<small class="muted">여러 개를 선택하면 문체와 이미지 활용 방식을 조합해 반영합니다.</small></div></div>
+    <div class="ds-row"><span>레퍼런스 반영</span><div>${[['tone', '문체·디자인만 참고(구성은 위 선택 기준)'], ['follow', '구성까지 동일하게 적용']].map(([k, n]) => `<label class="chk"><input type="radio" name="ds-ref" value="${k}"${(st.ref_mode || 'tone') === k ? ' checked' : ''}> ${n}</label>`).join('')}</div></div>` : ''}
+    <div class="ds-row"><span>추가 요청</span><div><input id="ds-note" maxlength="300" value="${esc(st.note || '')}" placeholder="예: 굿즈 비중 확대, 팝업은 1곳으로 한정"></div></div>
   </details>`;
 }
 const readDeckStyle = () => ({parts: $$('[data-ds-part]').filter(x => x.checked).map(x => x.dataset.dsPart), length: $('input[name="ds-len"]:checked')?.value || 'full',
   refs: $$('[data-ds-ref]').filter(x => x.checked).map(x => x.dataset.dsRef), ref_mode: $('input[name="ds-ref"]:checked')?.value || 'tone', note: ($('#ds-note')?.value || '').trim()});
-const conceptsPanel = p => `<div class="detail-block"><h3>결정 · 컨셉 확정</h3><p>하나를 확정하면 아래 구성으로 제안서를 생성합니다.</p>${deckStyleBox(p)}${p.data.concepts.candidates.map((c, i) => conceptCard(c, i)).join('')}
-  <details class="pv-fold"><summary><b>컨셉 수정 요청</b> <small>마음에 드는 후보가 없을 때</small></summary><textarea id="cc-ins" rows="3" maxlength="1500" placeholder="예: 2번 컨셉을 상품 중심으로, 세계관보다 팬 참여형으로 다시"></textarea><div class="drawer-actions"><button class="button" id="cc-go">이 요청으로 컨셉 다시 받기</button></div></details></div>`;
+const conceptsPanel = p => `<div class="detail-block"><h3>결정 · 컨셉 확정</h3><p>컨셉을 하나 확정하면 아래 구성으로 제안서를 생성합니다.</p>${deckStyleBox(p)}${p.data.concepts.candidates.map((c, i) => conceptCard(c, i)).join('')}
+  <details class="pv-fold"><summary><b>컨셉 수정 요청</b> <small>적합한 후보가 없을 때</small></summary><textarea id="cc-ins" rows="3" maxlength="1500" placeholder="예: 2번 컨셉을 상품 중심으로 변경, 세계관보다 팬 참여형으로 재구성"></textarea><div class="drawer-actions"><button class="button" id="cc-go">이 요청으로 컨셉 재생성</button></div></details></div>`;
 // 팬·SNS 조사 — Aside 가 인스타그램·틱톡·X·유튜브·팬 커뮤니티에서 읽은 것 (10-28)
 const PLAT_KO = {instagram: '인스타그램', tiktok: '틱톡', x: 'X', youtube: '유튜브', naver: '네이버', community: '커뮤니티'};
 function socialBlock(S) {
@@ -2144,14 +2144,14 @@ function socialBlock(S) {
     ${list('채널', x.channels, c => `<li>${esc(PLAT_KO[c.platform] || c.platform)} · ${esc(c.name || '')}${c.followers ? ` <b>${esc(c.followers)}</b>` : ''}${c.note ? ` · ${esc(c.note)}` : ''} <a class="src" href="${esc(c.url)}" target="_blank" rel="noopener">${esc(host(c.url))}${c.as_of ? ' · ' + esc(c.as_of) : ''}</a></li>`)}
     ${list('수치', x.metrics, fact)}${list('팬 용어', x.fan_terms, t => `<li><b>${esc(t.term)}</b> ${esc(t.meaning || '')} ${t.url ? srcLinks([t.url]) : ''}</li>`)}
     ${list('좋아하는 점', x.loves, v => theme(v, 'theme', 'detail'))}${list('싫어하는 점', x.dislikes, v => theme(v, 'theme', 'detail'))}
-    ${list('지난 협업 반응', x.collab_reactions, v => theme(v, 'collab', 'reaction'))}${list('도입에 쓸 장면', x.hooks, fact)}</details>`).join('');
+    ${list('지난 협업 반응', x.collab_reactions, v => theme(v, 'collab', 'reaction'))}${list('도입부 활용 장면', x.hooks, fact)}</details>`).join('');
   const caps = (S.captures || []).length ? `<p><b>캡처 ${S.captures.length}장</b></p><div class="iboard">${S.captures.map(c => `<div class="icard"><div class="ithumb" data-thumb="${esc(c.path)}" data-label="팬·SNS 캡처"></div></div>`).join('')}</div>` : '';
   const locked = (S.locked || []).length ? `<p><b>가입이 필요해 확인하지 못한 채널</b></p><ul class="facts">${S.locked.map(l => `<li>${esc(l.site)} · ${esc(l.need || '')} ${l.url ? srcLinks([l.url]) : ''}</li>`).join('')}</ul>` : '';
   return `<div class="detail-block"><h3>팬·SNS</h3>${ips}${caps}${locked}</div>`;
 }
 function researchBlock(R) {
   const fact = f => `<li>${esc(f.text)} ${f.url ? `<a class="src" href="${esc(f.url)}" target="_blank" rel="noopener">${esc(host(f.url))}${f.as_of ? ' · ' + esc(f.as_of) : ''}</a>` : ''}</li>`;
-  return `<div class="detail-block"><h3>리서치</h3>${(R.ips || []).map(x => `<details class="research"><summary><b>${esc(x.name)}</b> <small>출처가 확인된 사실 ${x.facts.length}개</small></summary><p>${esc(x.summary || '')}</p>${x.fandom ? `<p><b>팬덤</b> ${esc(x.fandom)}</p>` : ''}${x.world ? `<p><b>세계관·정서</b> ${esc(x.world)}</p>` : ''}<ul class="facts">${x.facts.map(fact).join('')}</ul>${(x.collabs || []).length ? `<p><b>지난 협업</b></p><ul class="facts">${x.collabs.map(fact).join('')}</ul>` : ''}${(x.hooks || []).length ? `<p><b>도입에 쓸 장면</b></p><ul class="facts">${x.hooks.map(h => fact({...h, text: h.text + (h.note ? ` (${h.note})` : '')})).join('')}</ul>` : ''}${(x.risks || []).length ? `<p><b>유의 사항</b> ${x.risks.map(esc).join(' · ')}</p>` : ''}</details>`).join('')}${(R.common_ground || []).length ? `<p><b>공통점</b></p><ul class="facts">${R.common_ground.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}</div>`;
+  return `<div class="detail-block"><h3>리서치</h3>${(R.ips || []).map(x => `<details class="research"><summary><b>${esc(x.name)}</b> <small>출처가 확인된 사실 ${x.facts.length}개</small></summary><p>${esc(x.summary || '')}</p>${x.fandom ? `<p><b>팬덤</b> ${esc(x.fandom)}</p>` : ''}${x.world ? `<p><b>세계관·정서</b> ${esc(x.world)}</p>` : ''}<ul class="facts">${x.facts.map(fact).join('')}</ul>${(x.collabs || []).length ? `<p><b>지난 협업</b></p><ul class="facts">${x.collabs.map(fact).join('')}</ul>` : ''}${(x.hooks || []).length ? `<p><b>도입부 활용 장면</b></p><ul class="facts">${x.hooks.map(h => fact({...h, text: h.text + (h.note ? ` (${h.note})` : '')})).join('')}</ul>` : ''}${(x.risks || []).length ? `<p><b>유의 사항</b> ${x.risks.map(esc).join(' · ')}</p>` : ''}</details>`).join('')}${(R.common_ground || []).length ? `<p><b>공통점</b></p><ul class="facts">${R.common_ground.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}</div>`;
 }
 
 // 지금 원고에 쓰인 이미지만 — 새 디자인 적용·수정 버전에서 빠진 이미지는 숫자·목록에 넣지 않는다 (10-30 에스파 SIGNAL 21개)
@@ -2169,7 +2169,7 @@ function imagesPanel(p) {
   const stat = (label, v, cls, go) => `<button class="pv-stat${cls ? ' ' + cls : ''}" type="button" data-review="${go || 1}"><b>${v}</b><span>${label}</span></button>`;
   const firstMiss = keys.find(k => S[k].status === 'missing'), firstAi = keys.find(k => S[k].status === 'ai');
   return `<div class="detail-block pv-decide"><h3>지금 할 일 · ${final ? '최종 확인' : '이미지 수급·AI 이미지 승인'}</h3>
-  <div class="pv-stats">${stat('확보', n('found') + n('uploaded') + n('generated'), 'good')}${stat('미확보', n('missing'), n('missing') ? 'bad' : '', firstMiss && S[firstMiss].slide)}${stat('AI 생성 대기', n('ai'), n('ai') ? 'wait' : '', firstAi && S[firstAi].slide)}${qa ? stat('검수에서 확인할 곳', flags.length, flags.length ? 'bad' : 'good', flags[0]?.slide) : ''}</div>
+  <div class="pv-stats">${stat('확보', n('found') + n('uploaded') + n('generated'), 'good')}${stat('미확보', n('missing'), n('missing') ? 'bad' : '', firstMiss && S[firstMiss].slide)}${stat('AI 생성 대기', n('ai'), n('ai') ? 'wait' : '', firstAi && S[firstAi].slide)}${qa ? stat('검수 확인 필요 항목', flags.length, flags.length ? 'bad' : 'good', flags[0]?.slide) : ''}</div>
   ${ai}${qaBlock(p)}
   <div class="pv-main-act"><button class="button primary" data-review="${flags[0]?.slide || 1}">${icon('image')} 제안서 화면에서 이미지 확인·수정</button><small>페이지에서 이미지를 클릭하면 교체·위치 조정·다시 생성할 수 있습니다</small></div>
   <div class="drawer-actions pv-final"><button class="button" id="img-rerender">변경 사항 반영</button><button class="button primary" id="img-done">이 버전으로 완료</button></div></div>`;
@@ -2191,11 +2191,11 @@ async function loadImgThumbs(slots) {
 // 궁니르 봇이 그릴 때와 같은 방식: 채우기는 x·y(0~1) 위치를 남기고 자르고, 맞춤는 자르지 않는다
 const POS_TOP = ['official', 'capture', 'reference'];
 const defaultPos = s => ({x: 0.5, y: POS_TOP.includes(s?.kind) ? 0.15 : 0.5, fit: s?.kind === 'logo' ? 'contain' : 'cover', zoom: 1});
-// 다시 만들기 (10-29 김현우) — 고친 프롬프트·아쉬운 점은 제안서 데이터(prompt_log)에 쌓이고, 다음 원고를 쓸 때 궁니르 봇이 참고한다
+// 다시 만들기 (10-29 김현우) — 고친 프롬프트·개선할 점은 제안서 데이터(prompt_log)에 쌓이고, 다음 원고를 쓸 때 궁니르 봇이 참고한다
 const AI_KINDS = ['ai_concept', 'mockup', 'texture'];
 const regenBox = s => { const ai = AI_KINDS.includes(s.kind) && !s.widened;
   return `<details class="regen"><summary>이미지 다시 생성</summary>
-  <label>아쉬운 점<input id="rg-why" maxlength="200" placeholder="예: 얼굴이 너무 크게 나옴 · 배경이 너무 밝음"></label>
+  <label>개선할 점<input id="rg-why" maxlength="200" placeholder="예: 얼굴이 너무 크게 나옴 · 배경이 너무 밝음"></label>
   ${ai ? `<label>생성 프롬프트 (영문)<textarea id="rg-prompt" rows="5">${esc(s.prompt || '')}</textarea></label>`
        : `<label>좌우 확장 추가 지시(영문 권장)<textarea id="rg-prompt" rows="3" placeholder="예: extend as a dark concert stage with purple haze">${esc(s.widen_extra || '')}</textarea></label>`}
   <button class="button" type="button" id="rg-go">${ai ? '이 프롬프트로 다시 생성' : '이 지시로 다시 확장'}</button><small>견적 확인 후 승인하면 생성합니다. 수정한 내용은 다음 제안서 원고에도 반영됩니다.</small></details>`; };
@@ -2206,7 +2206,7 @@ function imgViewer(el) {
   const ar = box ? box.w / box.h : (r.length === 2 && r[0] > 0 && r[1] > 0 ? r[0] / r[1] : 0);
   const canEdit = !!(s && ar && p.status === 'waiting');
   let pos = {...defaultPos(s), ...(s?.pos || {})};
-  modal(`<h2>${esc(el.dataset.label || '이미지')}</h2><div class="imgv${ar ? '' : ' one'}"><figure><figcaption>원본 전체</figcaption><img src="${esc(src)}" alt="원본 이미지"></figure>${ar ? `<figure><figcaption>제안서 적용 미리보기${box ? '' : ' (예상)'}</figcaption><div class="imgv-crop${canEdit ? ' drag' : ''}" id="imgv-box" style="aspect-ratio:${ar};width:min(100%,calc(64vh * ${ar}));background-image:url('${esc(src)}')"></div>${canEdit ? `${canEdit && (AI_KINDS.includes(s.kind) || s.widened) ? regenBox(s) : ''}<small>이미지를 드래그해 보일 부분을 조정하고, 아래 막대(PC에서는 마우스 휠도)로 확대·축소하세요. 「맞춤」은 이미지를 자르지 않고 전체를 보여 줍니다.</small><div class="imgv-zoom"><span>확대</span><input type="range" id="imgv-zoom" min="100" max="400" step="5" aria-label="확대"><b id="imgv-zoom-v"></b></div><div class="imgv-tools"><div class="seg-pick"><label><input type="radio" name="imgv-fit" value="cover"> 채우기</label><label><input type="radio" name="imgv-fit" value="contain"> 맞춤</label></div><button class="text-btn" type="button" id="imgv-reset">위치 초기화</button></div>` : ''}</figure>` : ''}</div><div class="modal-actions"><a class="button" href="${esc(src)}" target="_blank" rel="noopener">새 창에서 열기</a>${canEdit && s.widen ? '<span class="imgv-wide-on">좌우 확장 대기 · 견적 승인 시 함께 생성합니다</span>' : ''}${canEdit && !s.widen ? '<button class="button" id="imgv-widen" hidden>힉스필드로 확장해 전체 표시</button>' : ''}${canEdit ? '<button class="button" data-cancel>취소</button><button class="button primary" id="imgv-save">위치 저장</button>' : '<button class="button primary" data-cancel>닫기</button>'}</div>`);
+  modal(`<h2>${esc(el.dataset.label || '이미지')}</h2><div class="imgv${ar ? '' : ' one'}"><figure><figcaption>원본 전체</figcaption><img src="${esc(src)}" alt="원본 이미지"></figure>${ar ? `<figure><figcaption>제안서 적용 미리보기${box ? '' : ' (예상)'}</figcaption><div class="imgv-crop${canEdit ? ' drag' : ''}" id="imgv-box" style="aspect-ratio:${ar};width:min(100%,calc(64vh * ${ar}));background-image:url('${esc(src)}')"></div>${canEdit ? `${canEdit && (AI_KINDS.includes(s.kind) || s.widened) ? regenBox(s) : ''}<small>이미지를 드래그해 표시 영역을 조정하고, 아래 슬라이더(PC에서는 마우스 휠)로 확대·축소해 주세요. 「맞춤」을 선택하면 이미지를 자르지 않고 전체를 표시합니다.</small><div class="imgv-zoom"><span>확대</span><input type="range" id="imgv-zoom" min="100" max="400" step="5" aria-label="확대"><b id="imgv-zoom-v"></b></div><div class="imgv-tools"><div class="seg-pick"><label><input type="radio" name="imgv-fit" value="cover"> 채우기</label><label><input type="radio" name="imgv-fit" value="contain"> 맞춤</label></div><button class="text-btn" type="button" id="imgv-reset">위치 초기화</button></div>` : ''}</figure>` : ''}</div><div class="modal-actions"><a class="button" href="${esc(src)}" target="_blank" rel="noopener">새 창에서 열기</a>${canEdit && s.widen ? '<span class="imgv-wide-on">좌우 확장 대기 · 견적 승인 시 함께 생성합니다</span>' : ''}${canEdit && !s.widen ? '<button class="button" id="imgv-widen" hidden>힉스필드로 확장해 전체 표시</button>' : ''}${canEdit ? '<button class="button" data-cancel>취소</button><button class="button primary" id="imgv-save">위치 저장</button>' : '<button class="button primary" data-cancel>닫기</button>'}</div>`);
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => $('#modal').classList.remove('wide'), {once: true});
   const bx = $('#imgv-box'); if (!bx) return;
   const nat = new Image(); nat.src = src;
@@ -2247,7 +2247,7 @@ function imgViewer(el) {
   $('#imgv-widen')?.addEventListener('click', async ev => {
     ev.target.disabled = true;
     const fresh = studio.list?.find(x => x.id === p.id)?.data || d;
-    const slots = {...fresh.images.slots, [key]: {...fresh.images.slots[key], widen: true, pos: {}, note: '좌우 배경을 확장해 넣습니다(견적 승인 시 함께 생성)'}};
+    const slots = {...fresh.images.slots, [key]: {...fresh.images.slots[key], widen: true, pos: {}, note: '좌우 배경을 확장해 적용합니다(견적 승인 시 함께 생성)'}};
     const { error } = await SB.from('pt_proposal').update({data: {...fresh, images: {...fresh.images, slots}}, status: 'working'}).eq('id', p.id);
     if (error) { ev.target.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
     await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {estimate_only: true}});
@@ -2280,7 +2280,7 @@ function imgViewer(el) {
     const slots = {...fresh.images.slots, [key]: {...fresh.images.slots[key], pos: v}};
     const { error } = await SB.from('pt_proposal').update({data: {...fresh, images: {...fresh.images, slots}}}).eq('id', p.id);
     if (error) { $('#imgv-save').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
-    await proposalEvent(p.id, `${s.slide}페이지 이미지 위치를 맞췄습니다`);
+    await proposalEvent(p.id, `${s.slide}페이지 이미지 위치를 조정했습니다`);
     $('#modal').close(); studio.list = null; await loadStudio(); openProposal(p.id, true);
     toast('위치를 저장했습니다. 「변경 사항 반영」을 클릭하면 제안서에 반영됩니다.');
   };
@@ -2309,9 +2309,9 @@ async function replaceSlotImage(p, key, f) {
   const slots = {...d.images.slots, [key]: {...d.images.slots[key], status: 'uploaded', path, source_page: '', image_url: '', pos: {}}};
   const { error } = await SB.from('pt_proposal').update({data: {...d, images: {...d.images, slots}}}).eq('id', p.id);
   if (error) return toast('저장하지 못했습니다: ' + error.message);
-  await proposalEvent(p.id, `이미지 ${key} 을(를) 직접 올린 이미지로 바꿨습니다`);
+  await proposalEvent(p.id, `이미지 ${key} 을(를) 직접 업로드한 이미지로 교체했습니다`);
   const was = d.images.slots[key];
-  studio.list = null; await loadStudio(); toast('이미지를 교체했습니다. 「변경 사항 반영」을 누르면 제안서에 들어갑니다.', {fn: async () => {
+  studio.list = null; await loadStudio(); toast('이미지를 교체했습니다. 「변경 사항 반영」을 클릭하면 제안서에 적용됩니다.', {fn: async () => {
     const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
     await SB.from('pt_proposal').update({data: {...d2, images: {...d2.images, slots: {...d2.images.slots, [key]: was}}}}).eq('id', p.id);
     await proposalEvent(p.id, `이미지 ${key} 교체를 취소했습니다`); studio.list = null; await loadStudio(); toast('원래 이미지로 복원했습니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
@@ -2321,7 +2321,7 @@ const qaBlock = p => { const d = p.data || {}, qa = qaOf(d), busy = studio.jobs.
   if (!qa) return busy ? `<div class="qa-line"><b>자동 검수 중</b>${jobsProg(studio.jobs.filter(j => j.proposal_id === p.id && j.kind === 'qa' && ['wait', 'work'].includes(j.status)))}</div>` : '';
   if (qa.error) return `<p class="qa-line">${esc(qa.error)}</p>`;
   if (!qa.flags.length) return '<p class="qa-line good">자동 검수 · 특이 사항 없음</p>';
-  return `<div class="qa-box"><b>자동 검수 · 확인할 곳 ${qa.flags.length}곳</b><small>클릭하면 해당 페이지로 이동해 바로 수정할 수 있습니다</small>${qa.flags.map(f => `<button class="qa-flag" data-review="${f.slide}"><span>${f.slide}페이지</span><b>${esc(QA_KO[f.type] || '확인')}</b> ${esc(f.detail)}</button>`).join('')}</div>`; };
+  return `<div class="qa-box"><b>자동 검수 · 확인 필요 항목 ${qa.flags.length}곳</b><small>클릭하면 해당 페이지로 이동해 바로 수정할 수 있습니다</small>${qa.flags.map(f => `<button class="qa-flag" data-review="${f.slide}"><span>${f.slide}페이지</span><b>${esc(QA_KO[f.type] || '확인')}</b> ${esc(f.detail)}</button>`).join('')}</div>`; };
 // 검수 표시 중 사람이 「이대로 사용」한 이미지는 뺀다 — 같은 이미지(path)인 동안은 다음 검수에서 다시 걸려도 숨김 (10-30 · 대표님 설계 「그대로 사용」)
 const qaOf = d => { if (!(d.qa && d.build && d.qa.version === d.build.version)) return null; const ok = d.qa_ok || {}, S = d.images?.slots || {};
   return {...d.qa, flags: (d.qa.flags || []).filter(f => !(f.key && ok[f.key] && ok[f.key] === S[f.key]?.path) && !(f.key && f.path && S[f.key]?.path && f.path !== S[f.key].path))}; };
@@ -2337,7 +2337,7 @@ async function asideHires(p, key) {
   await proposalEvent(p.id, `${s.slide}페이지 「${s.what || key}」 고해상도 원본을 Aside 로 다시 찾도록 요청했습니다`);
   studio.list = null; await loadStudio(); toast('Aside에 요청했습니다. 찾지 못하면 힉스필드로 보정할 수 있습니다.');
 }
-// Aside로 다른 이미지 찾기 (10-30 김현우) — 공식 이미지·로고·참고 사례·캡처를 지금 것과 다른 실제 이미지로
+// Aside로 다른 이미지 검색 (10-30 김현우) — 공식 이미지·로고·참고 사례·캡처를 지금 것과 다른 실제 이미지로
 async function asideOther(p, key) {
   const d = studio.list?.find(x => x.id === p.id)?.data || p.data, s = d.images.slots[key];
   const im = (d.build?.deck?.slides || []).flatMap(x => x.images || []).find(x => x.key === key) || {};
@@ -2366,17 +2366,17 @@ async function quickMake(p, key, mode, prompt, why) {
   const fresh = studio.list?.find(x => x.id === p.id)?.data || p.data, cur = fresh.images.slots[key];
   const ref = mode === 'ai' && (refOf(fresh, key) || logoRefs(fresh, key).length), usd = mode === 'ai' && !ref ? 0.02 : 0.1;
   const cost = mode === 'ai' && !ref ? '$0.01' : '$0.08';
-  const what = mode === 'upscale' ? '이미지를 고해상도로 보정합니다. 사람 얼굴이 아주 조금 달라질 수 있습니다.'
-             : mode === 'widen' ? '이미지 바깥을 확장해 잘리지 않고 전체가 보이게 합니다.'
-             : mode === 'fit' ? '인물 얼굴과 핵심이 모두 보이게 상자 비율로 다시 잡고, 모자라는 부분은 힉스필드로 자연스럽게 채웁니다. 잘라서 맞으면 비용이 들지 않습니다.'
-             : ref ? `메인 이미지(${esc(fresh.images.slots[ref]?.slide)}페이지 「${esc(whatText(fresh.images.slots[ref]?.what).slice(0, 20))}」)를 참고해 같은 모델로 만듭니다.` : 'AI 이미지를 새로 만듭니다.';
-  if (!(await confirmBox({title: `${cur.slide}페이지 이미지를 새로 만들까요?`,
-      body: `${what}<br>새 이미지는 바로 들어가지 않고 미리보기로 먼저 보여 드립니다. 마음에 들 때만 확정하세요.<br><b>비용 약 ${cost}</b>가 회사 힉스필드 잔액에서 나갑니다.`,
-      ok: `${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '확장' : mode === 'fit' ? '상자에 맞춘 이미지 만들기' : '새로 만들기'} · 약 ${cost}`}))) return false;
+  const what = mode === 'upscale' ? '이미지를 고해상도로 보정합니다. 인물 얼굴이 미세하게 달라질 수 있습니다.'
+             : mode === 'widen' ? '이미지 외곽을 확장해 잘림 없이 전체가 표시되도록 합니다.'
+             : mode === 'fit' ? '인물 얼굴과 핵심 요소가 모두 보이도록 영역 비율에 맞춰 다시 구성하고, 부족한 부분은 힉스필드로 자연스럽게 보완합니다. 자르기만으로 맞출 수 있으면 비용이 발생하지 않습니다.'
+             : ref ? `메인 이미지(${esc(fresh.images.slots[ref]?.slide)}페이지 「${esc(whatText(fresh.images.slots[ref]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다.` : 'AI 이미지를 새로 생성합니다.';
+  if (!(await confirmBox({title: `${cur.slide}페이지 이미지를 새로 생성할까요?`,
+      body: `${what}<br>새 이미지는 바로 적용되지 않으며, 미리보기로 먼저 확인할 수 있습니다. 확인 후 확정해 주세요.<br><b>비용 약 ${cost}</b>가 회사 힉스필드 잔액에서 차감됩니다.`,
+      ok: `${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : '새로 생성'} · 약 ${cost}`}))) return false;
   const prev = [...(cur.prev_paths || []), cur.path].filter(Boolean);
   const { before: _b, cand: _c, ...was } = cur;          // 새 이미지는 바로 넣지 않고 미리보기 → 사람이 확정 (10-30)
   const next0 = mode === 'upscale' ? {...cur, upscale: true, prev_paths: prev, note: '해상도 보정 중'}
-              : mode === 'fit' ? {...cur, path: cur.orig_path || cur.path, widen: true, fit: true, widened: false, prev_paths: prev, pos: {}, note: '상자에 맞춘 이미지 만드는 중'}
+              : mode === 'fit' ? {...cur, path: cur.orig_path || cur.path, widen: true, fit: true, widened: false, prev_paths: prev, pos: {}, note: '영역에 맞춘 이미지 생성 중'}
               : mode === 'widen' ? {...cur, path: cur.orig_path || cur.path, widen: true, widened: false, widen_extra: prompt || cur.widen_extra || '', prev_paths: prev, pos: {}, note: '확장 중'}
                                 : {...cur, status: 'ai', prompt, prev_paths: prev, pos: {}, note: 'AI 이미지 생성 중'};
   const next = {...next0, before: was, cand: undefined};
@@ -2386,9 +2386,9 @@ async function quickMake(p, key, mode, prompt, why) {
   const { error } = await SB.from('pt_proposal').update({data, status: 'working'}).eq('id', p.id);
   if (error) { toast('저장하지 못했습니다: ' + error.message); return false; }
   await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {approved_usd: usd, keys: [key], preview: true}});
-  await proposalEvent(p.id, `${cur.slide}페이지 ${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '이미지 확장' : mode === 'fit' ? '상자에 맞춘 이미지 생성' : (ref ? 'AI 이미지 생성(메인 이미지 참고)' : 'AI 이미지 생성')}를 승인했습니다 (예상 $${mode === 'ai' && !ref ? '0.01' : '0.08'})${why ? ' · ' + why : ''}`);
+  await proposalEvent(p.id, `${cur.slide}페이지 ${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '이미지 확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : (ref ? 'AI 이미지 생성(메인 이미지 참고)' : 'AI 이미지 생성')}를 승인했습니다 (예상 $${mode === 'ai' && !ref ? '0.01' : '0.08'})${why ? ' · ' + why : ''}`);
   studio.list = null; await loadStudio();
-  toast('생성을 시작했습니다. 끝나면 「이 이미지로 미리보기」로 제안서에 들어간 모습을 보고 확정해 주세요.');
+  toast('생성을 시작했습니다. 완료되면 「이 이미지로 미리보기」에서 제안서 적용 모습을 확인한 뒤 확정해 주세요.');
   return true;
 }
 // 새 이미지 미리보기·확정·취소 (10-30 김현우) — 봇이 그 페이지 하나만 새 이미지로 그려 둔 PDF(cand.preview)를 보여 준다
@@ -2408,7 +2408,7 @@ async function candApply(p, key, ok) {
   if (error) return toast('저장하지 못했습니다: ' + error.message);
   if (one) await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'qa', input: {pdf: cand.preview, version: d.build.version, page}});
   else if (ok) await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: [key]}});      // 여러 페이지에 쓴 이미지 — 그 페이지들만
-  await proposalEvent(p.id, `${page}페이지 새 이미지를 ${ok ? (one ? '확정했습니다 → 그 페이지만 반영' : '확정했습니다 → 이 이미지가 든 페이지들만 다시 그립니다') : '취소했습니다 (원래 이미지 유지)'}`);
+  await proposalEvent(p.id, `${page}페이지 새 이미지를 ${ok ? (one ? '확정했습니다 → 해당 페이지만 반영' : '확정했습니다 → 이 이미지가 포함된 페이지만 다시 생성합니다') : '취소했습니다 (원래 이미지 유지)'}`);
   studio.list = null; await loadStudio();
   // 되돌리기 — 확정은 원래 이미지·페이지·검수 결과로, 버리기는 새 이미지를 다시 후보로 (한 페이지 확정·버리기만)
   const undo = (one || !ok) ? {fn: async () => {
@@ -2418,12 +2418,12 @@ async function candApply(p, key, ok) {
     await proposalEvent(p.id, `${page}페이지 새 이미지 ${ok ? '확정' : '버리기'}를 취소했습니다`);
     studio.list = null; await loadStudio(); toast('실행을 취소했습니다.'); window.dispatchEvent(new Event('pt-refresh'));
   }} : null;
-  toast(ok ? (one ? `확정했습니다. ${page}페이지만 바꿨고, 그 페이지만 다시 검수합니다.` : '확정했습니다. 이 이미지가 든 페이지들만 다시 그립니다.') : '새 이미지를 버렸습니다. 원래 이미지를 그대로 씁니다.', undo);
+  toast(ok ? (one ? `확정했습니다. ${page}페이지만 변경했으며, 해당 페이지만 다시 검수합니다.` : '확정했습니다. 이 이미지가 포함된 페이지만 다시 생성합니다.') : '새 이미지를 폐기했습니다. 기존 이미지를 그대로 사용합니다.', undo);
 }
 async function candPreview(p, key, after) {
   const d = studio.list?.find(x => x.id === p.id)?.data || p.data, s = d.images.slots[key], c = s?.cand; if (!c) return;
   modal(`<h2>${esc(s.slide)}페이지 미리보기 · 새 이미지</h2><div class="pv-box" id="pv-box"><p class="rv-load"><i class="spin" aria-hidden="true"></i><span>미리보기를 불러오는 중입니다</span></p></div>
-    <div class="modal-actions"><button class="button" id="pv-again">다시 만들기</button><button class="button" id="pv-no">새 이미지 버리기</button><button class="button primary" id="pv-ok">이 이미지로 확정</button></div>`);
+    <div class="modal-actions"><button class="button" id="pv-again">다시 생성</button><button class="button" id="pv-no">새 이미지 폐기</button><button class="button primary" id="pv-ok">이 이미지로 확정</button></div>`);
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => $('#modal').classList.remove('wide'), {once: true});
   const done = async ok => { $('#pv-ok').disabled = $('#pv-no').disabled = true; await candApply(p, key, ok); $('#modal').close(); after?.(); };
   $('#pv-ok').onclick = () => done(true); $('#pv-no').onclick = () => done(false);
@@ -2438,7 +2438,7 @@ async function candPreview(p, key, after) {
       await pg.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise; box.innerHTML = ''; box.appendChild(cv);
     } else {
       const { data: su } = await SB.storage.from('pt-studio').createSignedUrl(c.path, 900);
-      $('#pv-box').innerHTML = `<img src="${esc(su.signedUrl)}" alt="새 이미지" style="width:100%"><small>페이지 미리보기를 만들지 못해 새 이미지만 보여 드립니다.</small>`;
+      $('#pv-box').innerHTML = `<img src="${esc(su.signedUrl)}" alt="새 이미지" style="width:100%"><small>페이지 미리보기를 생성하지 못해 새 이미지만 표시합니다.</small>`;
     }
   } catch (e) { $('#pv-box').innerHTML = `<p>미리보기를 불러오지 못했습니다: ${esc(e?.message || '')}</p>`; }
 }
@@ -2495,7 +2495,7 @@ async function pageReview(pid, start) {
     const B = d.build?.boxes || {}, pageOf = k => +(B[k]?.page || S[k].slide);
     const spots = k => B[k]?.at || (B[k]?.x !== undefined ? [B[k]] : []), onPage = (k, n) => spots(k).length ? spots(k).some(a => +a.page === n) : pageOf(k) === n;   // 한 이미지를 여러 페이지에 쓰면 그 페이지마다
     const fs = new Set(flags.map(f => +f.slide)), miss = new Set(Object.keys(S).filter(k => ['missing', 'ai'].includes(S[k].status)).flatMap(k => spots(k).length ? spots(k).map(a => +a.page) : [pageOf(k)]));
-    $('#rv-qa').textContent = qa ? (flags.length ? `자동 검수 · 확인할 곳 ${flags.length}곳 (빨간 페이지)` : '자동 검수 · 특이 사항 없음') : '자동 검수 전입니다';
+    $('#rv-qa').textContent = qa ? (flags.length ? `자동 검수 · 확인 필요 항목 ${flags.length}건 (빨간색 표시 페이지)` : '자동 검수 · 특이 사항 없음') : '자동 검수 전입니다';
     $('#rv-strip').innerHTML = Array.from({length: N}, (_, i) => i + 1).map(n => `<button type="button" class="${n === cur ? 'on ' : ''}${fs.has(n) ? 'flag' : miss.has(n) ? 'miss' : ''}" data-go="${n}" aria-label="${n}페이지">${n}</button>`).join('');
     $$('#rv-strip [data-go]').forEach(x => x.onclick = () => nav(+x.dataset.go));
     $('#rv-strip .on')?.scrollIntoView({block: 'nearest', inline: 'center'});
@@ -2513,16 +2513,16 @@ async function pageReview(pid, start) {
     // 페이지 전체를 덮는 배경 이미지는 맨 아래에 깔아, 그 위 사진들을 먼저 누를 수 있게 (10-30)
     const big = b => b.w * b.h / (EW * EH) > 0.8;
     $('#rv-sizebar')?.remove(); $('#rv-txtbar')?.remove(); $('.rv-tlayer')?.remove();
-    // 글자 위치 옮기기 (10-30 김현우 「텍스트도 선택해서 드래그로 위치 옮길 수 있게」) — 렌더러가 남긴 글상자 위치(boxes 「t:…」)
+    // 텍스트 위치 이동 (10-30 김현우 「텍스트도 선택해서 드래그로 위치 옮길 수 있게」) — 렌더러가 남긴 글상자 위치(boxes 「t:…」)
     const tOn = id => (B[id]?.at || [B[id]]).some(a => +a?.page === cur);
     const tids = Object.keys(B).filter(id => id.startsWith('t:') && tOn(id));
-    $('#rv-tools').innerHTML = tids.length ? '<button class="button small" id="rv-txt">글자 위치 옮기기</button>' : '';
+    $('#rv-tools').innerHTML = tids.length ? '<button class="button small" id="rv-txt">텍스트 위치 이동</button>' : '';
     if ($('#rv-txt')) $('#rv-txt').onclick = () => textMode(tids);
     $('#rv-hot').innerHTML = keys.flatMap(k => spots(k).filter(a => +a.page === cur && a.w).map(b => [k, b])).sort((x, y) => big(y[1]) - big(x[1])).map(([k, b]) => { const bad = fl.some(f => f.key === k);
       return `<button type="button" class="${bad ? 'flag' : ''}${S[k].path ? '' : ' empty'}${big(b) ? ' bg' : ''}" data-hot="${esc(k)}" style="left:${b.x / EW * 100}%;top:${b.y / EH * 100}%;width:${b.w / EW * 100}%;height:${b.h / EH * 100}%" aria-label="${esc(KIND_KO_IMG[S[k].kind] || '')} ${esc(whatText(S[k].what))}"><span>${esc(KIND_KO_IMG[S[k].kind] || '')}</span></button>`; }).join('');
     const okd = k => !!S[k]?.path && (d.qa_ok || {})[k] === S[k].path;          // 사람이 확정한 이미지 (검수 목록에서 빠짐)
     const card = k => { const s = S[k], [cls, label] = SLOT_ST[s.status] || ['', s.status], bad = fl.filter(f => f.key === k);
-      return `<div class="rv-slot${bad.length ? ' flag' : ''}"><div class="ithumb" data-thumb="${esc(s.path || '')}" data-rk="${esc(k)}">${s.path ? '' : `<span>${esc(KIND_KO_IMG[s.kind] || s.kind)}</span>`}</div><div class="rv-info"><div class="ihead"><b>${esc(KIND_KO_IMG[s.kind] || s.kind)}</b><span class="pill ${cls}">${label}</span></div><small>${esc(whatText(s.what))}</small>${(s.cand ? [] : bad).map(f => `<small class="warn">${esc(QA_KO[f.type] || '확인')} · ${esc(f.detail)}</small>${[...new Set([...String(f.detail).matchAll(/(\d{1,2})\s*페이지/g)].map(m => +m[1]).filter(n => n !== cur && n >= 1 && n <= N))].map(n => `<button class="text-btn go" data-go-page="${n}">${n}페이지 보기 ▶</button>`).join('')}`).join('')}${s.cand ? `<div class="rv-cand"><div class="ithumb" data-cand-thumb="${esc(s.cand.path)}"></div><div><b>새 이미지</b><small>아직 제안서에 반영되지 않았습니다</small><div class="ibtns"><button class="button small" data-cand-view="${esc(k)}">이 이미지로 미리보기</button><button class="button primary small" data-cand-ok="${esc(k)}">이 이미지로 확정</button><button class="text-btn" data-cand-no="${esc(k)}">새 이미지 버리기</button></div></div></div>` : ''}<div class="ibtns">${s.path && okd(k) ? `<span class="pill good">확정</span><button class="text-btn" data-rv-unok="${esc(k)}">확정 취소</button>` : bad.length && s.path && !s.cand ? `<button class="text-btn ok" data-rv-ok="${esc(k)}">이 이미지로 확정</button>` : ''}${s.path ? `<button class="text-btn" data-rv-open="${esc(k)}">크게 보기·수정</button>` : ''}<button class="text-btn" data-rv-arch="${esc(k)}">아카이브에서 선택</button><label class="text-btn up">내 이미지로 교체<input type="file" accept="image/png,image/jpeg,image/webp" data-rv-up="${esc(k)}" hidden></label></div>${makeBox(k, s)}</div></div>`; };
+      return `<div class="rv-slot${bad.length ? ' flag' : ''}"><div class="ithumb" data-thumb="${esc(s.path || '')}" data-rk="${esc(k)}">${s.path ? '' : `<span>${esc(KIND_KO_IMG[s.kind] || s.kind)}</span>`}</div><div class="rv-info"><div class="ihead"><b>${esc(KIND_KO_IMG[s.kind] || s.kind)}</b><span class="pill ${cls}">${label}</span></div><small>${esc(whatText(s.what))}</small>${(s.cand ? [] : bad).map(f => `<small class="warn">${esc(QA_KO[f.type] || '확인')} · ${esc(f.detail)}</small>${[...new Set([...String(f.detail).matchAll(/(\d{1,2})\s*페이지/g)].map(m => +m[1]).filter(n => n !== cur && n >= 1 && n <= N))].map(n => `<button class="text-btn go" data-go-page="${n}">${n}페이지 보기 ▶</button>`).join('')}`).join('')}${s.cand ? `<div class="rv-cand"><div class="ithumb" data-cand-thumb="${esc(s.cand.path)}"></div><div><b>새 이미지</b><small>아직 제안서에 반영되지 않았습니다</small><div class="ibtns"><button class="button small" data-cand-view="${esc(k)}">이 이미지로 미리보기</button><button class="button primary small" data-cand-ok="${esc(k)}">이 이미지로 확정</button><button class="text-btn" data-cand-no="${esc(k)}">새 이미지 폐기</button></div></div></div>` : ''}<div class="ibtns">${s.path && okd(k) ? `<span class="pill good">확정</span><button class="text-btn" data-rv-unok="${esc(k)}">확정 취소</button>` : bad.length && s.path && !s.cand ? `<button class="text-btn ok" data-rv-ok="${esc(k)}">이 이미지로 확정</button>` : ''}${s.path ? `<button class="text-btn" data-rv-open="${esc(k)}">크게 보기·수정</button>` : ''}<button class="text-btn" data-rv-arch="${esc(k)}">아카이브에서 선택</button><label class="text-btn up">내 이미지로 교체<input type="file" accept="image/png,image/jpeg,image/webp" data-rv-up="${esc(k)}" hidden></label></div>${makeBox(k, s)}</div></div>`; };
     const canAi = s => AI_KINDS.includes(s.kind) || (!s.path && !['official', 'logo', 'capture'].includes(s.kind));
     function makeBox(k, s) {
       if (p.status === 'working' && (s.widen || s.upscale || s.status === 'ai')) { const live = liveJobs(p.id); return `<div class="rv-busy">${jobsProg(live.length ? live : [null])}</div>`; }
@@ -2532,11 +2532,11 @@ async function pageReview(pid, start) {
       const ai = canAi(s) && !s.widened;
       // 자동 검수가 고친 프롬프트·고칠 점이 있으면 미리 채운다 (10-30 김현우 「개선할 점에 자동으로 개선 프롬프트」)
       const fx = fl.find(f => f.key === k && f.prompt_fix);
-      return `<div class="rv-make">${ai ? `${fx ? '<small class="rv-fix">자동 검수가 고친 프롬프트입니다. 확인 후 다시 생성하세요.</small>' : ''}<textarea data-mk-prompt="${esc(k)}" rows="${fx ? 5 : 3}" placeholder="생성 프롬프트(영문) — 피사체·장면·분위기">${esc(fx ? fx.prompt_fix : s.prompt || '')}</textarea>
-        <input data-mk-why="${esc(k)}" maxlength="200" placeholder="개선할 점(재생성 시 반영)" value="${esc(fx ? (fx.why || fx.detail) : '')}">${refOf(d, k) ? `<small class="rv-fix">메인 이미지(「${esc(whatText(S[refOf(d, k)]?.what).slice(0, 20))}」)를 참고해 같은 모델로 만듭니다</small>` : ''}${logoRefs(d, k).length ? `<small class="rv-fix">공식 자료를 붙여 만듭니다: ${esc(logoRefs(d, k).join(' · '))}</small>` : ''}<button class="button primary small" data-mk-ai="${esc(k)}">${s.status === 'generated' ? 'AI로 다시 생성' : 'AI로 생성'} · 약 $${refOf(d, k) || logoRefs(d, k).length ? '0.08' : '0.01'}</button>` : ''}
-        ${s.path && !['logo', 'texture'].includes(s.kind) ? `<button class="button small" data-mk-fit="${esc(k)}">힉스필드로 상자에 맞춘 이미지 만들기 · 약 $0.08</button>` : ''}
-        ${spots(k).length === 1 && +spots(k)[0].page === cur && !(spots(k)[0].w * spots(k)[0].h / (12192000 * 6858000) > 0.8) ? `<button class="button small" data-rv-size="${esc(k)}">상자 크기 조절</button>` : ''}
-        ${['official', 'logo', 'reference', 'capture'].includes(s.kind) ? `<button class="button small" data-mk-other="${esc(k)}">Aside로 다른 이미지 찾기</button>` : ''}
+      return `<div class="rv-make">${ai ? `${fx ? '<small class="rv-fix">자동 검수에서 수정한 프롬프트입니다. 확인 후 다시 생성해 주세요.</small>' : ''}<textarea data-mk-prompt="${esc(k)}" rows="${fx ? 5 : 3}" placeholder="생성 프롬프트(영문) — 피사체·장면·분위기">${esc(fx ? fx.prompt_fix : s.prompt || '')}</textarea>
+        <input data-mk-why="${esc(k)}" maxlength="200" placeholder="개선할 점(재생성 시 반영)" value="${esc(fx ? (fx.why || fx.detail) : '')}">${refOf(d, k) ? `<small class="rv-fix">메인 이미지(「${esc(whatText(S[refOf(d, k)]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다</small>` : ''}${logoRefs(d, k).length ? `<small class="rv-fix">공식 자료를 첨부해 생성합니다: ${esc(logoRefs(d, k).join(' · '))}</small>` : ''}<button class="button primary small" data-mk-ai="${esc(k)}">${s.status === 'generated' ? 'AI로 다시 생성' : 'AI로 생성'} · 약 $${refOf(d, k) || logoRefs(d, k).length ? '0.08' : '0.01'}</button>` : ''}
+        ${s.path && !['logo', 'texture'].includes(s.kind) ? `<button class="button small" data-mk-fit="${esc(k)}">힉스필드로 영역에 맞춘 이미지 생성 · 약 $0.08</button>` : ''}
+        ${spots(k).length === 1 && +spots(k)[0].page === cur && !(spots(k)[0].w * spots(k)[0].h / (12192000 * 6858000) > 0.8) ? `<button class="button small" data-rv-size="${esc(k)}">이미지 영역 크기 조절</button>` : ''}
+        ${['official', 'logo', 'reference', 'capture'].includes(s.kind) ? `<button class="button small" data-mk-other="${esc(k)}">Aside로 다른 이미지 검색</button>` : ''}
         ${s.path && !AI_KINDS.includes(s.kind) ? `<div class="rv-lowres" data-lr="${esc(k)}" hidden><small class="warn"></small><button class="button small" data-mk-hires="${esc(k)}">Aside로 고해상도 검색</button><button class="button small" data-mk-up="${esc(k)}">힉스필드로 고해상도 보정 · 약 $0.08</button></div>` : ''}</div>`;
     }
     function textMode(tids) {
@@ -2556,11 +2556,11 @@ async function pageReview(pid, start) {
           t.onpointerup = () => { t.onpointermove = null; }; };
       });
       const had = tids.some(id => tp[id]);
-      wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-txtbar"><small>점선 상자가 이 페이지의 글입니다. 옮길 글을 끌어 놓으세요. 반영하면 이 페이지만 다시 그립니다.</small><div class="ibtns"><button class="button primary small" id="tx-ok">이 위치로 반영</button>${had ? '<button class="button small" id="tx-reset">글자 원래 위치로</button>' : ''}<button class="text-btn" id="tx-no">옮기기 취소</button></div></div>`);
+      wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-txtbar"><small>점선 영역이 이 페이지의 텍스트입니다. 이동할 텍스트를 드래그해 주세요. 반영하면 이 페이지만 다시 생성합니다.</small><div class="ibtns"><button class="button primary small" id="tx-ok">이 위치로 반영</button>${had ? '<button class="button small" id="tx-reset">텍스트 원위치</button>' : ''}<button class="text-btn" id="tx-no">이동 취소</button></div></div>`);
       $('#tx-no').onclick = () => { dlg.dataset.dirty = ''; show(cur); };
       const save = async reset => {
         const ids = reset ? tids.filter(id => tp[id]) : Object.keys(moved);
-        if (!ids.length) return toast('옮긴 글이 없습니다. 점선 상자를 끌어 옮겨 주세요.');
+        if (!ids.length) return toast('이동한 텍스트가 없습니다. 점선 영역을 드래그해 이동해 주세요.');
         $('#tx-ok').disabled = true;
         const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
         if (e0) { $('#tx-ok').disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
@@ -2573,19 +2573,19 @@ async function pageReview(pid, start) {
         const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, boxes, deck: {...deck0, text_pos: pos, text_orig: orig}}}, status: 'working'}).eq('id', p.id);
         if (error) { $('#tx-ok').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
         await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
-        await proposalEvent(p.id, `${cur}페이지 글 ${ids.length}개 위치를 ${reset ? '원래대로 복원했습니다' : '옮겼습니다'} → 이 페이지만 다시 그립니다`);
+        await proposalEvent(p.id, `${cur}페이지 글 ${ids.length}개 위치를 ${reset ? '원래대로 복원했습니다' : '옮겼습니다'} → 이 페이지만 다시 생성합니다`);
         dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur);
-        toast(reset ? '글을 원래 위치로 복원합니다. 이 페이지를 다시 그리는 중입니다.' : '글 위치를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
+        toast(reset ? '텍스트를 원래 위치로 복원합니다. 이 페이지를 다시 생성하는 중입니다.' : '텍스트 위치를 반영합니다. 이 페이지를 다시 생성하는 중입니다.', {fn: async () => {
           const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
           await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, boxes: {...d2.build.boxes, ...Object.fromEntries(ids.map(id => [id, f.build.boxes[id]]))}, deck: {...d2.build.deck, text_pos: deck0.text_pos || {}, text_orig: deck0.text_orig || {}}}}, status: 'working'}).eq('id', p.id);
           await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: ids}});
-          await proposalEvent(p.id, `${cur}페이지 글 위치 변경을 취소했습니다`);
-          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+          await proposalEvent(p.id, `${cur}페이지 텍스트 위치 변경을 취소했습니다`);
+          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 생성하는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
       };
       $('#tx-ok').onclick = () => save(false);
       if ($('#tx-reset')) $('#tx-reset').onclick = () => save(true);
     }
-    // 상자 크기 조절 — 페이지 위 상자 가장자리·모서리를 끌어 늘리고 줄인다 → 그 페이지만 다시 그림 (10-30 김현우)
+    // 이미지 영역 크기 조절 — 페이지 위 상자 가장자리·모서리를 끌어 늘리고 줄인다 → 그 페이지만 다시 그림 (10-30 김현우)
     function sizeBox(k) {
       const h = $(`#rv-hot [data-hot="${CSS.escape(k)}"]`), wrap = $('.rv-canvas-wrap'); if (!h) return;
       if (h.classList.contains('edit')) return h.scrollIntoView({block: 'center', behavior: 'smooth'});     // 이미 조절 중이면 끌어 둔 크기 그대로
@@ -2609,11 +2609,11 @@ async function pageReview(pid, start) {
       });
       const had = !!S[k].box;
       $('#rv-sizebar')?.remove();
-      wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-sizebar"><small>상자 가장자리나 모서리를 끌어 크기를 조절하세요. 반영하면 이 페이지만 다시 그립니다.</small><div class="ibtns"><button class="button primary small" id="sz-ok">이 크기로 반영</button>${had ? '<button class="button small" id="sz-reset">원래 크기로</button>' : ''}<button class="text-btn" id="sz-no">조절 취소</button></div></div>`);
+      wrap.insertAdjacentHTML('afterend', `<div class="rv-sizebar" id="rv-sizebar"><small>영역의 가장자리나 모서리를 드래그해 크기를 조절해 주세요. 반영하면 이 페이지만 다시 생성합니다.</small><div class="ibtns"><button class="button primary small" id="sz-ok">이 크기로 반영</button>${had ? '<button class="button small" id="sz-reset">원래 크기로</button>' : ''}<button class="text-btn" id="sz-no">조절 취소</button></div></div>`);
       $('#sz-no').onclick = () => { dlg.dataset.dirty = ''; show(cur); };
       const save = async reset => {
         const v = ['left', 'top', 'width', 'height'].map(z => parseFloat(h.style[z]));
-        if (!reset && v.every((x, i) => Math.abs(x - r0[i]) < 0.2)) return toast('상자 크기가 그대로입니다. 가장자리를 끌어 조절해 주세요.');
+        if (!reset && v.every((x, i) => Math.abs(x - r0[i]) < 0.2)) return toast('영역 크기가 변경되지 않았습니다. 가장자리를 드래그해 조절해 주세요.');
         $('#sz-ok').disabled = true;
         const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
         if (e0) { $('#sz-ok').disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
@@ -2626,14 +2626,14 @@ async function pageReview(pid, start) {
         const { error } = await SB.from('pt_proposal').update({data: {...f, build: {...f.build, boxes}, images: {...f.images, slots: {...f.images.slots, [k]: slot}}}, status: 'working'}).eq('id', p.id);
         if (error) { $('#sz-ok').disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
         await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: [k]}});
-        await proposalEvent(p.id, `${cur}페이지 「${whatText(s0.what) || k}」 이미지 상자를 ${reset ? '원래 크기로 복원했습니다' : '조절했습니다'} → 이 페이지만 다시 그립니다`);
+        await proposalEvent(p.id, `${cur}페이지 「${whatText(s0.what) || k}」 이미지 영역을 ${reset ? '원래 크기로 복원했습니다' : '조절했습니다'} → 이 페이지만 다시 생성합니다`);
         dlg.dataset.dirty = ''; studio.list = null; await loadStudio(); show(cur);
-        toast(reset ? '원래 크기로 복원합니다. 이 페이지를 다시 그리는 중입니다.' : '상자 크기를 반영합니다. 이 페이지를 다시 그리는 중입니다.', {fn: async () => {
+        toast(reset ? '원래 크기로 복원합니다. 이 페이지를 다시 생성하는 중입니다.' : '영역 크기를 반영합니다. 이 페이지를 다시 생성하는 중입니다.', {fn: async () => {
           const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const d2 = r2.data;
           await SB.from('pt_proposal').update({data: {...d2, build: {...d2.build, boxes: {...d2.build.boxes, [k]: b0}}, images: {...d2.images, slots: {...d2.images.slots, [k]: s0}}}, status: 'working'}).eq('id', p.id);
           await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'finalize', input: {keys: [k]}});
-          await proposalEvent(p.id, `${cur}페이지 이미지 상자 조절을 취소했습니다`);
-          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 그리는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
+          await proposalEvent(p.id, `${cur}페이지 이미지 영역 조절을 취소했습니다`);
+          studio.list = null; await loadStudio(); toast('실행을 취소했습니다. 이 페이지를 다시 생성하는 중입니다.'); window.dispatchEvent(new Event('pt-refresh')); }});
       };
       $('#sz-ok').onclick = () => save(false);
       if ($('#sz-reset')) $('#sz-reset').onclick = () => save(true);
@@ -2654,7 +2654,7 @@ async function pageReview(pid, start) {
       const lp = studio.list?.find(z => z.id === p.id) || p, before = {...(lp.data?.qa_ok || {})}, path = S[k].path, page = cur;
       const flip = ok => { if (on) ok[k] = path; else delete ok[k]; return ok; };
       const done = await optimistic(
-        () => { lp.data = {...lp.data, qa_ok: flip({...before})}; show(page); toast(on ? '이 이미지로 확정했습니다. 확인할 곳에서 빠집니다.' : '확정을 취소했습니다.'); },
+        () => { lp.data = {...lp.data, qa_ok: flip({...before})}; show(page); toast(on ? '이 이미지로 확정했습니다. 확인 필요 항목에서 제외됩니다.' : '확정을 취소했습니다.'); },
         async () => { const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); if (e0) throw e0;
           return SB.from('pt_proposal').update({data: {...row.data, qa_ok: flip({...(row.data.qa_ok || {})})}}).eq('id', p.id); },
         () => { lp.data = {...lp.data, qa_ok: before}; show(page); }, '확정을 저장하지 못해 원래대로 복원했습니다');
@@ -2677,7 +2677,7 @@ async function pageReview(pid, start) {
     $$('#rv-side [data-lr]').forEach(box => { const k = box.dataset.lr, b = d.build?.boxes?.[k], el = $(`#rv-side [data-rk="${CSS.escape(k)}"]`), need = needPx(d, k);
       if (!b || !el?.dataset.src) return;
       const im = new Image(); im.onload = () => { if (lowRes(im.naturalWidth, im.naturalHeight, need, b.w / b.h) || S[k].lowres) { box.hidden = false;
-        box.querySelector('small').textContent = `해상도가 낮아 깨져 보입니다 (지금 ${im.naturalWidth}px · 필요 약 ${need}px)`; } }; im.src = el.dataset.src; });
+        box.querySelector('small').textContent = `해상도가 낮아 화질이 저하되어 보입니다 (현재 ${im.naturalWidth}px · 필요 약 ${need}px)`; } }; im.src = el.dataset.src; });
     $$('#rv-side [data-go-page]').forEach(x => x.onclick = () => nav(+x.dataset.goPage));
     const cps = keys.map(k => S[k].cand?.path).filter(Boolean);
     if (cps.length) SB.storage.from('pt-studio').createSignedUrls(cps, 900).then(({ data }) => (data || []).forEach(x => { if (x.signedUrl) $$(`#rv-side [data-cand-thumb="${CSS.escape(x.path)}"]`).forEach(el => { el.style.backgroundImage = `url("${x.signedUrl}")`; }); }));
@@ -2720,23 +2720,23 @@ async function openProposal(id, keep) {
   activeDetail = 'p:' + id;
   if (!keep) setRoute(id);
   // 진행 단계는 맨 위 가로 막대로 (10-30 · 대표님 설계) — 사람이 결정하는 단계는 점으로 표시
-  const stages = STAGES.map((s, i) => { const n = i + 1, skip = p.mode === 'single' && n === 3, cls = skip ? 'skip' : n < p.stage || p.status === 'done' ? 'done' : n === p.stage ? 'now' : ''; return `<li class="${cls}" title="${esc(s)}${GATES[n] && !skip ? ' · 결정: ' + esc(GATES[n]) : ''}${skip ? ' · 단독 제안은 건너뜀' : ''}"><span>${n}</span><b>${esc(s)}</b>${GATES[n] && !skip ? '<i class="gate" aria-label="결정 단계"></i>' : ''}</li>`; }).join('');
+  const stages = STAGES.map((s, i) => { const n = i + 1, skip = p.mode === 'single' && n === 3, cls = skip ? 'skip' : n < p.stage || p.status === 'done' ? 'done' : n === p.stage ? 'now' : ''; return `<li class="${cls}" title="${esc(s)}${GATES[n] && !skip ? ' · 결정: ' + esc(GATES[n]) : ''}${skip ? ' · 단독 제안은 생략' : ''}"><span>${n}</span><b>${esc(s)}</b>${GATES[n] && !skip ? '<i class="gate" aria-label="결정 단계"></i>' : ''}</li>`; }).join('');
   const job = studio.jobs.find(j => j.proposal_id === id);
   const ref = studio.refs?.find(r => r.id === p.ref_id);
   const ent = (eid, name) => eid && byId(eid) ? `<button class="ref" type="button" data-open="${eid}">${esc(name)}</button>` : esc(name || '—');
   const d = p.data || {};
   let action = '';
-  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '궁니르 봇이 파트너 IP 후보를 추천합니다.' : '궁니르 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">인테이크 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
+  if (p.status === 'waiting' && p.stage === 2) action = `<div class="detail-block"><h3>결정 · 기본 정보 확정</h3><p>아래 내용으로 시작합니다. 확정하면 ${p.mode === 'collab' && !p.ip_b_name ? '궁니르 봇이 파트너 IP 후보를 추천합니다.' : '궁니르 봇이 IP 리서치를 시작합니다.'}</p><div class="drawer-actions"><button class="button primary" id="intake-ok">기본 정보 확정</button><button class="button" id="intake-edit">내용 수정</button></div></div>`;
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
-  else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 나가거나 새로 고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
-  else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 만든 결과는 그대로 남아 있습니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
-  else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '궁니르 봇이 작업을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
+  else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 벗어나거나 새로고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
+  else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 생성된 결과는 그대로 유지됩니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
+  else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '궁니르 봇이 작업을 완료하지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
   else if (p.status === 'waiting' && p.stage === 3 && d.partners) action = partnersPanel(p);
   else if (p.status === 'waiting' && p.stage === 5 && d.concepts) action = conceptsPanel(p);
   else if (p.status === 'waiting' && p.stage >= 7 && d.images) action = imagesPanel(p);
   else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>궁니르 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
-  else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 만들기</h3><p>수신사 피드백을 입력하면 원고를 고쳐 다음 버전을 만듭니다. 새로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 만들기</button></div></div>`;
-  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영돼 있습니다. PDF·PPTX를 받거나 완료할 때 전체 파일에 한 번 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지가 들어갈 위치는 회색 상자로 비워 두었습니다. 이미지 수급 단계에서 채웁니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 고칠 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞쪽 팬 반응 페이지를 빼고 콜라보 명분을 더 강하게, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 만들기</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
+  else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
+  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
@@ -2767,7 +2767,7 @@ async function openProposal(id, keep) {
   $('#pv-info-edit')?.addEventListener('click', () => studioProjectModal(p));
   // 작업 취소 (10-30 김현우) — 8초 안에 「되돌리기」를 누르면 취소하지 않는다. 봇은 apply_at(8초 뒤)이 지나야 멈춘다 → 화면을 나가도 그대로 적용
   $('#job-cancel')?.addEventListener('click', async ev => {
-    if (!(await confirmBox({title: '정말 취소하시겠어요?', body: '지금 진행 중인 작업을 멈추고 직전 결정 단계로 돌아갑니다. 이미 만든 결과(원고·이미지)는 그대로 남습니다.', ok: '작업 취소', cancel: '계속 진행', danger: true}))) return;
+    if (!(await confirmBox({title: '작업을 취소하시겠습니까?', body: '현재 진행 중인 작업을 중단하고 직전 결정 단계로 돌아갑니다. 이미 생성된 결과(원고·이미지)는 그대로 유지됩니다.', ok: '작업 취소', cancel: '계속 진행', danger: true}))) return;
     ev.target.disabled = true;
     const now = new Date(), req = {at: now.toISOString(), apply_at: new Date(now.getTime() + 8000).toISOString(), by: myName || ''};
     const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
@@ -2786,14 +2786,14 @@ async function openProposal(id, keep) {
   // 같은 IP 조합으로 제안서 하나 더 — 리서치·팬·SNS 조사·컨셉 후보를 이어받아 컨셉 고르기부터
   $('#prop-more')?.addEventListener('click', async ev => {
     const no = propNo(p);
-    if (!(await confirmBox({title: '같은 IP로 제안서를 하나 더 만들까요?', body: `${esc(pTitle(p))}의 리서치와 컨셉 후보를 그대로 가져와 새 제안서를 만들고, 컨셉 선택부터 시작합니다. 지금 제안서는 그대로 남습니다.`, ok: '새 제안서 만들기'}))) return;
+    if (!(await confirmBox({title: '같은 IP로 제안서를 추가로 생성할까요?', body: `${esc(pTitle(p))}의 리서치와 컨셉 후보를 그대로 가져와 새 제안서를 생성하고, 컨셉 선택 단계부터 시작합니다. 기존 제안서는 그대로 유지됩니다.`, ok: '새 제안서 생성'}))) return;
     ev.target.disabled = true;
     const keep = Object.fromEntries(['research', 'social', 'concepts', 'accent', 'partners', 'partner_selected'].filter(k => d[k] !== undefined).map(k => [k, d[k]]));
     const row = {mode: p.mode, ip_a_name: p.ip_a_name, ip_a_id: p.ip_a_id, ip_b_name: p.ip_b_name, ip_b_id: p.ip_b_id, recipient: p.recipient, ref_id: p.ref_id,
                  note: p.note, data: {...keep, from_proposal: p.id}, stage: 5, status: 'waiting'};
     const { data: nw, error } = await SB.from('pt_proposal').insert(row).select().single();
     if (error) { ev.target.disabled = false; return toast('생성하지 못했습니다: ' + error.message); }
-    await proposalEvent(nw.id, `제안서 ${no ? no.of + 1 : 2}을(를) 만들었습니다 · 리서치·컨셉 후보를 이어받았습니다`);
+    await proposalEvent(nw.id, `제안서 ${no ? no.of + 1 : 2}을(를) 생성했습니다 · 리서치·컨셉 후보를 가져왔습니다`);
     studio.list = null; await loadStudio(); openProposal(nw.id); toast('새 제안서를 생성했습니다. 컨셉을 선택해 주세요.');
   });
   $('#intake-ok')?.addEventListener('click', () => {
@@ -2810,7 +2810,7 @@ async function openProposal(id, keep) {
   $$('#drawer [data-file]').forEach(b => b.onclick = async () => {
     if (patched) {          // 페이지만 갈아 끼운 상태 — 파일을 받을 때 전체에 한 번 반영
       b.disabled = true;
-      return go({status: 'working'}, {kind: 'finalize', input: {}}, `수정한 ${patched}개 페이지를 전체 파일에 반영합니다`, `수정한 ${patched}개 페이지를 전체 파일에 반영하는 중입니다. 끝나면 다시 눌러 받으세요.`);
+      return go({status: 'working'}, {kind: 'finalize', input: {}}, `수정한 ${patched}개 페이지를 전체 파일에 반영합니다`, `수정한 ${patched}개 페이지를 전체 파일에 반영하는 중입니다. 완료 후 다시 클릭해 다운로드해 주세요.`);
     }
     const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(b.dataset.file, 600, b.dataset.dl ? {download: `${pTitle(p)}_v${d.build.version}.pptx`} : undefined);
     if (error) return toast('파일을 열지 못했습니다.');
@@ -2827,12 +2827,12 @@ async function openProposal(id, keep) {
   });
   $$('#drawer [data-review]').forEach(x => x.onclick = () => pageReview(p.id, +x.dataset.review || 1));
   $('#redesign')?.addEventListener('click', async ev => {
-    if (!(await confirmBox({title: '새 디자인을 적용할까요?', body: '원고를 원본 제안서 디자인 레이아웃으로 다시 씁니다. 이미지는 그대로 쓰지만 페이지 구성과 문장 배치가 바뀔 수 있습니다. 지금 버전은 기록에 남습니다.', ok: '새 디자인 적용'}))) return;
-    ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {redesign: true}}, '원본 제안서 디자인 적용을 요청했습니다(이미지는 유지)', '새 디자인을 적용합니다. 진행률은 화면에서 볼 수 있습니다.'); });
+    if (!(await confirmBox({title: '새 디자인을 적용할까요?', body: '원고를 원본 제안서 디자인 레이아웃으로 다시 작성합니다. 이미지는 그대로 사용하지만 페이지 구성과 문장 배치가 변경될 수 있습니다. 현재 버전은 이력에 보관됩니다.', ok: '새 디자인 적용'}))) return;
+    ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {redesign: true}}, '원본 제안서 디자인 적용을 요청했습니다(이미지는 유지)', '새 디자인을 적용합니다. 진행률은 화면에서 확인할 수 있습니다.'); });
   $('#ai-est')?.addEventListener('click', ev => { ev.target.disabled = true; go({status: 'working'}, {kind: 'generate', input: {estimate_only: true}}, 'AI 이미지 견적을 요청했습니다'); });
   $('#ai-go')?.addEventListener('click', async ev => {
     const usd = +ev.target.dataset.usd, n = d.images.ai_estimate.count;
-    if (!(await confirmBox({title: `이미지 ${n}장을 만들까요?`, body: `<b>예상 비용 약 $${usd}</b>가 회사 힉스필드 잔액에서 나갑니다. 실패하거나 부적절 판정된 이미지는 청구되지 않습니다. 만든 이미지는 들어갈 페이지만 다시 그립니다.`, ok: `${n}장 만들기 · 약 $${usd}`}))) return;
+    if (!(await confirmBox({title: `이미지 ${n}장을 생성할까요?`, body: `<b>예상 비용 약 $${usd}</b>가 회사 힉스필드 잔액에서 차감됩니다. 실패하거나 부적절 판정된 이미지는 청구되지 않습니다. 생성된 이미지는 해당 페이지에만 반영됩니다.`, ok: `${n}장 생성 · 약 $${usd}`}))) return;
     ev.target.disabled = true;
     go({status: 'working'}, {kind: 'generate', input: {approved_usd: usd}}, `AI 이미지 ${n}장 생성을 승인했습니다 (예상 $${usd})`, '승인했습니다. 궁니르 봇이 생성을 시작합니다.');
   });
@@ -2841,30 +2841,30 @@ async function openProposal(id, keep) {
     const im = (d.build?.deck?.slides || []).flatMap(x => x.images || []).find(x => x.key === k) || {};
     b.disabled = true;
     go({status: 'working'}, {kind: 'aside', input: {slots: [{key: k, kind: sl.kind, what: sl.what || '', ratio: sl.ratio || '', search: im.search || ''}], ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}},
-       `${sl.slide}페이지 「${sl.what || k}」 이미지를 Aside 로 다시 찾도록 요청했습니다`, 'Aside에 요청했습니다. 진행률은 화면에서 볼 수 있습니다.');
+       `${sl.slide}페이지 「${sl.what || k}」 이미지를 Aside 로 다시 찾도록 요청했습니다`, 'Aside에 요청했습니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   $('#rev-go')?.addEventListener('click', ev => {
     const t = $('#rev-ins').value.trim(); if (!t) { $('#rev-ins').focus(); return toast('수정할 내용을 입력해 주세요.'); }
     ev.target.disabled = true;
     const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'draft', instruction: t, version: d.build?.version, by: myName || ''}];
-    go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `수정 버전을 요청했습니다 · ${t.slice(0, 120)}`, '수정 버전을 만듭니다. 진행률은 화면에서 볼 수 있습니다.');
+    go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `수정 버전을 요청했습니다 · ${t.slice(0, 120)}`, '수정 버전을 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   // 중간 과정에서도 원고 수정 요청 (10-30 대표님 「완성 혹은 중간 과정에 프롬프트로 넣으면 변경」)
   $('#mid-go')?.addEventListener('click', async ev => {
     const t = $('#mid-ins').value.trim(); if (!t) { $('#mid-ins').focus(); return toast('수정할 내용을 입력해 주세요.'); }
-    if (!(await confirmBox({title: `원고를 고쳐 v${d.build.version + 1}을 만들까요?`,
-        body: '요청한 부분만 고치고 나머지 페이지와 이미지는 그대로 둡니다. 새로 필요한 이미지 위치만 다시 수급합니다. 요청 내용은 다음 제안서 원고에도 반영되도록 쌓입니다.', ok: `v${d.build.version + 1} 만들기`}))) return;
+    if (!(await confirmBox({title: `원고를 수정해 v${d.build.version + 1}을 생성할까요?`,
+        body: '요청한 부분만 수정하고 나머지 페이지와 이미지는 유지합니다. 추가로 필요한 이미지만 다시 수급합니다. 요청 내용은 다음 제안서 원고에도 반영되도록 저장됩니다.', ok: `v${d.build.version + 1} 생성`}))) return;
     ev.target.disabled = true;
     const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'draft', instruction: t, version: d.build?.version, by: myName || ''}];
     $('#mid-ins').value = '';
-    go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `원고 수정을 요청했습니다 · ${t.slice(0, 120)}`, '원고를 고쳐 다음 버전을 만듭니다. 진행률은 화면에서 볼 수 있습니다.');
+    go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `원고 수정을 요청했습니다 · ${t.slice(0, 120)}`, '원고를 수정해 다음 버전을 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   $('#img-rerender')?.addEventListener('click', async ev => {
-    if (!(await confirmBox({title: '변경 사항을 제안서 전체에 반영할까요?', body: '교체한 이미지와 위치 조정을 넣어 제안서 전체를 다시 그리고, 자동 검수도 처음부터 다시 합니다. 그동안은 수정할 수 없습니다.', ok: '전체에 반영'}))) return;
+    if (!(await confirmBox({title: '변경 사항을 제안서 전체에 반영할까요?', body: '교체한 이미지와 위치 조정 내용을 적용해 제안서 전체를 다시 생성하고, 자동 검수도 다시 진행합니다. 진행 중에는 수정할 수 없습니다.', ok: '전체에 반영'}))) return;
     ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {}}, '변경 사항 반영을 요청했습니다'); });
   $('#img-done')?.addEventListener('click', async ev => {
     if (!(await confirmBox({title: `v${d.build.version}으로 제안서를 완료할까요?`,
-        body: `완료하면 상태가 「완료」로 바뀌고 이미지 수정 단계가 닫힙니다.${patched ? ` 수정한 ${patched}개 페이지를 전체 파일에 반영한 뒤 완료합니다.` : ''} 이후 고칠 일이 생기면 「수정 버전 만들기」로 다음 버전을 만듭니다.`,
+        body: `완료하면 상태가 「완료」로 변경되고 이미지 수정 단계가 종료됩니다.${patched ? ` 수정한 ${patched}개 페이지를 전체 파일에 반영한 뒤 완료합니다.` : ''} 이후 수정이 필요하면 「수정 버전 생성」으로 다음 버전을 생성합니다.`,
         ok: `v${d.build.version}으로 완료`}))) return;
     ev.target.disabled = true;
     // 완료한 버전에 남은 AI 이미지·좌우 넓힌 이미지 = 사람이 통과시킨 것 → good_images (10-29 · 다음 원고가 이 수준을 따르게)
@@ -2884,7 +2884,7 @@ async function openProposal(id, keep) {
   $$('#drawer [data-pick]').forEach(b => b.onclick = () => {
     const c = d.partners.candidates[+b.dataset.pick], e = entityByName(c.ip);
     $$('#drawer [data-pick]').forEach(x => x.disabled = true);
-    go({ip_b_name: e?.name || c.ip, ip_b_id: e?.id || null, stage: 4, status: 'working', data: {...d, partner_selected: c}}, {kind: 'research', input: {}}, `파트너 IP 「${c.ip}」를 골랐습니다 → 리서치 시작`, `${c.ip}을(를) 파트너로 골랐습니다.`);
+    go({ip_b_name: e?.name || c.ip, ip_b_id: e?.id || null, stage: 4, status: 'working', data: {...d, partner_selected: c}}, {kind: 'research', input: {}}, `파트너 IP 「${c.ip}」를 선택했습니다 → 리서치 시작`, `${c.ip}을(를) 파트너로 선택했습니다.`);
   });
   // 추천 밖 IP 직접 입력 (10-28 홍석진 대표님)
   const own = $('#pb-own');
@@ -2894,7 +2894,7 @@ async function openProposal(id, keep) {
       const v = own.value.trim(); if (!v) { own.focus(); return; }
       const e = entityByName(v), name = e?.name || v, { partner_selected, ...rest } = d;
       $$('#drawer [data-pick], #pb-own-go').forEach(x => x.disabled = true);
-      go({ip_b_name: name, ip_b_id: e?.id || null, stage: 4, status: 'working', data: rest}, {kind: 'research', input: {}}, `파트너 IP 「${name}」를 직접 넣었습니다 → 리서치 시작`, `${name}을(를) 파트너로 골랐습니다.`);
+      go({ip_b_name: name, ip_b_id: e?.id || null, stage: 4, status: 'working', data: rest}, {kind: 'research', input: {}}, `파트너 IP 「${name}」를 직접 입력했습니다 → 리서치 시작`, `${name}을(를) 파트너로 선택했습니다.`);
     };
   }
   $$('#drawer [data-reroll]').forEach(b => b.onclick = () => {
@@ -2916,10 +2916,10 @@ async function openProposal(id, keep) {
   });
   $('#cc-go')?.addEventListener('click', async ev => {
     const t = $('#cc-ins').value.trim(); if (!t) { $('#cc-ins').focus(); return toast('수정 요청을 입력해 주세요.'); }
-    if (!(await confirmBox({title: '이 요청으로 컨셉 후보를 다시 받을까요?', body: '지금 후보 대신 요청을 반영한 새 후보로 바뀝니다. 요청 내용은 다음 제안서 컨셉에도 반영되도록 쌓입니다.', ok: '컨셉 다시 받기'}))) return;
+    if (!(await confirmBox({title: '이 요청으로 컨셉 후보를 다시 생성할까요?', body: '현재 후보가 요청을 반영한 새 후보로 변경됩니다. 요청 내용은 다음 제안서 컨셉에도 반영되도록 저장됩니다.', ok: '컨셉 재생성'}))) return;
     ev.target.disabled = true;
     const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'concept', instruction: t, by: myName || ''}];
-    go({status: 'working', data: {...d, deck_style: readDeckStyle(), revise_log: log}}, {kind: 'concepts', input: {instruction: t}}, `컨셉 수정을 요청했습니다 · ${t.slice(0, 120)}`, '컨셉을 다시 설계합니다. 진행률은 화면에서 볼 수 있습니다.');
+    go({status: 'working', data: {...d, deck_style: readDeckStyle(), revise_log: log}}, {kind: 'concepts', input: {instruction: t}}, `컨셉 수정을 요청했습니다 · ${t.slice(0, 120)}`, '컨셉을 다시 설계합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   clearTimeout(propPoll);
   if (p.status === 'working') propPoll = setTimeout(() => pollProposal(p.id), 3000);      // 작업 중이면 단계와 상관없이 항상
@@ -2933,13 +2933,13 @@ function studioProjectModal(p) {
   const refs = studio.refs || [], def = p?.ref_id || refs.find(r => r.is_default)?.id || refs[0]?.id || '';
   const names = entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('');
   const lockIp = !!p && p.stage > 2, dis = lockIp ? 'disabled' : '';
-  modal(`<form id="sp-form"><h2>${p ? '기본 정보 수정' : '새 제안서 프로젝트'}</h2><p>${lockIp ? '리서치가 시작된 뒤에는 IP와 제안 방식을 바꿀 수 없습니다. 다른 IP로 하려면 새 프로젝트를 만들어 주세요.' : 'IP 하나로 시작합니다. 이그드라실에 등록된 엔티티를 선택하면 담당자·연락처도 함께 연결됩니다.'}</p><datalist id="sp-ents">${names}</datalist>
+  modal(`<form id="sp-form"><h2>${p ? '기본 정보 수정' : '새 제안서 프로젝트'}</h2><p>${lockIp ? '리서치가 시작된 후에는 IP와 제안 방식을 변경할 수 없습니다. 다른 IP로 진행하려면 새 프로젝트를 생성해 주세요.' : 'IP 하나로 시작합니다. 이그드라실에 등록된 엔티티를 선택하면 담당자·연락처도 함께 연결됩니다.'}</p><datalist id="sp-ents">${names}</datalist>
   <label>IP *<input id="sp-a" list="sp-ents" required maxlength="80" value="${esc(p?.ip_a_name || '')}" placeholder="예: 에스파" ${dis}></label><small class="atnote" id="sp-a-note"></small>
   <div class="field"><span class="flabel">제안 방식</span><div class="seg-pick"><label><input type="radio" name="sp-mode" value="collab" ${p?.mode !== 'single' ? 'checked' : ''} ${dis}> 콜라보 제안 <small>IP A × IP B</small></label><label><input type="radio" name="sp-mode" value="single" ${p?.mode === 'single' ? 'checked' : ''} ${dis}> 단독 제안 <small>IP 하나</small></label></div></div>
-  <div id="sp-b-field"><label>파트너 IP<input id="sp-b" list="sp-ents" maxlength="80" value="${esc(p?.ip_b_name || '')}" placeholder="비워 두면 궁니르 봇이 후보를 추천합니다" ${dis}></label><small class="atnote" id="sp-b-note"></small></div>
+  <div id="sp-b-field"><label>파트너 IP<input id="sp-b" list="sp-ents" maxlength="80" value="${esc(p?.ip_b_name || '')}" placeholder="입력하지 않으면 궁니르 봇이 후보를 추천합니다" ${dis}></label><small class="atnote" id="sp-b-note"></small></div>
   <label>수신사<input id="sp-to" list="sp-ents" maxlength="80" value="${esc(p?.recipient || '')}" placeholder="예: SM엔터테인먼트"></label>
   <label>레퍼런스 포맷<select id="sp-ref">${refs.length ? refs.map(r => `<option value="${r.id}" ${r.id === def ? 'selected' : ''}>${esc(r.title)}${r.is_default ? ' (기본)' : ''}</option>`).join('') : '<option value="">등록된 레퍼런스 없음</option>'}</select></label>
-  <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 궁니르 봇이 정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
+  <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 궁니르 봇이 지정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
@@ -2958,8 +2958,8 @@ function studioProjectModal(p) {
     const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: 2, status: 'waiting'}).select().single();
     const { data, error } = await q;
     if (error) { btn.disabled = false; $('#sp-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
-    await proposalEvent(data.id, p ? '기본 정보를 수정했습니다' : `프로젝트를 만들었습니다 (${mode === 'single' ? '단독' : '콜라보'} 제안)`);
-    $('#modal').close(); studio.list = null; await loadStudio(); openProposal(data.id); toast(p ? '기본 정보를 수정했습니다.' : '프로젝트를 만들었습니다.');
+    await proposalEvent(data.id, p ? '기본 정보를 수정했습니다' : `프로젝트를 생성했습니다 (${mode === 'single' ? '단독' : '콜라보'} 제안)`);
+    $('#modal').close(); studio.list = null; await loadStudio(); openProposal(data.id); toast(p ? '기본 정보를 수정했습니다.' : '프로젝트를 생성했습니다.');
   };
 }
 
@@ -2972,20 +2972,20 @@ const studioRefModal = () => { studio.tab = 'ref-new'; studio.refNew = null; ren
 const tourStudio = tab => { closeDrawer(); if (page !== 'studio') { page = 'studio'; try { history.replaceState(null, '', '#studio'); } catch {} } studio.tab = tab; studio.refNew = null; if (tab === 'archive') studio.arch = studio.arch || null; render(); };
 const tourSample = () => { const xs = studio.list || []; return xs.find(p => p.status === 'done') || xs.slice().sort((a, b) => b.stage - a.stage)[0]; };
 const TOUR = [
-  {t: '궁니르 기능 소개', d: '궁니르는 더올마이티의 IP 콜라보 제안서 스튜디오입니다. IP를 입력하면 파트너 추천·리서치·컨셉·제안서 초안·이미지까지 궁니르 봇이 진행하고, 담당자는 결정할 때만 확인합니다.', go: () => tourStudio('projects')},
-  {el: '#add-btn', t: '새 프로젝트', d: 'IP 하나와 받을 회사만 입력하면 시작합니다. 콜라보 상대 IP를 비워 두면 궁니르 봇이 어울리는 후보를 점수와 함께 추천합니다.', go: () => tourStudio('projects')},
-  {el: '.todo-panel', t: '내가 할 일', d: '내가 기안한 프로젝트 중 내 결정을 기다리는 것이 맨 위에 모입니다. 오래 기다린 것부터 보이고, 하루가 넘으면 「하루 넘게 대기」로 강조됩니다.', go: () => tourStudio('projects')},
-  {el: '.stats', t: '한눈에 보는 현황', d: '진행 중 · 결정 대기 · 궁니르 봇 처리 중 · 완료 건수입니다. 카드를 누르면 그 건만 아래 표에 남습니다.', go: () => tourStudio('projects')},
-  {el: '.pf-bar', t: '검색과 조건', d: '프로젝트·IP·수신사·기안자 이름을 입력하면 바로 걸러집니다. 단계·상태·기안자로 조건을 더하고, 「조건 초기화」로 전체를 다시 봅니다.', go: () => tourStudio('projects')},
-  {el: '#pj-body', t: '프로젝트 목록', d: '궁니르 봇이 작업 중인 프로젝트는 진행률과 지금 하는 일이 실시간으로 보입니다. 열 제목을 누르면 정렬됩니다.', go: () => tourStudio('projects')},
-  {el: '.pv-steps', t: '8단계 진행', d: 'IP 입력부터 생성·검수까지 8단계입니다. 표시가 있는 결정 단계만 담당자가 고르고, 나머지는 궁니르 봇이 진행합니다. 화면을 닫아도 작업은 계속됩니다.', go: async () => { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); }},
-  {el: '#drawer', t: '프로젝트 화면', d: '「지금 할 일」 카드만 보고 결정하면 됩니다. 초안 보기·내려받기, 페이지 위에서 이미지 바로 수정, 원고 수정 요청까지 이 화면에서 합니다.', go: async () => { if ($('#drawer').hidden) { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); } }},
-  {el: '#ref-body', t: '레퍼런스 라이브러리', d: '팀이 실제로 보낸 완성 제안서 모음입니다. 누구 × 누구 콜라보인지와 유형이 보이고, 이름·유형으로 찾을 수 있습니다. 새 제안서는 고른 레퍼런스를 따라 씁니다.', go: () => tourStudio('refs')},
-  {el: '[data-ref-new]', t: '레퍼런스 등록', d: 'PDF를 올리면 궁니르 봇이 처음부터 끝까지 읽고 디자인·페이지 구성·문어체·설득 흐름을 자세히 배웁니다. 배운 내용은 「학습 완료 보기」에서 확인합니다.', go: () => tourStudio('refs')},
-  {el: '#content', t: '이미지 아카이브', d: '공식 이미지·로고·AI 이미지 등 지금까지 찾거나 만든 이미지가 종류별로 쌓입니다. 다른 제안서에 다시 쓸 수 있습니다.', go: () => tourStudio('archive')},
-  {el: '[data-page="chart"]', t: '소싱 · IP 차트', d: '요즘 뜨는 IP 순위와 IP 스코어, 조합 시뮬레이션을 봅니다. 차트에 없는 IP도 이름을 넣으면 바로 분석합니다.', go: () => tourStudio('projects'), skip: () => !ipcCan},
-  {el: '[data-page="manual"]', t: '사용 매뉴얼', d: '화면별 사용법과 자주 묻는 질문을 정리했습니다. 「매뉴얼에 물어보기」에 질문하면 매뉴얼 내용으로 바로 답합니다.', go: () => tourStudio('projects')},
-  {t: '소개를 마쳤습니다', d: '헤임달 계정 또는 「슬랙으로 로그인」으로 바로 쓸 수 있습니다. 궁금한 점은 사용 매뉴얼이나 AX팀에 문의해 주세요.', go: () => tourStudio('projects'), end: true},
+  {t: '궁니르 기능 소개', d: '궁니르는 더올마이티의 IP 콜라보 제안서 스튜디오입니다. IP를 입력하면 파트너 추천부터 리서치, 컨셉, 제안서 초안, 이미지 작업까지 궁니르 봇이 진행하며, 담당자는 결정 단계에서만 확인합니다.', go: () => tourStudio('projects')},
+  {el: '#add-btn', t: '새 프로젝트', d: 'IP와 수신사만 입력하면 프로젝트가 시작됩니다. 콜라보 상대 IP를 입력하지 않으면 궁니르 봇이 적합한 후보를 점수와 함께 추천합니다.', go: () => tourStudio('projects')},
+  {el: '.todo-panel', t: '내가 할 일', d: '내가 기안한 프로젝트 중 결정이 필요한 건이 상단에 표시됩니다. 대기 기간이 긴 순서로 정렬되며, 하루 이상 대기한 건은 「하루 넘게 대기」로 강조됩니다.', go: () => tourStudio('projects')},
+  {el: '.stats', t: '전체 현황', d: '진행 중 · 결정 대기 · 궁니르 봇 처리 중 · 완료 건수를 표시합니다. 카드를 클릭하면 해당 프로젝트만 아래 목록에 표시됩니다.', go: () => tourStudio('projects')},
+  {el: '.pf-bar', t: '검색·필터', d: '프로젝트·IP·수신사·기안자 이름으로 바로 검색할 수 있습니다. 단계·상태·기안자 조건을 추가할 수 있으며, 「조건 초기화」로 전체 목록을 다시 확인합니다.', go: () => tourStudio('projects')},
+  {el: '#pj-body', t: '프로젝트 목록', d: '궁니르 봇이 작업 중인 프로젝트는 진행률과 현재 작업 내용이 실시간으로 표시됩니다. 열 제목을 클릭하면 정렬됩니다.', go: () => tourStudio('projects')},
+  {el: '.pv-steps', t: '8단계 진행', d: 'IP 입력부터 생성·검수까지 총 8단계로 진행됩니다. 표시된 결정 단계에서만 담당자가 선택하며, 나머지 단계는 궁니르 봇이 진행합니다. 화면을 닫아도 작업은 계속 진행됩니다.', go: async () => { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); }},
+  {el: '#drawer', t: '프로젝트 화면', d: '「지금 할 일」 카드에서 필요한 결정을 진행합니다. 초안 확인·다운로드, 페이지별 이미지 수정, 원고 수정 요청을 모두 이 화면에서 처리합니다.', go: async () => { if ($('#drawer').hidden) { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); } }},
+  {el: '#ref-body', t: '레퍼런스 라이브러리', d: '팀에서 실제 발송한 완성 제안서 목록입니다. 콜라보 대상과 유형이 표시되며, 이름·유형으로 검색할 수 있습니다. 새 제안서는 선택한 레퍼런스를 기준으로 작성됩니다.', go: () => tourStudio('refs')},
+  {el: '[data-ref-new]', t: '레퍼런스 등록', d: 'PDF를 업로드하면 궁니르 봇이 전체 내용을 분석해 디자인·페이지 구성·문어체·설득 흐름을 상세히 학습합니다. 학습 결과는 「학습 완료 보기」에서 확인할 수 있습니다.', go: () => tourStudio('refs')},
+  {el: '#content', t: '이미지 아카이브', d: '공식 이미지·로고·AI 이미지 등 수급하거나 생성한 이미지가 유형별로 보관됩니다. 다른 제안서에서도 다시 활용할 수 있습니다.', go: () => tourStudio('archive')},
+  {el: '[data-page="chart"]', t: '소싱 · IP 차트', d: '인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. 차트에 없는 IP도 이름을 입력하면 바로 분석합니다.', go: () => tourStudio('projects'), skip: () => !ipcCan},
+  {el: '[data-page="manual"]', t: '사용 매뉴얼', d: '화면별 사용법과 자주 묻는 질문을 정리했습니다. 「매뉴얼에 물어보기」에 질문하면 매뉴얼 내용을 바탕으로 바로 답변합니다.', go: () => tourStudio('projects')},
+  {t: '기능 소개를 마칩니다', d: '헤임달 계정 또는 「슬랙으로 로그인」으로 바로 이용할 수 있습니다. 문의 사항은 사용 매뉴얼 또는 AX팀으로 연락해 주세요.', go: () => tourStudio('projects'), end: true},
 ];
 let tourAt = -1, tourTimer = 0;
 const tourSteps = () => TOUR.filter(s => !s.skip?.());
@@ -3013,8 +3013,8 @@ async function tourShow(i) {
   const el = s.el ? await tourWait(s.el) : null;
   if (tourAt !== steps.indexOf(s) || !$('#tour')) return;
   el?.scrollIntoView({block: el.offsetHeight > innerHeight * .6 ? 'start' : 'center', behavior: 'instant'});
-  card.innerHTML = `<div class="tour-top"><span class="tour-n">${tourAt + 1} / ${steps.length}</span><button class="icon-btn" data-tour="x" aria-label="시연 모드 끝내기">${icon('close')}</button></div><div class="tour-bar"><i style="width:${(tourAt + 1) / steps.length * 100}%"></i></div><h3>${esc(s.t)}</h3><p>${esc(s.d)}</p>
-  <div class="tour-acts">${tourAt ? '<button class="button" data-tour="prev">← 이전</button>' : '<span></span>'}${s.end ? '<span class="tour-end"><button class="button" data-tour="0">처음부터</button><button class="button primary" data-tour="x">마치기</button></span>' : '<button class="button primary" data-tour="next">다음 →</button>'}</div>`;
+  card.innerHTML = `<div class="tour-top"><span class="tour-n">${tourAt + 1} / ${steps.length}</span><button class="icon-btn" data-tour="x" aria-label="시연 모드 종료">${icon('close')}</button></div><div class="tour-bar"><i style="width:${(tourAt + 1) / steps.length * 100}%"></i></div><h3>${esc(s.t)}</h3><p>${esc(s.d)}</p>
+  <div class="tour-acts">${tourAt ? '<button class="button" data-tour="prev">← 이전</button>' : '<span></span>'}${s.end ? '<span class="tour-end"><button class="button" data-tour="0">처음부터</button><button class="button primary" data-tour="x">종료</button></span>' : '<button class="button primary" data-tour="next">다음 →</button>'}</div>`;
   card.classList.remove('busy');
   card.querySelectorAll('[data-tour]').forEach(b => b.onclick = () => { const v = b.dataset.tour; v === 'x' ? tourEnd() : tourShow(v === 'prev' ? tourAt - 1 : v === 'next' ? tourAt + 1 : 0); });
   requestAnimationFrame(tourPlace);
@@ -3029,7 +3029,7 @@ function tourKey(e) {
 function tourStart() {
   if ($('#tour')) return;
   const box = document.createElement('div'); box.id = 'tour'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', '궁니르 기능 소개');
-  box.innerHTML = '<div class="tour-hole" hidden></div><div class="tour-card mid busy"><p>준비하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
+  box.innerHTML = '<div class="tour-hole" hidden></div><div class="tour-card mid busy"><p>준비 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   document.body.appendChild(box); document.body.classList.add('touring');
   document.addEventListener('keydown', tourKey, true); addEventListener('resize', tourPlace); addEventListener('scroll', tourPlace, true);
   tourTimer = setInterval(tourPlace, 200);          // 목록이 늦게 그려지거나 다시 그려져도 밝힌 자리가 따라가게
@@ -3069,16 +3069,16 @@ function ipRange() {
 }
 const IP_RUN = 'id,at,status,progress,step,done_at';
 // 순위 기준 — 봇 ipchart.py 의 score()·SEGS·POOL_HOURS·DECAY 와 같은 내용 (바꾸면 둘 다)
-const IP_HOW = `<details class="ipc-how"><summary>순위 기준 — 어떻게 매기나요?</summary><div class="ipc-how-body">
-  <h4>무엇을 모으나</h4><p>하루 4번(오전 2·8시, 오후 2·8시) 웹에서 최근 7일 안팎의 기사·음원 차트·OTT 순위·SNS 화제·조회수를 찾아, 11갈래(K-POP 신인 보이그룹·걸그룹 · K-POP · 국내 캐릭터 · 해외·게임 캐릭터 · 애니메이션 · 영화 · 드라마 · 예능 · 유튜버 · SNS 크리에이터)에서 IP 330여 개를 모읍니다. 지난 3일 사이 나온 IP도 후보로 남겨 두고, 이번에 다시 나오지 않으면 갱신마다 점수가 15%씩 줄어듭니다.</p>
+const IP_HOW = `<details class="ipc-how"><summary>순위 산정 기준</summary><div class="ipc-how-body">
+  <h4>수집 대상</h4><p>하루 4회(오전 2·8시, 오후 2·8시) 웹에서 최근 7일 전후의 기사·음원 차트·OTT 순위·SNS 화제·조회수를 검색해 11개 분야(K-POP 신인 보이그룹·걸그룹 · K-POP · 국내 캐릭터 · 해외·게임 캐릭터 · 애니메이션 · 영화 · 드라마 · 예능 · 유튜버 · SNS 크리에이터)에서 IP 330여 개를 수집합니다. 최근 3일 이내에 수집된 IP도 후보로 유지하며, 이번 갱신에 다시 수집되지 않으면 갱신마다 점수가 15%씩 감소합니다.</p>
   <h4>점수 (100점 만점)</h4><table class="ipc-how-t"><thead><tr><th>항목</th><th>뜻</th><th>신규 IP</th><th>전체 IP</th></tr></thead><tbody>
-  <tr><td>상승 속도</td><td>최근 7일 사이 얼마나 빨리 떴는지 (갑자기 뜰수록 높음)</td><td>40%</td><td>25%</td></tr>
-  <tr><td>화제 크기</td><td>지금 기사·차트·SNS 에서 다루는 규모</td><td>25%</td><td>50%</td></tr>
+  <tr><td>상승 속도</td><td>최근 7일간의 화제 상승 속도 (급상승할수록 높음)</td><td>40%</td><td>25%</td></tr>
+  <tr><td>화제 크기</td><td>현재 기사·차트·SNS에서의 언급 규모</td><td>25%</td><td>50%</td></tr>
   <tr><td>네이버 검색 추이</td><td>네이버 데이터랩 최근 7일 평균 ÷ 그 앞 7일 평균 (같으면 50점, 4배면 100점)</td><td>20%</td><td>15%</td></tr>
   <tr><td>유튜브 구독자 증가</td><td>공식 채널 하루 구독자 증가율 (하루 +5%면 100점)</td><td>15%</td><td>10%</td></tr></tbody></table>
-  <p>상승 속도와 화제 크기는 검색한 근거를 보고 0~100점으로 매기고, 네이버·유튜브는 실제 수치로 계산합니다. 수치를 아직 확인하지 못한 항목은 빼고 나머지 비중으로 나눠 계산합니다. 네이버 검색 추이는 순위를 매긴 뒤 위쪽 IP부터 확인해 점수에 다시 반영합니다.</p>
-  <h4>두 차트</h4><p><b>신규 IP</b>는 최근 2년 안에 데뷔·공개했거나 최근 갑자기 뜬 IP만 모아 상승 속도에 무게를 둡니다. <b>전체 IP</b>는 신규·기존을 모두 넣고 지금 화제 크기에 무게를 둡니다. 차트마다 1~200위까지 보여 줍니다.</p>
-  <h4>기간과 변동</h4><p>실시간은 마지막 갱신 순위이고, 하루 전 갱신과 비교해 ▲▼를 표시합니다. 일간(24시간)·주간(7일)·월간(30일)·연간(365일)·기간 설정은 그 기간 갱신들의 평균 점수로 다시 매기며, 이번에 나오지 않은 갱신은 0점으로 셉니다. 변동은 바로 앞 같은 길이 기간과 비교합니다. NEW는 비교 기간에 순위에 없던 IP입니다.</p>
+  <p>상승 속도와 화제 크기는 검색 근거를 바탕으로 0~100점으로 산정하고, 네이버·유튜브는 실제 수치로 계산합니다. 수치가 확인되지 않은 항목은 제외하고 나머지 비중으로 계산합니다. 네이버 검색 추이는 순위 산정 후 상위 IP부터 확인해 점수에 반영합니다.</p>
+  <h4>두 차트</h4><p><b>신규 IP</b>는 최근 2년 이내에 데뷔·공개했거나 최근 급상승한 IP만 모아 상승 속도에 비중을 둡니다. <b>전체 IP</b>는 신규·기존 IP를 모두 포함하고 현재 화제 크기에 비중을 둡니다. 차트별로 1~200위까지 표시합니다.</p>
+  <h4>기간과 변동</h4><p>실시간은 최근 갱신 순위이며, 하루 전 갱신과 비교해 ▲▼를 표시합니다. 일간(24시간)·주간(7일)·월간(30일)·연간(365일)·기간 설정은 해당 기간 갱신의 평균 점수로 다시 산정하며, 수집되지 않은 갱신은 0점으로 계산합니다. 변동은 직전 동일 기간과 비교합니다. NEW는 비교 기간에 순위에 없던 IP입니다.</p>
 </div></details>`;
 async function loadChart() {
   const key = [ipc.chart, ipc.period, ipc.from, ipc.to].join('|'); ipc.key = key;
@@ -3112,7 +3112,7 @@ function ipPoll() {
 function ipProg() {
   const r = ipc.run;
   if (!r || !['wait', 'work'].includes(r.status)) return '<div id="ipc-prog" hidden></div>';
-  if (r.status === 'wait' || !r.progress) return `<div id="ipc-prog" class="ipc-prog"><span class="bar indet"><i></i></span><small>순위를 새로 매길 준비를 하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
+  if (r.status === 'wait' || !r.progress) return `<div id="ipc-prog" class="ipc-prog"><span class="bar indet"><i></i></span><small>순위 갱신 준비 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
   return `<div id="ipc-prog" class="ipc-prog"><span class="row"><span class="bar"><i style="width:${r.progress}%"></i></span><b>${r.progress}%</b></span><small>순위 갱신 중 · ${esc(r.step || '')}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>`;
 }
 // 이미지가 없으면 종류 색 바탕에 이름 첫 글자
@@ -3138,7 +3138,7 @@ function chartView() {
   // 1줄: 차트 고르기 · 기준 시각 · 지금 갱신 / 2줄: 기간 · 종류 / 순위 기준 / 표 머리 / 목록
   const bar = `<div class="ipc-bar">
       <div class="ipc-seg big" role="group" aria-label="차트">${seg([['new', '신규 IP'], ['all', '전체 IP']], ipc.chart, 'ipc-chart')}</div>
-      <div class="ipc-meta"><span>${basis ? `<b>${ipKst(basis)}</b> 기준` : ''}${rows.length ? ` · ${rows.length}위까지` : ''}</span><button class="button" id="ipc-refresh" ${busy ? 'disabled' : ''}>${icon('clock')} 지금 갱신</button></div>
+      <div class="ipc-meta"><span>${basis ? `<b>${ipKst(basis)}</b> 기준` : ''}${rows.length ? ` · ${rows.length}위까지` : ''}</span><button class="button" id="ipc-refresh" ${busy ? 'disabled' : ''}>${icon('clock')} 즉시 갱신</button></div>
     </div>
     <div class="ipc-filters">
       <div class="ipc-fl"><span class="ipc-lab">기간</span><div class="ipc-seg" role="group" aria-label="기간">${seg(IPP, ipc.period, 'ipc-period')}</div>${ipc.period === 'range' ? `<div class="ipc-range"><input type="date" id="ipc-from" value="${esc(ipc.from)}" aria-label="시작일"><span>~</span><input type="date" id="ipc-to" value="${esc(ipc.to)}" aria-label="종료일"><button class="button primary" id="ipc-range-go">보기</button></div>` : ''}</div>
@@ -3150,13 +3150,13 @@ function chartView() {
       <div class="ipc-main"><div class="ipc-name"><b>${esc(ip.name)}</b>${ipc.chart === 'all' && ip.is_new ? '<span class="ipc-new">신규</span>' : ''}</div><p>${esc(ip.summary || '')}</p><small class="ipc-sub">${ipKind(ip)} ${esc([ip.owner, ip.since].filter(Boolean).join(' · '))}</small></div>
       <div class="ipc-c">${ipKind(ip)}</div><div class="ipc-c ipc-own" title="${esc(ip.owner || '')}">${esc(ip.owner || '—')}</div><div class="ipc-c ipc-since">${esc(ip.since || '—')}</div>
       <span class="ipc-more">상세보기</span></li>`; }).join('')}</ol>`
-    : `<div class="empty"><p>${ipc.period === 'range' && !(ipc.from && ipc.to) ? '시작일과 종료일을 고른 뒤 「보기」를 눌러 주세요.' : ipc.rows.length ? '이 종류의 IP가 아직 없습니다.' : busy ? '첫 순위를 매기고 있습니다. 끝나면 자동으로 나타납니다.' : '이 기간에 쌓인 순위가 없습니다. 순위는 하루 4번 새로 매기며, 기록이 쌓일수록 긴 기간 순위를 볼 수 있습니다.'}</p></div>`;
+    : `<div class="empty"><p>${ipc.period === 'range' && !(ipc.from && ipc.to) ? '시작일과 종료일을 선택한 뒤 「보기」를 클릭해 주세요.' : ipc.rows.length ? '이 종류의 IP가 아직 없습니다.' : busy ? '첫 순위를 산정하고 있습니다. 완료되면 자동으로 표시됩니다.' : '이 기간에 집계된 순위가 없습니다. 순위는 하루 4회 갱신되며, 기록이 누적될수록 장기간 순위를 확인할 수 있습니다.'}</p></div>`;
   return `${ipc.err ? `<div class="notice">${esc(ipc.err)}</div>` : ''}${ipProg()}<section class="panel ipc">${bar}${list}${rows.length ? `<p class="ipc-foot">순위 옆 ▲▼는 ${esc(per[2])} 변동입니다. NEW는 비교 기간에 순위에 없던 IP입니다.</p>` : ''}</section>`;
 }
 function bindChart() {
   $$('[data-ipc-chart]').forEach(b => b.onclick = () => { ipc.chart = b.dataset.ipcChart; ipc.rows = null; render(); });
   $$('[data-ipc-period]').forEach(b => b.onclick = () => { ipc.period = b.dataset.ipcPeriod; if (ipc.period === 'range' && !ipc.to) { ipc.to = today(); ipc.from = new Date(Date.now() + 9 * 3600e3 - 6 * 864e5).toISOString().slice(0, 10); } ipc.rows = null; render(); });
-  $('#ipc-range-go')?.addEventListener('click', () => { const f = $('#ipc-from').value, t = $('#ipc-to').value; if (!f || !t || f > t) return toast('시작일이 종료일보다 늦지 않게 골라 주세요.'); ipc.from = f; ipc.to = t; ipc.rows = null; render(); });
+  $('#ipc-range-go')?.addEventListener('click', () => { const f = $('#ipc-from').value, t = $('#ipc-to').value; if (!f || !t || f > t) return toast('시작일은 종료일보다 이전 날짜로 선택해 주세요.'); ipc.from = f; ipc.to = t; ipc.rows = null; render(); });
   $$('[data-ipc-kind]').forEach(b => b.onclick = () => { ipc.kind = b.dataset.ipcKind; render(); });
   $$('[data-ip]').forEach(b => { b.onclick = () => openIp(b.dataset.ip); b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIp(b.dataset.ip); } }; });
   $('#ipc-refresh')?.addEventListener('click', async () => {
@@ -3212,23 +3212,23 @@ function srcIps() {
   const list = ids.length ? `<div class="table-wrap"><table class="et src-t"><thead><tr><th>IP</th><th>IP 스코어</th><th>타이밍</th><th>팬덤 화력</th><th>권리구조</th><th>관계</th><th>다가오는 일정</th><th></th></tr></thead><tbody>${ids.map(id => {
     const p = d.pf[id], P = Object.fromEntries((p.ip_score_parts || []).map(x => [x.key, x])), nx = srcNext(id);
     return `<tr class="clickable${src.open === id ? ' on' : ''}" data-src-open="${id}" tabindex="0"><td><b>${esc(srcName(id))}</b>${byId(id)?.owned_ip ? ' <span class="pill good">당사 IP</span>' : ''}<small>${esc(IPK[p.ip_kind] || '')}${p.holder_entity_id ? ' · ' + esc(srcName(p.holder_entity_id)) : ''}</small></td><td>${srcScore(p.ip_score)}</td>${['timing', 'fandom', 'rights', 'relation'].map(k => `<td>${srcScore(P[k]?.score)}<small>${esc(P[k]?.basis || '')}</small></td>`).join('')}<td>${nx ? srcEv(nx) : '<small>—</small>'}</td><td><span class="ipc-more">${src.open === id ? '접기' : '자세히'}</span></td></tr>${src.open === id ? `<tr class="src-open"><td colspan="8">${srcDetail(id)}</td></tr>` : ''}`;
-  }).join('')}</tbody></table></div>` : `<div class="empty"><p>아직 이어진 IP가 없습니다. IP 차트 상위 IP가 「확인 대기」에 올라오면 엔티티로 등록해 주세요.</p></div>`;
-  return `${pend ? `<div class="notice">IP 차트에서 새로 올라온 IP ${pend}개가 확인 대기에 있습니다. <a href="${APP === 'gungnir' ? YGG_URL : ''}#review"${APP === 'gungnir' ? ' target="_blank" rel="noopener"' : ''}>확인 대기로 가기</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div><button class="button primary" type="button" id="ip-add">${icon('plus')}IP 직접 추가</button></div>
-    <details class="ipc-how"><summary>IP 스코어 기준 — 어떻게 매기나요?</summary><div class="ipc-how-body"><p>타이밍 ${d.conf.weights?.timing ?? 30} · 팬덤 화력 ${d.conf.weights?.fandom ?? 30} · 권리구조 단순성 ${d.conf.weights?.rights ?? 15} · 관계 점수 ${d.conf.weights?.relation ?? 25} 비중으로 계산하고, 값이 없는 항목은 빼고 나머지 비중으로 나눕니다. 당사 귀속 IP는 100점입니다.</p>
-    <p><b>타이밍</b>: ${d.conf.timing_days ?? 180}일 안의 일정 — 30~120일 남은 확정 일정이 100점, 30일 안 60점, 그 뒤 80점, 지난 일주일 70점(예정은 ×0.85). 루머는 넣지 않습니다. <b>팬덤 화력</b>: 최근 3일 IP 차트 점수. <b>권리구조 단순성</b>: 담당자나 궁니르가 확인해 넣은 값만 씁니다. <b>관계 점수</b>: 권리사·라이선싱 대행사의 관계 점수.</p><p>점수가 바뀔 때마다 이유와 함께 기록이 남습니다.</p></div></details>${list}</section>`;
+  }).join('')}</tbody></table></div>` : `<div class="empty"><p>연결된 IP가 없습니다. IP 차트 상위 IP가 「확인 대기」에 등록되면 엔티티로 등록해 주세요.</p></div>`;
+  return `${pend ? `<div class="notice">IP 차트에 새로 진입한 IP ${pend}개가 확인 대기에 있습니다. <a href="${APP === 'gungnir' ? YGG_URL : ''}#review"${APP === 'gungnir' ? ' target="_blank" rel="noopener"' : ''}>확인 대기로 이동</a></div>` : ''}<section class="panel"><div class="panel-head"><div class="panel-title">IP 스코어 <small>${ids.length}개</small></div><button class="button primary" type="button" id="ip-add">${icon('plus')}IP 직접 추가</button></div>
+    <details class="ipc-how"><summary>IP 스코어 산정 기준</summary><div class="ipc-how-body"><p>타이밍 ${d.conf.weights?.timing ?? 30} · 팬덤 화력 ${d.conf.weights?.fandom ?? 30} · 권리구조 단순성 ${d.conf.weights?.rights ?? 15} · 관계 점수 ${d.conf.weights?.relation ?? 25} 비중으로 계산하고, 값이 없는 항목은 제외하고 나머지 비중으로 계산합니다. 당사 귀속 IP는 100점입니다.</p>
+    <p><b>타이밍</b>: ${d.conf.timing_days ?? 180}일 이내 일정 — 30~120일 남은 확정 일정 100점, 30일 이내 60점, 120일 이후 80점, 지난 1주일 이내 70점(예정 일정은 ×0.85). 루머는 반영하지 않습니다. <b>팬덤 화력</b>: 최근 3일간 IP 차트 점수입니다. <b>권리구조 단순성</b>: 담당자 또는 궁니르가 확인해 입력한 값만 사용합니다. <b>관계 점수</b>: 권리사·라이선싱 대행사와의 관계 점수입니다.</p><p>점수가 변경될 때마다 사유와 함께 기록됩니다.</p></div></details>${list}</section>`;
 }
 function srcDetail(id) {
   const d = src.d, p = d.pf[id], evs = d.cal.filter(e => e.entity_id === id), als = d.al.filter(a => a.entity_id === id), sev = d.sev.filter(s => s.target_type === 'ip' && s.target_id === id).slice(0, 8);
   const run = d.runs.find(r => r.ip_entity_id === id && ['wait', 'work'].includes(r.status)), nCb = d.cb.filter(c => c.ip_entity_id === id).length;
   return `<div class="src-detail">
-    <section><h4>다가오는 일정 <small>${evs.length}건</small></h4>${evs.length ? `<ul class="src-ul">${evs.map(e => `<li>${srcEv(e)} <a href="${esc(e.source_url)}" target="_blank" rel="noopener">출처</a> <button class="text-btn" type="button" data-cal-hide="${e.id}">틀린 일정 숨기기</button></li>`).join('')}</ul>` : `<p class="ipc-muted">${p.calendar_checked_at ? '찾은 일정이 없습니다.' : '하루 한 번 웹에서 일정을 찾습니다. 곧 채워집니다.'}</p>`}</section>
-    <section><h4>별명 <small>${als.length}개</small></h4><div class="ipc-chips">${als.map(a => `<span class="ar-chip">${esc(a.text)} <small>${ALIAS_KO[a.kind] || ''}</small><button type="button" class="src-x" data-alias-del="${a.id}" aria-label="${esc(a.text)} 삭제">✕</button></span>`).join('') || '<span class="ipc-muted">없음</span>'}</div>
-      <div class="src-row"><input id="alias-in" placeholder="별명 입력" aria-label="별명"><select id="alias-kind" class="table-select" aria-label="종류">${Object.entries(ALIAS_KO).map(([k, t]) => `<option value="${k}" ${k === 'nickname' ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="button" type="button" data-alias-add="${id}">추가</button></div></section>
+    <section><h4>다가오는 일정 <small>${evs.length}건</small></h4>${evs.length ? `<ul class="src-ul">${evs.map(e => `<li>${srcEv(e)} <a href="${esc(e.source_url)}" target="_blank" rel="noopener">출처</a> <button class="text-btn" type="button" data-cal-hide="${e.id}">잘못된 일정 숨기기</button></li>`).join('')}</ul>` : `<p class="ipc-muted">${p.calendar_checked_at ? '찾은 일정이 없습니다.' : '하루 1회 웹에서 일정을 검색합니다. 곧 업데이트됩니다.'}</p>`}</section>
+    <section><h4>별칭 <small>${als.length}개</small></h4><div class="ipc-chips">${als.map(a => `<span class="ar-chip">${esc(a.text)} <small>${ALIAS_KO[a.kind] || ''}</small><button type="button" class="src-x" data-alias-del="${a.id}" aria-label="${esc(a.text)} 삭제">✕</button></span>`).join('') || '<span class="ipc-muted">없음</span>'}</div>
+      <div class="src-row"><input id="alias-in" placeholder="별칭 입력" aria-label="별칭"><select id="alias-kind" class="table-select" aria-label="종류">${Object.entries(ALIAS_KO).map(([k, t]) => `<option value="${k}" ${k === 'nickname' ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="button" type="button" data-alias-add="${id}">추가</button></div></section>
     ${srcFandom(id)}
     ${srcCollab(id)}
-    <section><h4>권리구조 단순성</h4><p class="ipc-muted">권리 보유사가 한 곳이고 승인이 빠를수록 높게(0~100). 확인한 값만 넣어 주세요.</p><div class="src-row"><input id="rights-in" type="number" min="0" max="100" value="${p.rights_simplicity ?? ''}" placeholder="미입력" aria-label="권리구조 단순성"><input id="rights-src" value="${esc(p.rights_source || '')}" placeholder="근거 (예: 궁니르 검토, 권리사 회신)" aria-label="근거"><button class="button" type="button" data-rights="${id}">저장</button></div></section>
+    <section><h4>권리구조 단순성</h4><p class="ipc-muted">권리 보유사가 한 곳이고 승인 절차가 빠를수록 높게 입력합니다(0~100). 확인된 값만 입력해 주세요.</p><div class="src-row"><input id="rights-in" type="number" min="0" max="100" value="${p.rights_simplicity ?? ''}" placeholder="미입력" aria-label="권리구조 단순성"><input id="rights-src" value="${esc(p.rights_source || '')}" placeholder="근거 (예: 궁니르 검토, 권리사 회신)" aria-label="근거"><button class="button" type="button" data-rights="${id}">저장</button></div></section>
     <section><h4>스코어 기록</h4>${sev.length ? `<ul class="src-ul">${sev.map(s => `<li><time>${esc(ymd(s.occurred_at))}</time> ${s.before ?? '—'} → <b>${s.after}</b> <small>${esc(s.reason)}</small></li>`).join('')}</ul>` : '<p class="ipc-muted">아직 기록이 없습니다.</p>'}</section>
-    <section><h4>조합 시뮬레이션 ${nCb ? `<small>지금까지 ${nCb}개</small>` : ''}</h4>${run ? srcRun(run) : `<div class="src-row"><input id="combo-ins" placeholder="요청 사항 (선택 · 예: 편의점 채널 위주, 2027 봄)" aria-label="요청 사항"><button class="button primary" type="button" data-combo-run="${id}">조합 만들기</button></div>`}${nCb ? `<p><button class="text-btn" type="button" data-src-tab="combos" data-cf="${id}">이 IP 조합 보기 ↗</button></p>` : ''}</section>
+    <section><h4>조합 시뮬레이션 ${nCb ? `<small>지금까지 ${nCb}개</small>` : ''}</h4>${run ? srcRun(run) : `<div class="src-row"><input id="combo-ins" placeholder="요청 사항 (선택 · 예: 편의점 채널 위주, 2027 봄)" aria-label="요청 사항"><button class="button primary" type="button" data-combo-run="${id}">조합 생성</button></div>`}${nCb ? `<p><button class="text-btn" type="button" data-src-tab="combos" data-cf="${id}">이 IP 조합 보기 ↗</button></p>` : ''}</section>
   </div>`;
 }
 function srcCombos() {
@@ -3240,23 +3240,23 @@ function srcCombos() {
   const card = c => { const sp = c.score_parts || {}, need = sp.need_path || [], brand = c.brand_entity_id ? srcName(c.brand_entity_id) : c.brand_name;
     return `<li class="src-cb ${c.branch}"><div class="src-cb-head">${srcScore(c.combo_score)}<div><b>${esc(c.title || brand)}</b><small>${esc(srcName(c.ip_entity_id))} × ${esc(brand || '브랜드 미정')}${c.brand_entity_id ? '' : c.brand_name ? ' <span class="pill muted">미등록 브랜드</span>' : ''}</small></div><span class="pill ${c.branch === 'execute' ? 'good' : c.branch === 'dropped' ? 'muted' : ''}">${BR_KO[c.branch]}</span></div>
       <dl class="src-dl"><dt>포맷</dt><dd>${esc(c.format || '—')}</dd><dt>캐릭터</dt><dd>${esc(c.character || '—')}</dd><dt>플랫폼</dt><dd>${esc(c.platform || '—')}</dd><dt>시즌</dt><dd>${esc(c.season || '—')}</dd></dl>
-      <p class="src-parts">IP 스코어 ${sp.ip_score ?? '미계산'} · 브랜드 적합도 ${sp.brand_fit ?? '—'} · 포맷 실행성 ${sp.format_feasibility ?? '—'} · 컨택 경로 ${sp.path_factor === 1 ? '양쪽 있음' : sp.path_factor ? '한쪽만' : '없음'}</p>
+      <p class="src-parts">IP 스코어 ${sp.ip_score ?? '미계산'} · 브랜드 적합도 ${sp.brand_fit ?? '—'} · 포맷 실행성 ${sp.format_feasibility ?? '—'} · 컨택 경로 ${sp.path_factor === 1 ? '양측 확보' : sp.path_factor ? '한쪽만' : '없음'}</p>
       ${(c.contact_path || []).length ? `<p class="src-path">${(c.contact_path || []).map(x => `<span class="ar-chip">${esc(x.name)} · ${esc(x.via)}</span>`).join('')}</p>` : ''}
       ${need.length ? `<p class="src-need">확보할 연락 경로: ${need.map(esc).join(' · ')}</p>` : ''}
       ${c.rationale ? `<p>${esc(c.rationale)}</p>` : ''}
-      ${(sp.blockers || []).length ? `<p class="src-need">막히는 점: ${sp.blockers.map(esc).join(' · ')}</p>` : ''}
-      ${(c.conditions || []).length && c.branch !== 'execute' ? `<p class="ipc-muted">이렇게 되면 가능: ${c.conditions.map(esc).join(' · ')}</p>` : ''}
+      ${(sp.blockers || []).length ? `<p class="src-need">제약 사항: ${sp.blockers.map(esc).join(' · ')}</p>` : ''}
+      ${(c.conditions || []).length && c.branch !== 'execute' ? `<p class="ipc-muted">실행 가능 조건: ${c.conditions.map(esc).join(' · ')}</p>` : ''}
       ${(c.sources || []).length ? `<details><summary>근거 ${c.sources.length}개</summary><ul class="src-ul">${c.sources.map(s => `<li>${esc(s.claim || '')} <a href="${esc(s.url)}" target="_blank" rel="noopener">출처</a></li>`).join('')}</ul></details>` : ''}
-      <div class="rq-acts">${c.branch === 'dropped' ? `<button class="button" type="button" data-cb-branch="${c.id}|monitor">다시 감시</button>` : `<button class="button" type="button" data-cb-branch="${c.id}|dropped">이 조합 제외</button>`}</div></li>`; };
+      <div class="rq-acts">${c.branch === 'dropped' ? `<button class="button" type="button" data-cb-branch="${c.id}|monitor">모니터링 재개</button>` : `<button class="button" type="button" data-cb-branch="${c.id}|dropped">이 조합 제외</button>`}</div></li>`; };
   const sec = (b, t, note) => { const g = group(b); return g.length ? `<h4 class="rq-kind">${t} <small>${g.length}개</small>${note ? ` · <small>${note}</small>` : ''}</h4><ul class="src-cbs">${g.map(card).join('')}</ul>` : ''; };
   return `${runs}${fails}<section class="panel"><div class="panel-head"><div class="panel-title">조합 <small>${arr.length}개</small></div>${ipIds.length > 1 ? `<select class="table-select" id="cf-sel" aria-label="IP">${[['all', '모든 IP'], ...ipIds.map(i => [i, srcName(i)])].map(([k, t]) => `<option value="${k}" ${f === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}</div>
-    <details class="ipc-how"><summary>조합 스코어 기준</summary><div class="ipc-how-body"><p>IP 스코어 × 브랜드 적합도 × 포맷 실행성을 곱해 100점 기준으로 맞추고(세제곱근), 컨택 경로를 곱합니다 — IP 쪽(권리사·대행사)과 브랜드 쪽 모두 등록된 담당자·관계 담당자·관계 단계가 있으면 그대로, 한쪽만 있으면 0.6배, <b>없으면 0점</b>입니다. ${d.conf.execute_threshold ?? 60}점 이상이고 막히는 점이 없으면 「실행 가능」, 나머지는 「모니터링」으로 두고 조건이 맞으면 다시 계산합니다. ${d.conf.warn_threshold ?? 70}점을 넘으면 워닝을 냅니다. 채택은 사람이 결정합니다.</p></div></details>
-    ${arr.length ? sec('execute', '실행 가능') + sec('monitor', '모니터링', '조건이 맞으면 다시 계산') + sec('dropped', '제외') : '<div class="empty"><p>아직 만든 조합이 없습니다. 「IP 스코어」에서 IP를 열고 「조합 만들기」를 눌러 주세요.</p></div>'}</section>`;
+    <details class="ipc-how"><summary>조합 스코어 기준</summary><div class="ipc-how-body"><p>IP 스코어 × 브랜드 적합도 × 포맷 실행성을 곱해 100점 기준으로 맞추고(세제곱근), 컨택 경로를 곱합니다 — IP 측(권리사·대행사)과 브랜드 측 모두 등록된 담당자·관계 담당자·관계 단계가 있으면 그대로, 한쪽만 있으면 0.6배, <b>없으면 0점</b>입니다. ${d.conf.execute_threshold ?? 60}점 이상이고 제약 사항이 없으면 「실행 가능」, 나머지는 「모니터링」으로 분류하며 조건이 충족되면 다시 계산합니다. ${d.conf.warn_threshold ?? 70}점을 넘으면 워닝을 표시합니다. 채택 여부는 담당자가 결정합니다.</p></div></details>
+    ${arr.length ? sec('execute', '실행 가능') + sec('monitor', '모니터링', '조건 충족 시 재계산') + sec('dropped', '제외') : '<div class="empty"><p>생성된 조합이 없습니다. 「IP 스코어」에서 IP를 선택하고 「조합 생성」을 클릭해 주세요.</p></div>'}</section>`;
 }
 function srcWarn() {
   const d = src.d, cb = id => d.cb.find(c => c.id === id), open = d.watch.filter(w => w.status === 'watching'), met = d.watch.filter(w => w.status === 'met').slice(0, 20);
   const wLabel = w => { const c = cb(Number(w.target_ref)); return c ? `${esc(c.title || '')} · ${esc(srcName(c.ip_entity_id))}` : ''; };
-  return `<section class="panel"><div class="panel-head"><div class="panel-title">워닝 <small>${d.warn.length}건</small></div></div>${d.warn.length ? `<ul class="rq-list">${d.warn.map(w => `<li class="rq-item${w.acknowledged_at ? ' done' : ''}"><div><span class="pill ${w.kind === 'threshold' ? 'good' : ''}">${w.kind === 'threshold' ? '점수 도달' : w.kind === 'watch' ? '감시 조건 충족' : '부활 후보'}</span> <b>${esc(w.message)}</b>${(w.contact_path || []).length ? `<small>연락 경로: ${w.contact_path.map(x => esc(x.name + ' · ' + x.via)).join(' / ')}</small>` : ''}<time>${esc(ymd(w.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-src-tab="combos" data-cf="${cb(w.combination_id)?.ip_entity_id || 'all'}">조합 보기</button>${w.acknowledged_at ? '<span class="pill muted">확인함</span>' : `<button class="button primary" type="button" data-warn-ack="${w.id}">확인</button>`}</span></li>`).join('')}</ul>` : '<div class="empty"><p>아직 워닝이 없습니다. 조합 점수가 기준을 넘거나 감시 조건이 맞으면 여기에 쌓입니다. 같은 조합은 7일 안에 다시 알리지 않습니다.</p></div>'}</section>
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">워닝 <small>${d.warn.length}건</small></div></div>${d.warn.length ? `<ul class="rq-list">${d.warn.map(w => `<li class="rq-item${w.acknowledged_at ? ' done' : ''}"><div><span class="pill ${w.kind === 'threshold' ? 'good' : ''}">${w.kind === 'threshold' ? '점수 도달' : w.kind === 'watch' ? '감시 조건 충족' : '부활 후보'}</span> <b>${esc(w.message)}</b>${(w.contact_path || []).length ? `<small>연락 경로: ${w.contact_path.map(x => esc(x.name + ' · ' + x.via)).join(' / ')}</small>` : ''}<time>${esc(ymd(w.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-src-tab="combos" data-cf="${cb(w.combination_id)?.ip_entity_id || 'all'}">조합 보기</button>${w.acknowledged_at ? '<span class="pill muted">확인함</span>' : `<button class="button primary" type="button" data-warn-ack="${w.id}">확인</button>`}</span></li>`).join('')}</ul>` : '<div class="empty"><p>워닝이 없습니다. 조합 점수가 기준을 넘거나 감시 조건이 충족되면 이곳에 표시됩니다. 같은 조합은 7일 이내에 다시 알리지 않습니다.</p></div>'}</section>
     <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">감시 중 <small>${open.length}건</small></div></div>${open.length ? `<ul class="rq-list">${open.map(w => `<li class="rq-item"><div><b>${esc(w.label)}</b><small>${wLabel(w)}</small>${w.expires_on ? `<time>${esc(dotDate(w.expires_on))}까지</time>` : ''}</div></li>`).join('')}</ul>` : '<div class="empty"><p>감시 중인 조건이 없습니다.</p></div>'}
     ${met.length ? `<h4 class="rq-kind">충족된 조건</h4><ul class="rq-list">${met.map(w => `<li class="rq-item done"><div><b>${esc(w.label)}</b><small>${wLabel(w)} · ${esc(w.met_note || '')}</small><time>${esc(ymd(w.met_at))}</time></div></li>`).join('')}</ul>` : ''}</section>`;
 }
@@ -3269,14 +3269,14 @@ function srcPoll() {
     const was = src.d.runs.filter(r => ['wait', 'work'].includes(r.status)).map(r => r.id);
     src.d.runs = data || src.d.runs;
     const fin = src.d.runs.find(r => was.includes(r.id) && ['done', 'fail'].includes(r.status));
-    if (fin) { await loadSrc(); render(); if (fin.status === 'done') toast(`${srcName(fin.ip_entity_id)} ${fin.step}를 만들었습니다.`); return; }
+    if (fin) { await loadSrc(); render(); if (fin.status === 'done') toast(`${srcName(fin.ip_entity_id)} ${fin.step}를 생성했습니다.`); return; }
     $$('[data-src-run]').forEach(el => { const r = src.d.runs.find(x => String(x.id) === el.dataset.srcRun); if (r) el.outerHTML = srcRun(r); });
     srcPoll();
   }, 3000);
 }
 // IP 직접 추가 (11-02 홍석진 대표님 「제안하지 않은 IP 를 내가 넣어서 스코어 확인 · 내가 제안한 IP 로 진행」) — sql/028 pt_ip_add
 function ipAddModal() {
-  modal(`<form id="ipadd-form"><h2>IP 직접 추가</h2><p>IP 차트에 없는 IP도 넣으면 궁니르 봇이 일정을 찾아 IP 스코어를 매기고, 조합 시뮬레이션도 바로 시작합니다. 이미 등록된 IP면 그 IP에 이어 붙입니다.</p>
+  modal(`<form id="ipadd-form"><h2>IP 직접 추가</h2><p>IP 차트에 없는 IP도 입력하면 궁니르 봇이 일정을 검색해 IP 스코어를 산정하고, 조합 시뮬레이션도 바로 시작합니다. 이미 등록된 IP이면 기존 IP에 연결합니다.</p>
     <label>IP 이름<input id="ipa-name" required maxlength="100" placeholder="예: 리락쿠마"></label>
     <label>영문 이름 (선택)<input id="ipa-en" maxlength="100" placeholder="예: Rilakkuma"></label>
     <label>종류<select id="ipa-kind">${Object.entries(IPK).map(([k, t]) => `<option value="${k}" ${k === 'character' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
@@ -3293,7 +3293,7 @@ function ipAddModal() {
     if (error) { if (btn) btn.disabled = false; $('#ipa-error').textContent = '추가하지 못했습니다: ' + error.message; return; }
     $('#modal').dataset.dirty = ''; $('#modal').close();
     await load(); src.d = null; src.open = data; src.tab = 'ips'; render();
-    toast(`${name}을(를) 추가했습니다. 궁니르 봇이 몇 분 안에 일정을 찾고 IP 스코어를 매깁니다.`);
+    toast(`${name}을(를) 추가했습니다. 궁니르 봇이 몇 분 이내에 일정을 검색하고 IP 스코어를 산정합니다.`);
   };
 }
 function bindSrc() {
@@ -3308,20 +3308,20 @@ function bindSrc() {
     const id = Number(b.dataset.calHide); b.disabled = true;
     const { error } = await SB.from('pt_calendar_event').update({hidden: true}).eq('id', id);
     if (error) { b.disabled = false; return toast('숨기지 못했습니다: ' + error.message); }
-    await redo(); toast('일정을 숨겼습니다. 다음 스코어 계산부터 빠집니다.', {fn: async () => { await SB.from('pt_calendar_event').update({hidden: false}).eq('id', id); await redo('실행을 취소했습니다.'); }});
+    await redo(); toast('일정을 숨겼습니다. 다음 스코어 계산부터 제외됩니다.', {fn: async () => { await SB.from('pt_calendar_event').update({hidden: false}).eq('id', id); await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-alias-add]').forEach(b => b.onclick = async () => {
-    const t = $('#alias-in').value.trim(); if (!t) return toast('별명을 입력해 주세요.');
+    const t = $('#alias-in').value.trim(); if (!t) return toast('별칭을 입력해 주세요.');
     b.disabled = true;
     const { error } = await SB.from('pt_alias').insert({entity_id: b.dataset.aliasAdd, text: t, kind: $('#alias-kind').value});
-    if (error) { b.disabled = false; return toast(/duplicate|23505/.test(error.message) ? '이미 있는 별명입니다.' : '추가하지 못했습니다: ' + error.message); }
-    redo('별명을 추가했습니다.');
+    if (error) { b.disabled = false; return toast(/duplicate|23505/.test(error.message) ? '이미 등록된 별칭입니다.' : '추가하지 못했습니다: ' + error.message); }
+    redo('별칭을 추가했습니다.');
   });
   $$('[data-alias-del]').forEach(b => b.onclick = async () => {
     const a = src.d.al.find(x => String(x.id) === b.dataset.aliasDel); if (!a) return;
     const { error } = await SB.from('pt_alias').delete().eq('id', a.id);
     if (error) return toast('삭제하지 못했습니다: ' + error.message);
-    await redo(); toast(`「${a.text}」 별명을 삭제했습니다.`, {fn: async () => { const r = await SB.from('pt_alias').insert({entity_id: a.entity_id, text: a.text, kind: a.kind, member_of: a.member_of, source_url: a.source_url}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
+    await redo(); toast(`「${a.text}」 별칭을 삭제했습니다.`, {fn: async () => { const r = await SB.from('pt_alias').insert({entity_id: a.entity_id, text: a.text, kind: a.kind, member_of: a.member_of, source_url: a.source_url}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-rights]').forEach(b => b.onclick = async () => {
     const v = $('#rights-in').value.trim(), n = v === '' ? null : Number(v);
@@ -3329,7 +3329,7 @@ function bindSrc() {
     b.disabled = true;
     const { error } = await SB.rpc('pt_ip_rights', {p_entity: b.dataset.rights, p_value: n, p_source: $('#rights-src').value.trim()});
     if (error) { b.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
-    redo(n == null ? '미입력으로 저장했습니다.' : '저장했습니다. 5분 안에 스코어에 반영됩니다.');
+    redo(n == null ? '미입력으로 저장했습니다.' : '저장했습니다. 5분 이내에 스코어에 반영됩니다.');
   });
   $('#ip-add')?.addEventListener('click', ipAddModal);
   $$('[data-combo-run]').forEach(b => b.onclick = async () => {
@@ -3342,7 +3342,7 @@ function bindSrc() {
     const [id, br] = b.dataset.cbBranch.split('|'); b.disabled = true;
     const { error } = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br});
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
-    await redo(); toast(br === 'dropped' ? '조합을 제외했습니다. 감시도 멈춥니다.' : '다시 감시합니다.', {fn: async () => { const r = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br === 'dropped' ? 'monitor' : 'dropped'}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
+    await redo(); toast(br === 'dropped' ? '조합을 제외했습니다. 모니터링도 중단됩니다.' : '모니터링을 재개합니다.', {fn: async () => { const r = await SB.rpc('pt_combo_branch', {p_id: Number(id), p_branch: br === 'dropped' ? 'monitor' : 'dropped'}); if (r.error) throw r.error; await redo('실행을 취소했습니다.'); }});
   });
   $$('[data-warn-ack]').forEach(b => b.onclick = async () => {
     b.disabled = true;
@@ -3356,7 +3356,7 @@ const CHK = [['robots', 'robots.txt'], ['login', '로그인'], ['terms', '약관
 const srcSrcName = id => src.d.sources.find(x => x.id === id)?.name || '';
 function srcCollab(id) {
   const cs = src.d.collab.filter(c => c.entity_id === id).slice(0, 8);
-  return `<section><h4>최근 다른 콜라보 <small>${cs.length}건</small></h4>${cs.length ? `<ul class="src-ul">${cs.map(c => `<li><time>${esc(c.happened_on ? dotDate(c.happened_on) : '날짜 미상')}</time> ${c.partner_entity_id && byId(c.partner_entity_id) ? `<button class="ref" type="button" data-open="${esc(c.partner_entity_id)}">${esc(c.partner)}</button>` : `<b>${esc(c.partner)}</b>`}${c.title ? ' · ' + esc(c.title) : ''} <a href="${esc(c.url)}" target="_blank" rel="noopener">출처</a></li>`).join('')}</ul>` : `<p class="ipc-muted">${src.d.pf[id]?.collab_checked_at ? '최근 12개월 안에 확인된 다른 콜라보가 없습니다.' : '일주일에 한 번 기사·공식 발표에서 찾습니다. 곧 채워집니다.'}</p>`}</section>`;
+  return `<section><h4>최근 다른 콜라보 <small>${cs.length}건</small></h4>${cs.length ? `<ul class="src-ul">${cs.map(c => `<li><time>${esc(c.happened_on ? dotDate(c.happened_on) : '날짜 미상')}</time> ${c.partner_entity_id && byId(c.partner_entity_id) ? `<button class="ref" type="button" data-open="${esc(c.partner_entity_id)}">${esc(c.partner)}</button>` : `<b>${esc(c.partner)}</b>`}${c.title ? ' · ' + esc(c.title) : ''} <a href="${esc(c.url)}" target="_blank" rel="noopener">출처</a></li>`).join('')}</ul>` : `<p class="ipc-muted">${src.d.pf[id]?.collab_checked_at ? '최근 12개월 이내에 확인된 다른 콜라보가 없습니다.' : '주 1회 기사·공식 발표에서 검색합니다. 곧 업데이트됩니다.'}</p>`}</section>`;
 }
 function srcFandom(id) {
   const d = src.d, latest = {};
@@ -3366,22 +3366,22 @@ function srcFandom(id) {
   const rows = Object.values(latest);
   return `<section><h4>팬덤 반응 <small>커뮤니티·X · 최근 수집</small></h4>${rows.length ? `<ul class="src-ul">${rows.map(x => { const t = temp(x.source_id);
       return `<li><time>${esc(ymd(x.captured_at))}</time> <b>${esc(srcSrcName(x.source_id) || x.source)}</b> 언급 ${Number(x.value) || 0}${t != null ? ` · 온도 <span class="pill ${t > 0 ? 'good' : t < 0 ? 'warn' : 'muted'}">${t > 0 ? '+' : ''}${t}</span>` : ''} <a href="${esc(x.source_url)}" target="_blank" rel="noopener">출처</a>${x.text_summary ? `<small>${esc(x.text_summary)}</small>` : ''}</li>`; }).join('')}</ul>`
-    : `<p class="ipc-muted">${d.sources.some(x => x.enabled) ? '하루 한 번 켜진 수집 소스에서 반응을 모읍니다. 곧 채워집니다.' : '켜진 수집 소스가 없습니다. 「수집 소스」에서 점검 결과를 확인해 주세요.'}</p>`}
-    ${qs.length ? `<p class="ipc-muted">검색어(별명 포함): ${qs.map(q => `<span class="ar-chip">${esc(q)}</span>`).join(' ')}</p>` : ''}</section>`;
+    : `<p class="ipc-muted">${d.sources.some(x => x.enabled) ? '하루 1회 활성화된 수집 소스에서 반응을 수집합니다. 곧 업데이트됩니다.' : '활성화된 수집 소스가 없습니다. 「수집 소스」에서 점검 결과를 확인해 주세요.'}</p>`}
+    ${qs.length ? `<p class="ipc-muted">검색어(별칭 포함): ${qs.map(q => `<span class="ar-chip">${esc(q)}</span>`).join(' ')}</p>` : ''}</section>`;
 }
-const chkPill = c => !c ? '<span class="pill muted">—</span>' : c.ok ? '<span class="pill good">통과</span>' : '<span class="pill warn">걸림</span>';
+const chkPill = c => !c ? '<span class="pill muted">—</span>' : c.ok ? '<span class="pill good">통과</span>' : '<span class="pill warn">미통과</span>';
 function srcSources() {
   const list = src.d.sources, open = src.srcOpen;
   const st = x => x.check_status === 'pending' || x.check_status === 'checking' ? `<span class="ipc-prog"><span class="bar indet"><i></i></span><small>자동 점검 ${x.check_status === 'checking' ? '진행 중' : '대기 중'}<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></span>`
-    : x.enabled ? `<span class="pill good">수집 중</span>${x.method === 'search' ? ' <small>검색 결과 집계</small>' : ''}` : x.check_status === 'fail' ? '<span class="pill warn">수집 안 함</span>' : '<span class="pill muted">꺼짐</span>';
+    : x.enabled ? `<span class="pill good">수집 중</span>${x.method === 'search' ? ' <small>검색 결과 집계</small>' : ''}` : x.check_status === 'fail' ? '<span class="pill warn">수집 안 함</span>' : '<span class="pill muted">비활성</span>';
   const detail = x => { const r = x.check_result || {};
     return `<tr class="src-open"><td colspan="7"><div class="src-detail">${CHK.map(([k, t]) => `<section><h4>${t} ${chkPill(r[k])}</h4><p class="ipc-muted">${esc(r[k]?.detail || '아직 점검하지 않았습니다.')}</p>${k === 'terms' && r.terms?.quote ? `<blockquote class="src-quote">${esc(r.terms.quote)}</blockquote>` : ''}${k === 'terms' && safeUrl(r.terms?.url) ? `<a href="${esc(r.terms.url)}" target="_blank" rel="noopener">약관 보기</a>` : ''}</section>`).join('')}
-      <section><h4>조치</h4>${x.check_status === 'fail' && x.alternative ? `<p class="ipc-muted">대체안: ${esc(x.alternative)}</p>` : ''}<div class="src-row">${x.check_status === 'fail' && x.method === 'crawl' ? `<button class="button primary" type="button" data-srcsrc="${x.id}|use_search">검색 결과 집계로 수집</button>` : ''}${x.enabled ? `<button class="button" type="button" data-srcsrc="${x.id}|off">수집 끄기</button>` : x.check_status === 'pass' || (x.method !== 'crawl' && x.alt_by) ? `<button class="button" type="button" data-srcsrc="${x.id}|on">수집 켜기</button>` : ''}${x.method === 'aside' ? '' : `<button class="button" type="button" data-srcsrc="${x.id}|recheck">다시 점검</button>`}</div></section></div></td></tr>`; };
-  return `<div class="notice">소스를 추가하면 robots.txt·로그인·이용약관·수집 빈도를 자동으로 점검하고, 통과한 소스만 수집합니다. 걸린 소스는 대체안을 고르면 검색 결과만 집계합니다. 인스타그램·틱톡은 로그인해 둔 계정으로 IP마다 하루 한 번 읽기만 합니다. 작성자·계정 정보는 저장하지 않습니다.</div>
+      <section><h4>조치</h4>${x.check_status === 'fail' && x.alternative ? `<p class="ipc-muted">대체안: ${esc(x.alternative)}</p>` : ''}<div class="src-row">${x.check_status === 'fail' && x.method === 'crawl' ? `<button class="button primary" type="button" data-srcsrc="${x.id}|use_search">검색 결과 집계로 수집</button>` : ''}${x.enabled ? `<button class="button" type="button" data-srcsrc="${x.id}|off">수집 중지</button>` : x.check_status === 'pass' || (x.method !== 'crawl' && x.alt_by) ? `<button class="button" type="button" data-srcsrc="${x.id}|on">수집 시작</button>` : ''}${x.method === 'aside' ? '' : `<button class="button" type="button" data-srcsrc="${x.id}|recheck">다시 점검</button>`}</div></section></div></td></tr>`; };
+  return `<div class="notice">소스를 추가하면 robots.txt·로그인·이용약관·수집 빈도를 자동으로 점검하고, 통과한 소스만 수집합니다. 통과하지 못한 소스는 대체안을 선택하면 검색 결과만 집계합니다. 인스타그램·틱톡은 로그인된 계정으로 IP별 하루 1회 열람만 합니다. 작성자·계정 정보는 저장하지 않습니다.</div>
   <section class="panel"><div class="panel-head"><div class="panel-title">수집 소스 <small>${list.length}곳</small></div></div><div class="table-wrap"><table class="src-t"><thead><tr><th>이름</th><th>방식</th><th>점검일</th><th>점검 결과</th><th>수집 범위</th><th>빈도</th><th>상태</th></tr></thead><tbody>
   ${list.map(x => `<tr class="${open === x.id ? 'on' : ''}" data-srcsrc-open="${x.id}" tabindex="0" style="cursor:pointer"><td><b>${esc(x.name)}</b><small>${esc(x.base_url.replace(/^https?:\/\//, ''))}</small></td><td>${x.method === 'search' ? '검색 결과 집계' : x.method === 'aside' ? '로그인 계정으로 열람 (Aside)' : '공개 페이지 읽기'}</td><td>${x.check_at ? esc(ymd(x.check_at)) : '—'}</td><td>${CHK.map(([k, t]) => `<small>${t} ${(x.check_result || {})[k] ? (x.check_result[k].ok ? '○' : '×') : '—'}</small>`).join('')}</td><td>${esc(x.scope || '—')}</td><td><small>${x.interval_s}초 간격 · 하루 ${x.daily_cap}회</small></td><td>${st(x)}</td></tr>${open === x.id ? detail(x) : ''}`).join('')}
   </tbody></table></div>
-  <form id="srcsrc-add" class="src-row" style="margin-top:12px"><input id="ss-name" placeholder="이름 (예: 네이트판)" aria-label="이름" required><input id="ss-base" type="url" placeholder="사이트 주소 https://…" aria-label="사이트 주소" required><input id="ss-search" type="url" placeholder="검색 주소 (검색어 자리에 {q})" aria-label="검색 주소"><button class="button primary" type="submit">소스 추가</button></form></section>`;
+  <form id="srcsrc-add" class="src-row" style="margin-top:12px"><input id="ss-name" placeholder="이름 (예: 네이트판)" aria-label="이름" required><input id="ss-base" type="url" placeholder="사이트 주소 https://…" aria-label="사이트 주소" required><input id="ss-search" type="url" placeholder="검색 주소 (검색어 위치에 {q})" aria-label="검색 주소"><button class="button primary" type="submit">소스 추가</button></form></section>`;
 }
 function bindSources() {
   $$('[data-srcsrc-open]').forEach(b => { const go = () => { src.srcOpen = src.srcOpen === Number(b.dataset.srcsrcOpen) ? 0 : Number(b.dataset.srcsrcOpen); render(); }; b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
@@ -3390,13 +3390,13 @@ function bindSources() {
     const { error } = await SB.rpc('pt_source_set', {p_id: Number(id), p_action: act});
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
     await loadSrc(); render();
-    toast({recheck: '다시 점검합니다. 몇 분 안에 결과가 나옵니다.', use_search: '검색 결과 집계로 수집을 켰습니다.', off: '수집을 껐습니다.', on: '수집을 켰습니다.'}[act]);
+    toast({recheck: '다시 점검합니다. 몇 분 이내에 결과가 표시됩니다.', use_search: '검색 결과 집계 방식으로 수집을 시작했습니다.', off: '수집을 중지했습니다.', on: '수집을 시작했습니다.'}[act]);
   });
   $('#srcsrc-add')?.addEventListener('submit', async ev => {
     ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
     const { error } = await SB.rpc('pt_source_add', {p_name: $('#ss-name').value.trim(), p_base: $('#ss-base').value.trim(), p_search: $('#ss-search').value.trim()});
     if (error) { if (btn) btn.disabled = false; return toast(/duplicate|unique/i.test(error.message) ? '같은 이름의 소스가 이미 있습니다.' : /check/i.test(error.message) ? '주소는 http로 시작해야 합니다.' : '추가하지 못했습니다: ' + error.message); }
-    await loadSrc(); render(); toast('소스를 추가했습니다. 자동 점검이 끝나면 결과가 나옵니다.');
+    await loadSrc(); render(); toast('소스를 추가했습니다. 자동 점검이 완료되면 결과가 표시됩니다.');
   });
   clearTimeout(src.srcTimer);
   if (src.d?.sources?.some(x => ['pending', 'checking'].includes(x.check_status))) src.srcTimer = setTimeout(async () => { if (page === 'chart' && src.tab === 'sources') { await loadSrc(); render(); } }, 5000);
@@ -3404,7 +3404,7 @@ function bindSources() {
 
 // 순위 기록 그래프 — 1위가 위 · 점에 마우스를 올리면 그때 순위
 function ipRankSvg(log) {
-  if (log.length < 2) return '<p class="ipc-muted">기록이 두 번 이상 쌓이면 순위 그래프가 나옵니다.</p>';
+  if (log.length < 2) return '<p class="ipc-muted">기록이 2회 이상 누적되면 순위 그래프가 표시됩니다.</p>';
   // 선은 늘어나는 SVG, 글자·점은 HTML — 창 너비가 달라도 글자 크기가 그대로
   const t0 = new Date(log[0].at).getTime(), t1 = new Date(log.at(-1).at).getTime();
   const maxR = Math.max(10, ...log.map(p => p.rank)), x = t => 100 * ((new Date(t).getTime() - t0) / Math.max(t1 - t0, 1)), y = r => 100 * ((r - 1) / (maxR - 1));
@@ -3451,7 +3451,7 @@ async function openIp(id, keep) {
       <div class="ipc-now">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => { const x = cur(k); return x ? `<div><small>${t}</small><b>${x.rank}<em>위</em></b><span>30일 최고 ${best(k)}위</span></div>` : ''; }).join('')}</div>
     </header>
     <div class="ipc-cols"><div class="ipc-col">
-      <section><h3>지금 트렌드${trend && ip.updated_at ? ` <small>${ipKst(ip.updated_at)} 확인</small>` : ''}</h3>${trend ? `<p>${esc(trend)}</p>` : '<p class="ipc-muted">아직 정리된 트렌드가 없습니다. 다음 갱신 때 채워집니다.</p>'}</section>
+      <section><h3>현재 트렌드${trend && ip.updated_at ? ` <small>${ipKst(ip.updated_at)} 확인</small>` : ''}</h3>${trend ? `<p>${esc(trend)}</p>` : '<p class="ipc-muted">정리된 트렌드가 없습니다. 다음 갱신 시 업데이트됩니다.</p>'}</section>
       <section><div class="ipc-sec-head"><h3>순위 기록 <small>최근 30일</small></h3>${by('new').length && by('all').length ? `<div class="ipc-seg" role="group" aria-label="차트">${[['new', '신규 IP'], ['all', '전체 IP']].map(([k, t]) => `<button type="button" class="${tabC === k ? 'on' : ''}" aria-pressed="${tabC === k}" data-ipo-chart="${k}">${t}</button>`).join('')}</div>` : ''}</div>
         ${ipRankSvg(lg)}${table ? `<details class="ipc-loglist"><summary>갱신별 순위 보기</summary><table class="ipc-log"><thead><tr><th>갱신</th><th>순위</th><th>변동</th></tr></thead><tbody>${table}</tbody></table></details>` : ''}</section>
       ${issues.length ? `<section><h3>최근 이슈</h3><ul class="ipc-issues">${issues.map(x => `<li><time>${esc(x.date || '')}</time>${/^https?:/.test(x.url || '') ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>` : `<span>${esc(x.title || '')}</span>`}</li>`).join('')}</ul></section>` : ''}
@@ -3502,7 +3502,7 @@ const SLACK_SVG = '<svg width="16" height="16" viewBox="0 0 122.8 122.8" aria-hi
 const slackSignIn = () => SB.auth.signInWithOAuth({provider: 'slack_oidc', options: {redirectTo: location.origin + location.pathname}});
 function loginScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인이 가능합니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인할 수 있습니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
   $('#login-form').onsubmit = async ev => {
     ev.preventDefault(); $('#lg-err').textContent = ''; $('#lg-err').style.color = '#ba775e';
     const { error } = await SB.auth.signInWithPassword({email: $('#lg-email').value.trim(), password: $('#lg-pw').value});
@@ -3522,19 +3522,19 @@ function loginScreen(msg) {
     const { error } = await SB.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
     // 같은 계정은 60초 안에 다시 보낼 수 없다(429) — 메일은 이미 나간 것이므로 실패로 보이지 않게 (11-03 정원하 대표님 6번 다시 누르심)
     const wait = error && (error.status === 429 || /seconds|rate limit/i.test(error.message || '')) ? (+((error.message || '').match(/after (\d+) seconds/) || [])[1] || 60) : 0;
-    const sent = `${email}(으)로 비밀번호 재설정 메일을 발송했습니다. 몇 분 안에 도착하니 메일함과 스팸함을 확인해 주세요. 메일의 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.`;
+    const sent = `${email}(으)로 비밀번호 재설정 메일을 발송했습니다. 몇 분 이내에 도착하니 메일함과 스팸함을 확인해 주세요. 메일의 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.`;
     out.style.color = error && !wait ? '#ba775e' : '#38674d';
     if (error && !wait) { btn.disabled = false; out.textContent = '메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.'; return; }
     out.textContent = wait ? `방금 ${email}(으)로 재설정 메일을 발송했습니다. 메일함과 스팸함을 먼저 확인해 주세요.` : sent;
     let n = wait || 60; const label = '비밀번호를 잊으셨나요? 비밀번호 찾기';
-    const tick = () => { if (!btn.isConnected) return; if (n <= 0) { btn.disabled = false; btn.textContent = label; return; } btn.textContent = `메일이 오지 않았다면 ${n}초 뒤 다시 보낼 수 있습니다`; n--; setTimeout(tick, 1000); };
+    const tick = () => { if (!btn.isConnected) return; if (n <= 0) { btn.disabled = false; btn.textContent = label; return; } btn.textContent = `메일이 오지 않았다면 ${n}초 후 재발송할 수 있습니다`; n--; setTimeout(tick, 1000); };
     tick();
   };
 }
 // 메일 링크로 들어온 분 — 새 비밀번호. 헤임달과 같은 계정이라 헤임달 비밀번호도 이것으로 바뀐다
 function recoveryScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="np-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p><b>새 비밀번호를 설정해 주세요.</b><br>헤임달과 같은 계정이므로, 여기서 변경하면 헤임달 비밀번호도 함께 변경됩니다.</p><label>새 비밀번호 (8자 이상)<input id="np1" type="password" autocomplete="new-password" required minlength="8"></label><label>새 비밀번호 다시 한 번<input id="np2" type="password" autocomplete="new-password" required minlength="8"></label><div id="np-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">비밀번호 변경</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="np-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p><b>새 비밀번호를 설정해 주세요.</b><br>헤임달과 같은 계정이므로, 여기서 변경하면 헤임달 비밀번호도 함께 변경됩니다.</p><label>새 비밀번호 (8자 이상)<input id="np1" type="password" autocomplete="new-password" required minlength="8"></label><label>새 비밀번호 확인<input id="np2" type="password" autocomplete="new-password" required minlength="8"></label><div id="np-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">비밀번호 변경</button></form>`;
   $('#np1').focus();
   $('#np-form').onsubmit = async ev => {
     ev.preventDefault(); const a = $('#np1').value, b = $('#np2').value;
@@ -3544,7 +3544,7 @@ function recoveryScreen(msg) {
     const { error } = await SB.auth.updateUser({password: a});
     if (error) return recoveryScreen(/same|different/i.test(error.message) ? '현재 비밀번호와 다른 비밀번호를 입력해 주세요.' : '비밀번호를 변경하지 못했습니다. 메일 링크가 만료되었을 수 있으니 비밀번호 찾기를 다시 진행해 주세요.');
     RECOVERY = false; try { history.replaceState(null, '', location.pathname); } catch {}
-    toast('비밀번호를 변경했습니다. 헤임달에서도 새 비밀번호로 로그인하세요.'); start();
+    toast('비밀번호를 변경했습니다. 헤임달에서도 새 비밀번호로 로그인해 주세요.'); start();
   };
 }
 async function start() {
@@ -3556,7 +3556,7 @@ async function start() {
     sessionStorage.removeItem('pt_slack');
     const { data: r } = await SB.rpc('hd_slack_link');
     if (r === 'linked' && slackStep === '1') { await SB.auth.signOut({scope: 'local'}); sessionStorage.setItem('pt_slack', '2'); $('#login').hidden = false; $('#login').innerHTML = '<div class="login-box"><p>헤임달 계정에 슬랙을 연결했습니다. 다시 로그인하는 중…</p></div>'; return slackSignIn(); }
-    const fail = {linked: '슬랙 계정을 연결하지 못했습니다. 관리자에게 문의해 주세요.', other_team: '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.', ambiguous: '이 슬랙 이메일로 찾은 헤임달 계정이 두 개 이상입니다. 관리자에게 문의해 주세요.', new: '헤임달에 처음 오셨습니다. 헤임달에서 이름·회사·부서를 입력하고 승인을 받은 뒤 이용할 수 있습니다.'}[r];
+    const fail = {linked: '슬랙 계정을 연결하지 못했습니다. 관리자에게 문의해 주세요.', other_team: '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.', ambiguous: '이 슬랙 이메일과 연결된 헤임달 계정이 두 개 이상입니다. 관리자에게 문의해 주세요.', new: '헤임달에 등록되지 않은 계정입니다. 헤임달에서 이름·회사·부서를 입력하고 승인을 받은 후 이용할 수 있습니다.'}[r];
     if (fail) { await SB.auth.signOut({scope: 'local'}); return loginScreen(fail); }
   }
   me = session.user;
