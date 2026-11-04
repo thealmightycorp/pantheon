@@ -18,7 +18,7 @@ const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.h
 if (LINK_ERR) try { history.replaceState(null, '', location.pathname); } catch {}
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
+const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',upload:'<path d="M12 16V4 m-5 5 5-5 5 5 M4 15v5h16v-5"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
 icons.manual = '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5 M8 7h7 M8 11h7"/>';
 icons.graph = '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7.2 15.6 7.6 M7 8.4l1.4 7.2 M16.6 10.2l-5.8 6.2"/>';
 const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[n]||icons.entities}</svg>`;
@@ -213,7 +213,7 @@ function render() {
   $('#export-btn').innerHTML = icon('download') + '내보내기';
   $('#add-btn').innerHTML = icon('plus') + (page === 'contacts' ? '연락처 등록' : page === 'studio' ? (studio.tab === 'refs' ? '레퍼런스 등록' : '새 프로젝트') : '엔티티 등록');
   $('#export-btn').hidden = !isAdmin || !['entities', 'contacts'].includes(page);   // 내보내기는 DB 관리자만 · 기록 남김 (PRD 8.1)
-  $('#add-btn').hidden = !['home', 'entities', 'contacts', 'studio'].includes(page);
+  $('#add-btn').hidden = !['home', 'entities', 'contacts', 'studio'].includes(page) || (page === 'studio' && studio.tab === 'ref-new');
   let html = '';
   if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
@@ -1560,7 +1560,7 @@ function bindAdmin() {
    대표님 almighty-proposal-studio 의 흐름: IP 입력 → 인테이크 → (콜라보) 파트너 추천 → 리서치 → 컨셉 → 제안서 생성 → 이미지 계획 → 생성·삽입·QA
    사람은 게이트에서만 결정하고, 단계 작업은 pt_proposal_job 대기열에 넣어 이그드라실 봇(서버 PC)이 처리한다. 엔티티는 판테온 pt_entity 를 쓴다 */
 let studioCan = false, ipcCan = false;         // IP 차트 — 11-01 전 직원 공개 (sql/022 pt_ipchart_can = pt_can_use)
-const studio = {tab: 'projects', filter: 'all', by: '', sort: {k: 'updated', d: -1}, list: null, refs: null, jobs: [], loading: false, err: ''};
+const studio = {tab: 'projects', filter: 'all', by: '', stage: 0, q: '', refQ: '', refType: '', refNew: null, sort: {k: 'updated', d: -1}, list: null, refs: null, jobs: [], loading: false, err: ''};
 const STAGES = ['IP 입력', '기본 정보', '파트너 IP 추천', '리서치', '컨셉 설계', '제안서 생성', '이미지 계획', '생성·삽입·검수'];
 const GATES = {2: '기본 정보 확정', 3: '파트너 IP 선택', 5: '컨셉 확정', 7: '이미지 수급·크레딧 승인', 8: '반려 이미지 최종 판단'};
 const JOB_OF = {3: 'partners', 4: 'research', 5: 'concepts', 6: 'build', 7: 'image_plan', 8: 'generate'};
@@ -1599,35 +1599,186 @@ async function loadStudio() {
 
 function studioView() {
   if (!studio.list && !studio.err) { setTimeout(loadStudio); return '<div class="empty"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['projects', '프로젝트', studio.list?.length], ['refs', '레퍼런스 라이브러리', studio.refs?.length], ['archive', '이미지 아카이브', studio.arch?.length]].map(([k, t, n]) => `<button class="tab ${studio.tab === k ? 'active' : ''}" data-studio-tab="${k}">${t}${n ? ` <span class="nav-count">${n}</span>` : ''}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['projects', '프로젝트', studio.list?.length], ['refs', '레퍼런스 라이브러리', studio.refs?.length], ['archive', '이미지 아카이브', studio.arch?.length]].map(([k, t, n]) => `<button class="tab ${studio.tab === k || (k === 'refs' && studio.tab === 'ref-new') ? 'active' : ''}" data-studio-tab="${k}">${t}${n ? ` <span class="nav-count">${n}</span>` : ''}</button>`).join('')}</div>`;
   if (studio.err) return tabs + `<div class="notice">${esc(studio.err)}</div>`;
-  return tabs + (studio.tab === 'refs' ? studioRefs() : studio.tab === 'archive' ? studioArchive() : studioProjects());
+  return tabs + (studio.tab === 'refs' ? studioRefs() : studio.tab === 'ref-new' ? studioRefNew() : studio.tab === 'archive' ? studioArchive() : studioProjects());
 }
+
+// 프로젝트 목록 — 맨 위 「내가 할 일」 · 이름·단계·상태·기안자 조건으로 거르기 (11-04 홍석진 대표님 회의 「제일 위에는 내가 해야 할 일 먼저, 필요하면 조건으로 필터링」)
+// 기안자 = 프로젝트를 연 사람(pt_proposal.created_by) · 기안자로 거르고 열 머리로 정렬 (11-02 홍석진 대표님)
+const pjByOf = p => memberName(p.created_by) || '이그드라실 봇';
+const pjText = p => [pTitle(p), propSub(p), p.recipient, p.ip_a_name, p.ip_b_name, p.note, pjByOf(p)].join(' ').toLowerCase();
+const pjSets = () => { const all = studio.list; return {live: ['진행 중', all.filter(p => p.status !== 'done')], wait: ['결정 대기', all.filter(p => p.status === 'waiting')], work: ['이그드라실 봇 처리 중', all.filter(p => p.status === 'working')], done: ['완료', all.filter(p => p.status === 'done')]}; };
+const pjAny = () => !!(pjSets()[studio.filter] || studio.by || studio.stage || studio.q.trim());
+const SORT_KO = {title: '프로젝트 이름순', by: '기안자순', stage: '단계순', created: '기안일순', updated: '업데이트순'};
+function pjFiltered() {
+  const F = pjSets(), q = studio.q.trim().toLowerCase(), {k: sk, d: sd} = studio.sort;
+  const sv = p => sk === 'title' ? pTitle(p) : sk === 'by' ? pjByOf(p) : sk === 'stage' ? p.stage : sk === 'created' ? p.created_at : p.updated_at;
+  return (F[studio.filter]?.[1] || studio.list).filter(p => (!studio.by || pjByOf(p) === studio.by) && (!studio.stage || p.stage === studio.stage) && (!q || pjText(p).includes(q)))
+    .slice().sort((a, b) => { const x = sv(a), y = sv(b); return (typeof x === 'number' ? x - y : String(x || '').localeCompare(String(y || ''), 'ko')) * sd || String(b.updated_at).localeCompare(String(a.updated_at)); });
+}
+function pjTable(ps) {
+  if (!ps.length) return `<div class="empty"><p>${pjAny() ? '조건에 맞는 프로젝트가 없습니다.' : '아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP 하나로 시작하세요.'}</p></div>`;
+  const {k: sk, d: sd} = studio.sort;
+  const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
+  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
+  return `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+// 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 오래 기다린 것부터, 하루가 넘으면 눈에 띄게
+const waitH = p => (Date.now() - Date.parse(p.updated_at)) / 3600e3;
+const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간째` : `${Math.floor(h / 24)}일째`;
+const todoWhat = p => p.status === 'failed' ? '작업이 멈췄습니다 · 확인 후 다시 시도' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 다시 시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
+const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>하루 넘게 대기</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
 
 function studioProjects() {
-  const all = studio.list, live = all.filter(p => p.status !== 'done'), wait = all.filter(p => p.status === 'waiting'), work = all.filter(p => p.status === 'working'), done = all.filter(p => p.status === 'done');
-  // 숫자 카드를 누르면 그 건만 (10-29 김현우) · 다시 누르면 전체
-  const F = {live: ['진행 중', live], wait: ['결정 대기', wait], work: ['이그드라실 봇 처리 중', work], done: ['완료', done]};
-  // 기안자 = 프로젝트를 연 사람(pt_proposal.created_by) · 기안자로 거르고 열 머리로 정렬 (11-02 홍석진 대표님)
-  const byOf = p => memberName(p.created_by) || '이그드라실 봇', byNames = [...new Set(all.map(byOf))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const all = studio.list, F = pjSets(), ps = pjFiltered();
+  const isMine = p => !!me && p.created_by === me.id;
+  const todo = all.filter(p => isMine(p) && (p.status === 'waiting' || p.status === 'failed')).sort((a, b) => (b.status === 'failed') - (a.status === 'failed') || waitH(b) - waitH(a));
+  const others = F.wait[1].filter(p => !isMine(p)).sort((a, b) => waitH(b) - waitH(a));
+  const byNames = [...new Set(all.map(pjByOf))].sort((a, b) => a.localeCompare(b, 'ko'));
   if (studio.by && !byNames.includes(studio.by)) studio.by = '';
-  const {k: sk, d: sd} = studio.sort, sv = p => sk === 'title' ? pTitle(p) : sk === 'by' ? byOf(p) : sk === 'stage' ? p.stage : sk === 'created' ? p.created_at : p.updated_at;
-  const ps = (F[studio.filter]?.[1] || all).filter(p => !studio.by || byOf(p) === studio.by).slice().sort((a, b) => { const x = sv(a), y = sv(b); return (typeof x === 'number' ? x - y : String(x || '').localeCompare(String(y || ''), 'ko')) * sd || String(b.updated_at).localeCompare(String(a.updated_at)); });
-  const SORT_KO = {title: '프로젝트 이름순', by: '기안자순', stage: '단계순', created: '기안일순', updated: '업데이트순'};
-  const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
-  const bySel = `<select class="pf-by" data-pby aria-label="기안자로 보기"><option value="">기안자 전체</option>${byNames.map(n => `<option value="${esc(n)}"${studio.by === n ? ' selected' : ''}>${esc(n)} (${all.filter(p => byOf(p) === n).length})</option>`).join('')}</select>`;
-  const stat = (key, n, unit, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${n}<small>${unit}</small></div><div class="stat-bottom">${bottom}</div></div>`;
-  const decide = wait.length ? wait.map(p => `<button class="alert-row" data-proposal="${p.id}"><span class="alert-symbol">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}<small>${esc(GATES[p.stage] || '확인')} 대기 · ${esc(kst(p.updated_at))}</small></span></button>`).join('') : '<p class="panel-caption" style="padding:0 0 18px">지금 결정할 프로젝트가 없습니다.</p>';
-  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(byOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
-  return `<div class="stats">${stat('live', live.length, '건', `전체 ${all.length}건`)}${stat('wait', wait.length, '건', '담당자 확인이 필요한 단계')}${stat('work', work.length, '건', '리서치·생성 등 자동 단계')}${stat('done', done.length, '건', '제안서 전달 완료', true)}</div>
-  <div class="main-grid studio-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? F[studio.filter][0] : '전체'} 프로젝트${studio.by ? ` · ${esc(studio.by)}` : ''} <small>${ps.length}건 · ${SORT_KO[sk]}</small></div><div class="pf-tools">${bySel}${F[studio.filter] || studio.by ? '<button class="text-btn" data-pfilter="all" data-pby-clear>전체 보기</button>' : ''}</div></div>${!ps.length && (F[studio.filter] || studio.by) ? `<div class="empty"><p>조건에 맞는 프로젝트가 없습니다.</p></div>` : ps.length ? `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty"><p>아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP 하나로 시작하세요.</p></div>`}</section>
-  <section class="panel"><div class="panel-head"><div class="panel-title">지금 결정할 항목</div>${wait.length ? `<span class="alert-count">${wait.length}건</span>` : ''}</div><div class="alert-list">${decide}</div></section></div>`;
+  const n = f => all.filter(p => (!studio.by || pjByOf(p) === studio.by) && f(p)).length;
+  const sel = (attr, label, opts, cur) => `<select class="pf-by" ${attr} aria-label="${label}" data-nodirty>${opts.map(([v, t]) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+  const bar = `<div class="pf-bar"><input type="search" class="pf-q" data-pq placeholder="프로젝트·IP·수신사·기안자 검색" value="${esc(studio.q)}" aria-label="프로젝트 검색" data-nodirty>`
+    + sel('data-pstage', '단계로 보기', [['', '단계 전체'], ...STAGES.map((s, i) => [i + 1, `${i + 1}. ${s} (${n(p => p.stage === i + 1)})`])], studio.stage || '')
+    + sel('data-pstatus', '상태로 보기', [['all', '상태 전체'], ...Object.entries(F).map(([k, [t, xs]]) => [k, `${t} (${xs.length})`])], F[studio.filter] ? studio.filter : 'all')
+    + sel('data-pby', '기안자로 보기', [['', '기안자 전체'], ...byNames.map(x => [x, `${x} (${all.filter(p => pjByOf(p) === x).length})`])], studio.by)
+    + `<button class="text-btn" type="button" data-pclear${pjAny() ? '' : ' hidden'}>조건 초기화</button></div>`;
+  const stat = (key, num, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${num}<small>건</small></div><div class="stat-bottom">${bottom}</div></div>`;
+  return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">오래 기다린 것부터</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}</section>
+  <div class="stats">${stat('live', F.live[1].length, `전체 ${all.length}건`)}${stat('wait', F.wait[1].length, '담당자 확인이 필요한 단계')}${stat('work', F.work[1].length, '리서치·생성 등 자동 단계')}${stat('done', F.done[1].length, '제안서 전달 완료', true)}</div>
+  <div class="main-grid studio-grid"><section class="panel"><div class="panel-head"><div class="panel-title">${F[studio.filter] ? F[studio.filter][0] : '전체'} 프로젝트${studio.by ? ` · ${esc(studio.by)}` : ''} <small id="pj-count">${ps.length}건 · ${SORT_KO[studio.sort.k]}</small></div></div>${bar}<div id="pj-body">${pjTable(ps)}</div></section>
+  <section class="panel"><div class="panel-head"><div class="panel-title">다른 담당자 결정 대기</div>${others.length ? `<span class="alert-count">${others.length}건</span>` : ''}</div><div class="alert-list">${others.length ? others.map(p => todoRow(p, false)).join('') : '<p class="panel-caption" style="padding:0 0 18px">다른 담당자가 결정할 프로젝트가 없습니다.</p>'}</div></section></div>`;
 }
 
+// 레퍼런스 라이브러리 — 콜라보 대상(누구 × 누구)·유형이 보이게, 이름 검색·유형으로 거르기 (11-04 회의 「레퍼런스가 많아지면 헷갈린다」)
+const REF_TYPES = ['아티스트 × 패션', '아티스트 × 캐릭터', '아티스트 × 브랜드', '캐릭터 × 플랫폼', '캐릭터 × 브랜드', '브랜드 전략·리포지셔닝', '기타'];
+const refA = r => r.ip_names || r.profile?.collab?.a || '';
+const refB = r => r.partner || r.profile?.collab?.b || '';
+const refType = r => r.collab_type || r.profile?.collab?.type || '';
+const refPair = r => [refA(r), refB(r)].filter(Boolean).join(' × ');
+const refLearned = r => !!r.profile?.pages;
+const refDeep = r => !!r.profile?.writing?.register;
+const refBusy = r => r.status === 'uploaded' || r.status === 'analyzing';
+const refMatch = r => (!studio.refType || refType(r) === studio.refType) && (!studio.refQ.trim() || [r.title, refA(r), refB(r), refType(r), r.recipient, r.author].join(' ').toLowerCase().includes(studio.refQ.trim().toLowerCase()));
+function refLearnCell(r) {
+  if (refBusy(r)) return refProg(r);
+  if (r.status === 'failed') return `<span class="pill bad" title="${esc(r.profile?.error || '')}">학습 실패</span> <button class="text-btn" data-ref-relearn="${r.id}">다시 학습</button>`;
+  return `<button class="text-btn" data-ref-view="${r.id}"><span class="pill good">학습 완료</span> 보기</button>${refDeep(r) ? '' : '<small class="cell-sub">문체·디자인은 다시 학습하면 자세히 배웁니다</small>'}`;
+}
+function refTable(rs) {
+  if (!rs.length) return `<div class="empty"><p>${(studio.refs || []).length ? '조건에 맞는 레퍼런스가 없습니다.' : '등록된 레퍼런스가 없습니다.<br>오른쪽 위 「레퍼런스 등록」에서 완성 제안서 PDF를 올려 주세요.'}</p></div>`;
+  return `<div class="table-wrap"><table class="ct"><thead><tr><th>제안서</th><th>콜라보</th><th>수신사</th><th>학습</th><th>기본 포맷</th><th>파일</th></tr></thead><tbody>${rs.map(r => `<tr${refLearned(r) ? ` class="clickable" data-ref-view="${r.id}"` : ''}><td class="wrap-cell">${esc(r.title)}<small class="cell-sub">${esc([r.author, ymd(r.created_at)].filter(Boolean).join(' · '))}</small></td><td data-label="콜라보" class="wrap-cell">${esc(refPair(r) || '—')}${refType(r) ? `<small class="cell-sub"><span class="pill">${esc(refType(r))}</span></small>` : ''}</td><td data-label="수신사">${esc(r.recipient || '—')}</td><td data-label="학습">${refLearnCell(r)}</td><td data-label="기본 포맷">${r.is_default ? '<span class="pill good">기본</span>' : `<button class="text-btn" data-ref-default="${r.id}">기본으로 지정</button>`}</td><td data-label="파일"><button class="text-btn" data-ref-open="${r.id}">열기 ↗</button></td></tr>`).join('')}</tbody></table></div>`;
+}
 function studioRefs() {
-  const rs = studio.refs, st = {uploaded: '분석 대기', analyzing: '분석 중', ready: '분석 완료', failed: '분석 실패'};
-  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">레퍼런스 라이브러리 <small>${rs.length}건</small></div><p class="panel-caption">팀이 작성한 완성 제안서입니다. 새 제안서는 선택한 레퍼런스의 문체와 이미지 쓰는 법을 참고합니다. 페이지 구성은 컨셉 확정 때 「제안서 구성」에서 정합니다.</p></div></div>
-  ${rs.length ? `<div class="table-wrap"><table class="ct"><thead><tr><th>제안서</th><th>IP</th><th>수신사</th><th>작성</th><th>분석</th><th>기본 포맷</th><th>파일</th></tr></thead><tbody>${rs.map(r => `<tr${r.status === 'ready' ? ` class="clickable" data-ref-view="${r.id}"` : ''}><td class="wrap-cell">${esc(r.title)}</td><td data-label="IP">${esc(r.ip_names || '—')}</td><td data-label="수신사">${esc(r.recipient || '—')}</td><td data-label="작성">${esc(r.author || '—')}</td><td data-label="분석">${r.status === 'ready' ? `<button class="text-btn" data-ref-view="${r.id}"><span class="pill good">분석 완료</span> 보기</button>` : r.status === 'failed' ? `<span class="pill bad" title="${esc(r.profile?.error || '')}">분석 실패</span> <button class="text-btn" data-ref-retry="${r.id}">다시 분석</button>` : refProg(r)}</td><td data-label="기본 포맷">${r.is_default ? '<span class="pill good">기본</span>' : `<button class="text-btn" data-ref-default="${r.id}">기본으로 지정</button>`}</td><td data-label="파일"><button class="text-btn" data-ref-open="${r.id}">열기 ↗</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><p>등록된 레퍼런스가 없습니다.<br>오른쪽 위 「레퍼런스 등록」에서 완성 제안서 PDF를 업로드해 주세요.</p></div>'}</section>`;
+  const all = studio.refs, rs = all.filter(refMatch), types = REF_TYPES.filter(t => all.some(r => refType(r) === t));
+  if (studio.refType && !types.includes(studio.refType)) studio.refType = '';
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">레퍼런스 라이브러리 <small id="ref-count">${rs.length === all.length ? `${all.length}건` : `${rs.length} / ${all.length}건`}</small></div><p class="panel-caption">팀이 작성한 완성 제안서입니다. 새 제안서는 고른 레퍼런스의 디자인·구성·문체·설득 흐름을 따라 씁니다.</p></div><button class="button primary" type="button" data-ref-new>${icon('plus')}레퍼런스 등록</button></div>
+  <div class="pf-bar">${types.length ? `<div class="ar-kinds" role="group" aria-label="콜라보 유형">${[['', '전체'], ...types.map(t => [t, t])].map(([k, t]) => `<button type="button" class="ar-chip${studio.refType === k ? ' on' : ''}" data-ref-type="${esc(k)}" aria-pressed="${studio.refType === k}">${esc(t)} <small>${k ? all.filter(r => refType(r) === k).length : all.length}</small></button>`).join('')}</div>` : ''}<input type="search" class="pf-q" data-ref-q placeholder="제안서 이름·IP·수신사·작성자 검색" value="${esc(studio.refQ)}" aria-label="레퍼런스 검색" data-nodirty></div>
+  <div id="ref-body">${refTable(rs)}</div></section>`;
+}
+
+// 레퍼런스 등록 화면 (11-04 김현우 「레퍼런스 추가도 별도의 UI로 — AI가 디자인·구조·문어체·제안서 구조를 아주 상세하게 학습」)
+// 파일·콜라보 대상·유형·특히 배울 점을 받고, 올린 뒤 같은 화면에서 학습 진행을 단계별로 보여 준다
+const LEARN = [[12, '제안서 파일 받기'], [31, '처음부터 끝까지 읽기'], [88, '페이지마다 구성·원문·배치 학습'], [100, '문체·디자인·작성 기준 정리']];
+function refLearnCard(r) {
+  if (!r) return '';
+  if (r.status === 'failed') return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습하지 못했습니다</h3><p class="muted-box">${esc(r.profile?.error || '이그드라실 봇이 학습을 끝내지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" data-ref-relearn="${r.id}">다시 학습</button><button class="button" data-ref-new>다른 파일 등록</button></div></div>`;
+  if (!refBusy(r)) {
+    const f = r.profile || {}, w = f.writing || {};
+    return `<div class="rl-card done" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습을 마쳤습니다</h3>
+    <div class="detail-row"><span>콜라보</span><b>${esc(refPair(r) || '—')}${refType(r) ? ` · ${esc(refType(r))}` : ''}</b></div><div class="detail-row"><span>페이지</span><b>${esc(f.page_count || (f.pages || []).length)}페이지 · 이미지 ${esc(f.image_pattern?.total || 0)}장</b></div>${w.register ? `<div class="detail-row"><span>문체</span><b>${esc(w.register)}</b></div>` : ''}${f.design?.mood ? `<div class="detail-row"><span>디자인</span><b>${esc(f.design.mood)}</b></div>` : ''}
+    <div class="drawer-actions"><button class="button primary" data-ref-view="${r.id}">학습 결과 자세히 보기</button><button class="button" data-ref-new>하나 더 등록</button><button class="button" data-studio-tab="refs">레퍼런스 라이브러리</button></div></div>`;
+  }
+  const j = refJob(r), pct = j?.result?.progress || 0, work = j?.status === 'work';
+  const steps = LEARN.map(([to, t], i) => { const from = i ? LEARN[i - 1][0] : 0; return `<li class="${pct >= to ? 'done' : work && pct >= from ? 'now' : ''}">${esc(t)}</li>`; }).join('');
+  return `<div class="rl-card" data-ref-learn="${r.id}"><h3>「${esc(r.title)}」 학습 중</h3>${refProg(r)}<ol class="rl-steps">${steps}</ol><p class="muted-box">화면을 나가도 학습은 계속됩니다. 끝나면 레퍼런스 라이브러리에 「학습 완료」로 표시됩니다.</p></div>`;
+}
+function studioRefNew() {
+  const back = `<button class="text-btn rn-back" type="button" data-studio-tab="refs">← 레퍼런스 라이브러리</button>`;
+  if (studio.refNew) return back + `<section class="panel rn-panel">${refLearnCard(studio.refs.find(x => x.id === studio.refNew))}</section>`;
+  return back + `<div class="rn-grid"><section class="panel rn-panel"><form id="rn-form" novalidate><div class="panel-title">레퍼런스 등록</div><p class="panel-caption">팀이 실제로 보낸 완성 제안서를 올리면 이그드라실 봇이 처음부터 끝까지 읽고 배웁니다.</p>
+  <label class="rn-drop" id="rn-drop"><input id="rn-file" type="file" accept=".pdf,application/pdf" data-nodirty><span class="rn-drop-in">${icon('upload')}<b id="rn-file-name">PDF 파일을 끌어다 놓거나 눌러서 고르세요</b><small id="rn-file-sub">100MB 이하 · PPTX는 PowerPoint에서 PDF로 저장해 올려 주세요</small></span></label>
+  <label>제안서 이름 *<input id="rn-title" maxlength="120" placeholder="예: 바비 × 장원영 IP 콜라보레이션 제안서"></label>
+  <datalist id="rn-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist>
+  <div class="rn-pair"><label>IP·아티스트<input id="rn-a" list="rn-ents" maxlength="80" placeholder="예: aespa"></label><span aria-hidden="true">×</span><label>콜라보 상대<input id="rn-b" list="rn-ents" maxlength="80" placeholder="예: 사이버펑크 엣지러너"></label></div>
+  <div class="field"><span class="flabel">콜라보 유형</span><div class="ar-kinds" role="radiogroup" aria-label="콜라보 유형">${[['', '읽고 정하기'], ...REF_TYPES.map(t => [t, t])].map(([k, t], i) => `<button type="button" class="ar-chip${i ? '' : ' on'}" role="radio" aria-checked="${!i}" data-rn-type="${esc(k)}">${esc(t)}</button>`).join('')}</div><small class="muted">비워 두면 이그드라실 봇이 제안서를 읽고 IP·상대·유형·수신사를 채웁니다.</small></div>
+  <label>수신사<input id="rn-to" list="rn-ents" maxlength="80"></label>
+  <div class="field"><span class="flabel">작성자</span><div id="rn-author"></div></div>
+  <label>특히 배울 점<textarea id="rn-note" maxlength="500" rows="3" placeholder="예: 컨셉 3안 페이지 구성과 굿즈 페이지 디자인을 특히 참고"></textarea></label>
+  <div id="rn-up" class="ref-prog" hidden><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i style="width:0%"></i></span><b>0%</b></span><small>파일을 올리는 중</small></div>
+  <div id="rn-error" class="err" role="alert"></div>
+  <div class="modal-actions"><button class="button" type="button" data-studio-tab="refs">취소</button><button class="button primary" type="submit">등록하고 학습 시작</button></div></form></section>
+  <section class="panel rn-panel rn-side"><div class="panel-title">이그드라실 봇이 배우는 것</div><ol class="rule-list rn-learn">
+  <li><b>디자인</b><br><small>바탕·여백·칸 나누기, 글꼴 크기 단계, 색을 어디에 쓰는지, 페이지 번호·라벨 같은 반복 요소</small></li>
+  <li><b>페이지 구성</b><br><small>막 순서, 페이지마다 역할과 배치, 이미지 자리와 종류</small></li>
+  <li><b>문어체</b><br><small>제목·라벨·본문 쓰는 법, 숫자 표기, 자주 쓰는 표현과 원문 예시</small></li>
+  <li><b>제안서 구조</b><br><small>첫 관심 끌기부터 마무리까지 설득 흐름, 더올마이티를 내세우는 방식</small></li></ol>
+  <p class="panel-caption">배운 내용은 새 제안서의 「제안서 구성」에서 이 레퍼런스를 고르면 그대로 씁니다.</p></section></div>`;
+}
+// 파일 올리기 진행률 — 서명된 업로드 주소로 직접 올려 진행률을 받는다. 안 되면 기존 방식으로
+async function uploadWithProgress(bucket, path, file, onp) {
+  const s = await SB.storage.from(bucket).createSignedUploadUrl(path);
+  if (!s.error) {
+    try {
+      await new Promise((ok, no) => {
+        const x = new XMLHttpRequest(), fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', file);
+        x.open('PUT', s.data.signedUrl); x.setRequestHeader('x-upsert', 'false');
+        x.upload.onprogress = e => e.lengthComputable && onp(e.loaded / e.total);
+        x.onload = () => x.status < 300 ? ok() : no(new Error(`${x.status} ${x.responseText.slice(0, 160)}`)); x.onerror = () => no(new Error('네트워크 오류'));
+        x.send(fd);
+      });
+      return {};
+    } catch (e) { console.warn('[업로드] 서명 주소 실패, 기본 방식으로', e); }
+  }
+  onp(-1);
+  return SB.storage.from(bucket).upload(path, file, {contentType: file.type || 'application/pdf', upsert: true});
+}
+function bindRefNew() {
+  const form = $('#rn-form'); if (!form) return;
+  const authors = memberChips($('#rn-author'), myName ? [myName] : [], {note: '<span class="err">빨간 이름</span>은 헤임달에 등록되지 않은 사람입니다.'});
+  let file = null, type = '';
+  const pick = f => {
+    $('#rn-error').textContent = '';
+    if (!f) return;
+    if (!/\.pdf$/i.test(f.name)) { $('#rn-error').textContent = 'PDF 파일만 학습할 수 있습니다. PPTX는 PowerPoint에서 PDF로 저장해 올려 주세요.'; return; }
+    if (f.size > 100e6) { $('#rn-error').textContent = '100MB 이하 파일을 골라 주세요.'; return; }
+    file = f; $('#rn-drop').classList.add('picked'); $('#rn-file-name').textContent = f.name; $('#rn-file-sub').textContent = `${(f.size / 1e6).toFixed(1)}MB · 다른 파일로 바꾸려면 다시 누르세요`;
+    if (!$('#rn-title').value) $('#rn-title').value = f.name.replace(/\.pdf$/i, '');
+  };
+  $('#rn-file').onchange = () => pick($('#rn-file').files[0]);
+  const drop = $('#rn-drop');
+  ['dragenter', 'dragover'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+  $$('[data-rn-type]').forEach(b => b.onclick = () => { type = b.dataset.rnType; $$('[data-rn-type]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); }); });
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const title = $('#rn-title').value.trim();
+    if (!file) { $('#rn-error').textContent = '제안서 PDF 파일을 골라 주세요.'; return; }
+    if (!title) { $('#rn-error').textContent = '제안서 이름을 입력해 주세요.'; $('#rn-title').focus(); return; }
+    const btn = form.querySelector('[type=submit]'), up = $('#rn-up'); btn.disabled = true; btn.textContent = '올리는 중…'; up.hidden = false;
+    const bar = p => { if (p < 0) { up.querySelector('.bar').classList.add('indet'); up.querySelector('b').textContent = ''; return; } const n = Math.round(p * 100); up.querySelector('i').style.width = n + '%'; up.querySelector('b').textContent = n + '%'; up.querySelector('.bar').setAttribute('aria-valuenow', n); };
+    const fail = m => { btn.disabled = false; btn.textContent = '등록하고 학습 시작'; up.hidden = true; $('#rn-error').textContent = m; };
+    const path = `refs/${today()}/${uid()}.pdf`;
+    const res = await uploadWithProgress('pt-studio', path, file, bar);
+    if (res.error) return fail('파일을 올리지 못했습니다: ' + res.error.message);
+    up.querySelector('small').textContent = '학습을 요청하는 중';
+    const { data, error } = await SB.from('pt_proposal_ref').insert({title, ip_names: $('#rn-a').value.trim(), partner: $('#rn-b').value.trim(), collab_type: type, recipient: $('#rn-to').value.trim(), author: authors.value().join(', '), note: $('#rn-note').value.trim(), file_path: path, file_size: file.size, is_default: !(studio.refs || []).length}).select().single();
+    if (error) return fail('등록하지 못했습니다: ' + error.message);
+    const jr = await SB.from('pt_proposal_job').insert({ref_id: data.id, kind: 'analyze_reference', input: {file_path: path}});
+    if (jr.error) return fail('학습을 요청하지 못했습니다: ' + jr.error.message);
+    studio.refNew = data.id; studio.refs = null; studio.list = null; await loadStudio(); toast('레퍼런스를 등록했습니다. 학습을 시작합니다.');
+  };
+}
+async function refRelearn(id) {
+  const r = studio.refs.find(x => x.id === id); if (!r) return;
+  // 이미 배운 결과는 지우지 않는다 — 다시 학습이 끝날 때까지 새 제안서는 지금 결과로 만든다 (봇 pipeline.ref_profiles)
+  const { error } = await SB.from('pt_proposal_ref').update(refLearned(r) ? {status: 'uploaded'} : {status: 'uploaded', profile: null}).eq('id', id);
+  if (error) return toast('다시 학습을 요청하지 못했습니다: ' + error.message);
+  const jr = await SB.from('pt_proposal_job').insert({ref_id: id, kind: 'analyze_reference', input: {file_path: r.file_path, retry: true}});
+  if (jr.error) return toast('다시 학습을 요청하지 못했습니다: ' + jr.error.message);
+  closeDrawer?.(); await loadStudio(); toast(refLearned(r) ? '다시 학습을 시작했습니다. 끝날 때까지는 지금 학습 결과로 제안서를 만듭니다.' : '다시 학습을 시작했습니다.');
 }
 
 // 이미지 아카이브 (10-31 김현우 「Aside로 찾거나 힉스필드로 만든 이미지를 종류별로 정리해 나중에도 쓰게」)
@@ -1769,7 +1920,7 @@ async function pollRefJobs() {
   if (error || page !== 'studio') return;
   if (ids.some(id => { const j = data.find(x => x.ref_id === id); return j && (j.status === 'done' || j.status === 'fail'); })) return loadStudio();
   studio.jobs = [...studio.jobs.filter(j => !ids.includes(j.ref_id)), ...data.filter(j => j.status === 'wait' || j.status === 'work')];
-  ids.forEach(id => { const el = document.querySelector(`[data-ref-prog="${id}"]`), r = studio.refs.find(x => x.id === id); if (el && r) el.outerHTML = refProg(r); });
+  ids.forEach(id => { const r = studio.refs.find(x => x.id === id), card = document.querySelector(`[data-ref-learn="${id}"]`); if (!r) return; if (card) { card.outerHTML = refLearnCard(r); bindStudioBtns(); } document.querySelectorAll(`[data-ref-prog="${id}"]`).forEach(el => { el.outerHTML = refProg(r); }); });
   studioPoll = setTimeout(pollRefJobs, 3000);
 }
 // 목록에서도 진행이 보이게 — 작업 중인 프로젝트가 있으면 3초마다 진행률·상태를 다시 읽는다
@@ -1801,46 +1952,97 @@ function bindStudio() {
   if ((studio.refs || []).some(r => r.status === 'uploaded' || r.status === 'analyzing')) {
     studioPoll = setTimeout(pollRefJobs, 3000);
   }
-  $$('[data-ref-view]').forEach(b => b.onclick = ev => { ev.stopPropagation(); openRef(b.dataset.refView); });
-  $$('[data-ref-retry]').forEach(b => b.onclick = async () => {
-    b.disabled = true;
-    const { error } = await SB.from('pt_proposal_ref').update({status: 'uploaded', profile: null}).eq('id', b.dataset.refRetry);
-    if (error) { b.disabled = false; return toast('다시 분석을 요청하지 못했습니다: ' + error.message); }
-    const r = studio.refs.find(x => x.id === b.dataset.refRetry);
-    await SB.from('pt_proposal_job').insert({ref_id: r.id, kind: 'analyze_reference', input: {file_path: r.file_path, retry: true}});
-    await loadStudio(); toast('다시 분석을 요청했습니다.');
-  });
-  $$('[data-studio-tab]').forEach(b => b.onclick = () => { studio.tab = b.dataset.studioTab; if (studio.tab === 'archive') studio.arch = null; render(); });
+  bindStudioBtns();
+  bindRefNew();
+  bindStudioFilters();
   if (studio.tab === 'archive') bindArchive();
-  $$('[data-psort]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.psort; studio.sort = studio.sort.k === k ? {k, d: -studio.sort.d} : {k, d: ['updated', 'created'].includes(k) ? -1 : 1}; render(); });
-  $$('[data-pby]').forEach(s => s.onchange = () => { studio.by = s.value; render(); });
-  $$('[data-pfilter]').forEach(b => { const pick = () => { const v = b.dataset.pfilter; studio.filter = studio.filter === v ? 'all' : v; if (b.hasAttribute('data-pby-clear')) studio.by = ''; render(); }; b.onclick = pick; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } }; });
-  $$('[data-proposal]').forEach(b => { b.onclick = () => openProposal(b.dataset.proposal); b.onkeydown = e => { if (e.key === 'Enter') openProposal(b.dataset.proposal); }; });
-  $$('[data-ref-open]').forEach(b => b.onclick = async () => { const r = studio.refs.find(x => x.id === b.dataset.refOpen); const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(r.file_path, 600); if (error) return toast('파일을 열지 못했습니다.'); window.open(data.signedUrl, '_blank', 'noopener'); });
-  $$('[data-ref-default]').forEach(b => b.onclick = async () => {
+  $$('[data-pfilter]').forEach(b => { const pick = () => { const v = b.dataset.pfilter; studio.filter = studio.filter === v ? 'all' : v; render(); }; b.onclick = pick; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } }; });
+  bindPjRows(document);
+  $$('[data-ref-open]').forEach(b => b.onclick = ev => { ev.stopPropagation(); refFile(b.dataset.refOpen); });
+  $$('[data-ref-default]').forEach(b => b.onclick = () => setRefDefault(b));
+}
+async function setRefDefault(b) {
+  {
     b.disabled = true;
     const old = studio.refs.filter(r => r.is_default).map(r => r.id);
     if (old.length) await SB.from('pt_proposal_ref').update({is_default: false}).in('id', old);
     const { error } = await SB.from('pt_proposal_ref').update({is_default: true}).eq('id', b.dataset.refDefault);
     if (error) { b.disabled = false; return toast('기본 포맷을 지정하지 못했습니다: ' + error.message); }
     studio.refs = null; studio.list = null; await loadStudio(); toast('기본 포맷으로 지정했습니다.');
+  }
+}
+
+// 학습 진행 카드처럼 다시 그리는 곳에서도 쓰는 단추들
+function bindStudioBtns() {
+  $$('[data-ref-view]').forEach(b => b.onclick = ev => { ev.stopPropagation(); openRef(b.dataset.refView); });
+  $$('[data-ref-relearn]').forEach(b => b.onclick = ev => { ev.stopPropagation(); b.disabled = true; refRelearn(b.dataset.refRelearn); });
+  $$('[data-ref-new]').forEach(b => b.onclick = studioRefModal);
+  $$('[data-studio-tab]').forEach(b => b.onclick = () => { studio.tab = b.dataset.studioTab; studio.refNew = null; if (studio.tab === 'archive') studio.arch = null; render(); });
+}
+function bindPjRows(root) {
+  root.querySelectorAll('[data-psort]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.psort; studio.sort = studio.sort.k === k ? {k, d: -studio.sort.d} : {k, d: ['updated', 'created'].includes(k) ? -1 : 1}; render(); });
+  root.querySelectorAll('[data-proposal]').forEach(b => { b.onclick = () => openProposal(b.dataset.proposal); b.onkeydown = e => { if (e.key === 'Enter') openProposal(b.dataset.proposal); }; });
+}
+// 검색 칸은 글자마다 표만 다시 그린다(입력 칸 포커스·한글 조합 유지) · 고르개는 화면 전체를 다시 그린다
+function liveSearch(input, go) {
+  if (!input) return; let t;
+  const run = () => { clearTimeout(t); t = setTimeout(go, 150); };
+  input.addEventListener('input', e => { if (!e.isComposing) run(); });
+  input.addEventListener('compositionend', run);
+}
+function bindStudioFilters() {
+  liveSearch($('[data-pq]'), () => {
+    studio.q = $('[data-pq]').value; const ps = pjFiltered();
+    $('#pj-body').innerHTML = pjTable(ps); $('#pj-count').textContent = `${ps.length}건 · ${SORT_KO[studio.sort.k]}`;
+    const c = $('[data-pclear]'); if (c) c.hidden = !pjAny(); bindPjRows($('#pj-body')); clearTimeout(listPoll); if (ps.some(p => p.status === 'working')) listPoll = setTimeout(pollProjects, 3000);
   });
+  $$('[data-pstage]').forEach(x => x.onchange = () => { studio.stage = Number(x.value) || 0; render(); });
+  $$('[data-pstatus]').forEach(x => x.onchange = () => { studio.filter = x.value; render(); });
+  $$('[data-pby]').forEach(x => x.onchange = () => { studio.by = x.value; render(); });
+  $$('[data-pclear]').forEach(b => b.onclick = () => { Object.assign(studio, {filter: 'all', by: '', stage: 0, q: ''}); render(); });
+  liveSearch($('[data-ref-q]'), () => {
+    studio.refQ = $('[data-ref-q]').value; const rs = studio.refs.filter(refMatch);
+    $('#ref-body').innerHTML = refTable(rs); $('#ref-count').textContent = rs.length === studio.refs.length ? `${rs.length}건` : `${rs.length} / ${studio.refs.length}건`;
+    bindStudioBtns(); $$('#ref-body [data-ref-open]').forEach(b => b.onclick = ev => { ev.stopPropagation(); refFile(b.dataset.refOpen); });
+    $$('#ref-body [data-ref-default]').forEach(b => b.onclick = () => setRefDefault(b));
+  });
+  $$('[data-ref-type]').forEach(b => b.onclick = () => { studio.refType = b.dataset.refType; render(); });
 }
 
 const IMG_KIND = {official: '공식 이미지', logo: '로고', ai_concept: 'AI 컨셉 이미지', mockup: '목업', reference: '참고 사례', capture: '캡처', texture: '배경·질감'};
 function openRef(id) {
-  const r = studio.refs?.find(x => x.id === id), f = r?.profile; if (!f) return;
+  const r = studio.refs?.find(x => x.id === id), f = r?.profile; if (!f?.pages) return;
   activeDetail = 'r:' + id;
   const kinds = Object.entries(f.image_pattern?.by_kind || {}).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
-  const st = f.style || {};
-  const pages = (f.pages || []).map(x => `<tr><td>${esc(x.page)}</td><td>${esc(x.role || '')}<small class="cell-sub">${esc(x.title || '')}</small></td><td>${esc(x.layout || '')}${(x.images || []).length ? `<small class="cell-sub">${x.images.map(i => esc(`${IMG_KIND[i.kind] || i.kind} ${i.ratio || ''}${i.what ? ' · ' + i.what : ''}`)).join('<br>')}</small>` : ''}</td></tr>`).join('');
-  showDrawer(`<span class="entity-avatar">${icon('studio')}</span><h2>${esc(r.title)}</h2><span class="detail-sub">${esc([r.ip_names, r.recipient, r.author].filter(Boolean).join(' · '))}</span>
-  <div class="detail-block"><h3>구성 요약</h3><p>${esc(f.summary || '')}</p><div class="detail-row"><span>페이지</span><b>${esc(f.page_count || (f.pages || []).length)}페이지</b></div><div class="detail-row"><span>이미지</span><b>${esc(f.image_pattern?.total || 0)}장</b></div>${r.is_default ? '<div class="detail-row"><span>기본 포맷</span><b><span class="pill good">기본</span></b></div>' : ''}</div>
+  const st = f.style || {}, s = f.story || {}, w = f.writing || {}, d = f.design || {};
+  const rows = xs => xs.filter(([, v]) => v).map(([k, v]) => `<div class="detail-row ref-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+  const tags = xs => (xs || []).filter(Boolean).map(x => `<span class="tag">${esc(x)}</span>`).join('');
+  const hex = c => /^#[0-9a-f]{3,8}$/i.test(c || '');
+  // 11-04 자세히 학습 — 설득 흐름·문어체(원문 예시)·디자인(색 용도·반복 요소)·페이지별 원문까지
+  const pages = (f.pages || []).map(x => { const c = x.copy || {}; return `<tr><td>${esc(x.page)}</td><td>${esc(x.role || '')}<small class="cell-sub">${esc(x.title || '')}</small>${x.purpose ? `<small class="cell-sub">${esc(x.purpose)}</small>` : ''}</td><td>${esc(x.layout || '')}${c.headline || c.eyebrow ? `<small class="cell-sub ref-copy">${esc([c.eyebrow, c.headline, c.sub].filter(Boolean).join(' / '))}</small>` : ''}${(x.images || []).length ? `<small class="cell-sub">${x.images.map(i => esc(`${IMG_KIND[i.kind] || i.kind} ${i.ratio || ''}${i.what ? ' · ' + i.what : ''}`)).join('<br>')}</small>` : ''}</td></tr>`; }).join('');
+  const busy = refBusy(r);
+  showDrawer(`<span class="entity-avatar">${icon('studio')}</span><h2>${esc(r.title)}</h2><span class="detail-sub">${esc([refPair(r), refType(r), r.recipient, r.author].filter(Boolean).join(' · '))}</span>
+  ${busy ? `<div class="detail-block"><h3>다시 학습 중</h3>${refProg(r)}<p class="muted-box">끝날 때까지는 아래 학습 결과로 제안서를 만듭니다.</p></div>` : ''}
+  ${!busy && !refDeep(r) ? `<div class="detail-block"><p class="muted-box">구성·이미지 위주로 학습한 레퍼런스입니다. 다시 학습하면 문어체·디자인·설득 흐름까지 자세히 배웁니다.</p></div>` : ''}
+  ${f.relearn_error && !busy ? `<div class="detail-block"><p class="muted-box">최근 다시 학습이 실패해 이전 학습 결과를 쓰고 있습니다. (${esc(f.relearn_error)})</p></div>` : ''}
+  <div class="detail-block"><h3>구성 요약</h3><p>${esc(f.summary || '')}</p>${rows([['콜라보', refPair(r)], ['유형', refType(r)], ['페이지', `${f.page_count || (f.pages || []).length}페이지`], ['이미지', `${f.image_pattern?.total || 0}장`], ['학습일', f.analyzed_at ? ymd(f.analyzed_at) : '']])}${r.is_default ? '<div class="detail-row"><span>기본 포맷</span><b><span class="pill good">기본</span></b></div>' : ''}${r.note ? `<p class="muted-box">특히 배울 점: ${esc(r.note)}</p>` : ''}</div>
+  ${Object.values(s).some(Boolean) ? `<div class="detail-block"><h3>설득 흐름</h3>${rows([['도입', s.hook], ['설득 순서', s.logic], ['더올마이티 소개', s.why_us], ['마무리', s.close], ['페이지 리듬', s.rhythm]])}</div>` : ''}
   ${(f.acts || []).length ? `<div class="detail-block"><h3>섹션 구성</h3><ol class="rule-list">${f.acts.map(a => `<li><b>${esc(a.name || '')}</b> <span class="muted">· ${esc(a.pages || '')}페이지</span><br><small>${esc(a.purpose || '')}</small></li>`).join('')}</ol></div>` : ''}
+  ${w.register ? `<div class="detail-block"><h3>문어체</h3>${rows([['문체', w.register], ['제목', w.headline], ['라벨', w.eyebrow], ['본문', w.body], ['숫자 표기', w.numbers]])}
+    ${(w.terms || []).length ? `<div class="ref-sub">자주 쓰는 표현</div><div>${tags(w.terms)}</div>` : ''}${(w.endings || []).length ? `<div class="ref-sub">문장 끝</div><div>${tags(w.endings)}</div>` : ''}
+    ${(w.samples || []).length ? `<div class="ref-sub">원문 예시</div><ul class="ref-samples">${w.samples.map(x => `<li><small>${esc(x.page ? x.page + '페이지' : '')}${x.kind ? ' · ' + esc({headline: '제목', eyebrow: '라벨', body: '본문', caption: '캡션', cta: '맺음말'}[x.kind] || x.kind) : ''}</small>${esc(x.text)}</li>`).join('')}</ul>` : ''}
+    ${(w.avoid || []).length ? `<div class="ref-sub">쓰지 않는 표현</div><ul class="rule-list">${w.avoid.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`
+    : `<div class="detail-block"><h3>문체</h3>${rows([['문체', st.tone], ['강조', st.emphasis]])}</div>`}
+  <div class="detail-block"><h3>디자인</h3>${rows([['인상', d.mood], ['화면', d.canvas], ['바탕', d.background], ['여백·칸', d.grid], ['글꼴', d.type || st.type], ['표지', d.cover], ['섹션 표지', d.section], ['정보량', d.density]])}
+    ${(d.colors || []).length ? `<div class="ref-sub">색</div>${d.colors.filter(c => hex(c.hex)).map(c => `<div class="detail-row ref-row"><span><i class="swatch" style="background:${c.hex}"></i> ${esc(c.hex)}</span><b>${esc(c.use || '')}</b></div>`).join('')}`
+      : (st.colors || []).length ? `<div class="detail-row"><span>주요 색</span><b>${st.colors.filter(hex).map(c => `<i class="swatch" style="background:${c}" title="${c}"></i>`).join('')}</b></div>` : ''}
+    ${(d.components || []).length ? `<div class="ref-sub">반복 요소</div><ul class="rule-list">${d.components.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
   ${kinds.length ? `<div class="detail-block"><h3>이미지 사용</h3>${kinds.map(([k, n]) => `<div class="detail-row"><span>${esc(IMG_KIND[k] || k)}</span><b>${n}장</b></div>`).join('')}${f.image_pattern?.note ? `<p>${esc(f.image_pattern.note)}</p>` : ''}</div>` : ''}
-  <div class="detail-block"><h3>문체·디자인</h3>${st.tone ? `<div class="detail-row"><span>문체</span><b>${esc(st.tone)}</b></div>` : ''}${st.type ? `<div class="detail-row"><span>글꼴</span><b>${esc(st.type)}</b></div>` : ''}${st.emphasis ? `<div class="detail-row"><span>강조</span><b>${esc(st.emphasis)}</b></div>` : ''}${(st.colors || []).length ? `<div class="detail-row"><span>주요 색</span><b>${st.colors.filter(c => /^#[0-9a-f]{3,8}$/i.test(c)).map(c => `<i class="swatch" style="background:${c}" title="${c}"></i>`).join('')}</b></div>` : ''}</div>
   ${(f.rules || []).length ? `<div class="detail-block"><h3>새 제안서 작성 기준</h3><ol class="rule-list">${f.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
-  ${pages ? `<div class="detail-block"><h3>페이지별 구성</h3><div class="table-wrap"><table class="ref-pages"><thead><tr><th>페이지</th><th>역할</th><th>배치·이미지</th></tr></thead><tbody>${pages}</tbody></table></div></div>` : ''}`);
+  ${pages ? `<div class="detail-block"><h3>페이지별 구성</h3><div class="table-wrap"><table class="ref-pages"><thead><tr><th>페이지</th><th>역할</th><th>배치·원문·이미지</th></tr></thead><tbody>${pages}</tbody></table></div></div>` : ''}
+  ${busy ? '' : `<div class="drawer-actions"><button class="button" id="ref-relearn">다시 학습</button><button class="button" data-ref-open="${r.id}" id="ref-file">원본 열기 ↗</button></div>`}`);
+  $('#ref-relearn')?.addEventListener('click', ev => { ev.currentTarget.disabled = true; refRelearn(r.id); });
+  $('#ref-file')?.addEventListener('click', () => refFile(r.id));
 }
 
 const SCORE_KO = {fandom: '팬덤', world: '세계관', asset: '자산 결합', business: '사업성', timing: '타이밍', risk: '리스크'};
@@ -2760,32 +2962,8 @@ function studioProjectModal(p) {
   };
 }
 
-function studioRefModal() {
-  modal(`<form id="sr-form"><h2>레퍼런스 등록</h2><p>팀이 작성한 완성 제안서(PDF·PPTX)를 업로드합니다. 이그드라실 봇이 페이지 구성과 이미지 배치를 분석해 새 제안서 포맷으로 사용합니다.</p>
-  <label>파일 * (PDF·PPTX, 100MB 이하)<input id="sr-file" type="file" accept=".pdf,.pptx,application/pdf" required></label>
-  <label>제안서 이름 *<input id="sr-title" required maxlength="120" placeholder="예: 바비 × 장원영 IP 콜라보레이션 제안서"></label>
-  <datalist id="sr-ents">${entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('')}</datalist>
-  <div class="field"><span class="flabel">IP</span><div id="sr-ip"></div></div>
-  <label>수신사<input id="sr-to" list="sr-ents" maxlength="80"></label>
-  <div class="field"><span class="flabel">작성자</span><div id="sr-author"></div></div>
-  <div id="sr-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">레퍼런스 등록</button></div></form>`);
-  const ips = ipChips($('#sr-ip'), [], 'sr-ents');
-  const authors = memberChips($('#sr-author'), [], {note: '<span class="err">빨간 이름</span>은 헤임달에 등록되지 않은 사람입니다.'});
-  $('#sr-file').onchange = () => { const f = $('#sr-file').files[0]; if (f && !$('#sr-title').value) $('#sr-title').value = f.name.replace(/\.(pdf|pptx)$/i, ''); };
-  $('#sr-form').onsubmit = async ev => {
-    ev.preventDefault();
-    const f = $('#sr-file').files[0]; if (!f) return;
-    if (f.size > 100e6) { $('#sr-error').textContent = '100MB 이하 파일을 선택해 주세요.'; return; }
-    const btn = $('#sr-form [type=submit]'); btn.disabled = true; btn.textContent = '업로드 중…';
-    const ext = (f.name.match(/\.(pdf|pptx)$/i)?.[1] || 'pdf').toLowerCase(), path = `refs/${today()}/${uid()}.${ext}`;
-    const up = await SB.storage.from('pt-studio').upload(path, f, {contentType: f.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream'), upsert: false});
-    if (up.error) { btn.disabled = false; btn.textContent = '등록'; $('#sr-error').textContent = '파일을 업로드하지 못했습니다: ' + up.error.message; return; }
-    const { data, error } = await SB.from('pt_proposal_ref').insert({title: $('#sr-title').value.trim(), ip_names: ips.value().join(', '), recipient: $('#sr-to').value.trim(), author: authors.value().join(', '), file_path: path, file_size: f.size, is_default: !(studio.refs || []).length}).select().single();
-    if (error) { btn.disabled = false; btn.textContent = '등록'; $('#sr-error').textContent = '등록하지 못했습니다: ' + error.message; return; }
-    await SB.from('pt_proposal_job').insert({ref_id: data.id, kind: 'analyze_reference', input: {file_path: path}});
-    $('#modal').close(); studio.refs = null; studio.list = null; await loadStudio(); toast('레퍼런스를 등록했습니다.');
-  };
-}
+const refFile = async id => { const r = studio.refs.find(x => x.id === id); const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(r.file_path, 600); if (error) return toast('파일을 열지 못했습니다.'); window.open(data.signedUrl, '_blank', 'noopener'); };
+const studioRefModal = () => { studio.tab = 'ref-new'; studio.refNew = null; render(); window.scrollTo(0, 0); };
 
 /* ---------- 내보내기 · 이동 ---------- */
 function download(name, rows) {
