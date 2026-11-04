@@ -1627,9 +1627,9 @@ function pjTable(ps) {
 }
 // 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 대기 기간이 긴 순서, 하루가 넘으면 눈에 띄게
 const waitH = p => (Date.now() - Date.parse(p.updated_at)) / 3600e3;
-const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간째` : `${Math.floor(h / 24)}일째`;
+const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간 경과` : `${Math.floor(h / 24)}일 경과`;
 const todoWhat = p => p.status === 'failed' ? '작업 중단 · 확인 후 재시도 필요' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 재시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
-const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>하루 넘게 대기</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
+const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>처리 지연</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
 
 function studioProjects() {
   const all = studio.list, F = pjSets(), ps = pjFiltered();
@@ -2974,7 +2974,7 @@ const tourSample = () => { const xs = studio.list || []; return xs.find(p => p.s
 const TOUR = [
   {t: '궁니르 기능 소개', d: '궁니르는 더올마이티의 IP 콜라보 제안서 스튜디오입니다. IP를 입력하면 파트너 추천부터 리서치, 컨셉, 제안서 초안, 이미지 작업까지 궁니르 봇이 진행하며, 담당자는 결정 단계에서만 확인합니다.', go: () => tourStudio('projects')},
   {el: '#add-btn', t: '새 프로젝트', d: 'IP와 수신사만 입력하면 프로젝트가 시작됩니다. 콜라보 상대 IP를 입력하지 않으면 궁니르 봇이 적합한 후보를 점수와 함께 추천합니다.', go: () => tourStudio('projects')},
-  {el: '.todo-panel', t: '내가 할 일', d: '내가 기안한 프로젝트 중 결정이 필요한 건이 상단에 표시됩니다. 대기 기간이 긴 순서로 정렬되며, 하루 이상 대기한 건은 「하루 넘게 대기」로 강조됩니다.', go: () => tourStudio('projects')},
+  {el: '.todo-panel', t: '내가 할 일', d: '내가 기안한 프로젝트 중 결정이 필요한 건이 상단에 표시됩니다. 대기 기간이 긴 순서로 정렬되며, 결정 대기가 하루를 넘긴 건은 「처리 지연」으로 강조됩니다.', go: () => tourStudio('projects')},
   {el: '.stats', t: '전체 현황', d: '진행 중 · 결정 대기 · 궁니르 봇 처리 중 · 완료 건수를 표시합니다. 카드를 클릭하면 해당 프로젝트만 아래 목록에 표시됩니다.', go: () => tourStudio('projects')},
   {el: '.pf-bar', t: '검색·필터', d: '프로젝트·IP·수신사·기안자 이름으로 바로 검색할 수 있습니다. 단계·상태·기안자 조건을 추가할 수 있으며, 「조건 초기화」로 전체 목록을 다시 확인합니다.', go: () => tourStudio('projects')},
   {el: '#pj-body', t: '프로젝트 목록', d: '궁니르 봇이 작업 중인 프로젝트는 진행률과 현재 작업 내용이 실시간으로 표시됩니다. 열 제목을 클릭하면 정렬됩니다.', go: () => tourStudio('projects')},
