@@ -2996,6 +2996,20 @@ function resumeOf(p) {
   if (!RESUME_STAGE[kind]) return null;
   return {kind, stage: RESUME_STAGE[kind], input: social ? {} : (job.input || {})};
 }
+// 프로젝트 머리 로고 (11-04 김현우) — 봇이 data.logos 에 넣은 배경 없는 로고. 단독은 「로고」, 콜라보는 「로고 × 로고」, 아직 없으면 이름 두 글자
+const logoUrl = {};
+function pAvatar(p) {
+  const L = p.data?.logos || {}, two = p.mode === 'collab' && !!p.ip_b_name;
+  const pick = (k, nm) => L[k]?.path && L[k].name === nm ? L[k] : null, a = pick('a', p.ip_a_name), b = two ? pick('b', p.ip_b_name) : null;
+  if (!a && !b) return `<span class="entity-avatar">${esc(p.ip_a_name.slice(0, 2))}</span>`;
+  const one = (x, nm) => x ? `<span class="pv-logo-one${x.light ? ' light' : ''}"><img data-logo="${esc(x.path)}" ${logoUrl[x.path] ? `src="${esc(logoUrl[x.path])}"` : ''} alt="${esc(nm)} 로고"></span>` : `<span class="pv-logo-one"><b>${esc(nm.slice(0, 2))}</b></span>`;
+  return `<span class="pv-logo">${one(a, p.ip_a_name)}${two ? `<i aria-hidden="true">×</i>${one(b, p.ip_b_name)}` : ''}</span>`;
+}
+async function loadLogos() {
+  const els = $$('img[data-logo]:not([src])'); if (!els.length) return;
+  const { data } = await SB.storage.from('pt-studio').createSignedUrls([...new Set(els.map(e => e.dataset.logo))], 3600);
+  (data || []).forEach(d => { if (!d.signedUrl) return; logoUrl[d.path] = d.signedUrl; $$(`img[data-logo="${CSS.escape(d.path)}"]`).forEach(e => { e.src = d.signedUrl; }); });
+}
 async function openProposal(id, keep) {
   const p = studio.list?.find(x => x.id === id); if (!p) return;
   activeDetail = 'p:' + id; propShown = `${p.status}|${p.stage}`;
@@ -3025,12 +3039,13 @@ async function openProposal(id, keep) {
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
     d.research && fold('리서치', (d.research.ips || []).map(x => x.name).join(' · '), researchBlock(d.research)),
     d.social?.ips && fold('팬·SNS', `채널 ${d.social.ips.reduce((a, x) => a + x.channels.length, 0)}개`, socialBlock(d.social))].filter(Boolean).join('');
-  showDrawer(`<span class="entity-avatar">${esc(p.ip_a_name.slice(0, 2))}</span><h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
+  showDrawer(`${pAvatar(p)}<h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
   <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '궁니르 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '궁니르 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${ref ? `${esc(refName(ref))} <button type="button" class="text-btn" data-ref-pdf="${ref.id}">확인하기</button>` : '—'}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
   <div class="detail-block"><h3>공개 범위</h3><div class="detail-row"><span>보기</span><b>${p.visibility === 'private' ? '<span class="pill">나만 보기</span>' : '궁니르 전체'}</b></div>${p.visibility === 'private' && me && p.created_by === me.id ? `<div class="drawer-actions"><button class="button" id="pv-share">궁니르 전체에 공유</button></div>` : ''}${me && (p.created_by === me.id || isAdmin) ? `<div class="drawer-actions"><button class="button danger" id="pv-delete">프로젝트 삭제</button></div>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
+  loadLogos();
   const go = async (row, nextJob, msg, okMsg) => {
     const lp = studio.list?.find(z => z.id === p.id), before = lp && {...lp}, jobs0 = studio.jobs;
     const done = await optimistic(
