@@ -214,6 +214,7 @@ function render() {
   $('#add-btn').innerHTML = icon('plus') + (page === 'contacts' ? '연락처 등록' : page === 'studio' ? (studio.tab === 'refs' ? '레퍼런스 등록' : '새 프로젝트') : '엔티티 등록');
   $('#export-btn').hidden = !isAdmin || !['entities', 'contacts'].includes(page);   // 내보내기는 DB 관리자만 · 기록 남김 (PRD 8.1)
   $('#add-btn').hidden = !['home', 'entities', 'contacts', 'studio'].includes(page) || (page === 'studio' && studio.tab === 'ref-new');
+  if (APP === 'gungnir') { let b = $('#demo-btn'); if (!b) { b = document.createElement('button'); b.className = 'button'; b.id = 'demo-btn'; b.type = 'button'; b.onclick = tourStart; $('#add-btn').before(b); } b.textContent = '▶ 시연 모드'; b.hidden = !studioCan || !['studio', 'chart', 'manual'].includes(page); }   // 기능 소개 (11-04 온보딩)
   let html = '';
   if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 이제 궁니르에서 엽니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로이며, 같은 헤임달 계정으로 로그인됩니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
@@ -2965,6 +2966,80 @@ function studioProjectModal(p) {
 const refFile = async id => { const r = studio.refs.find(x => x.id === id); const { data, error } = await SB.storage.from('pt-studio').createSignedUrl(r.file_path, 600); if (error) return toast('파일을 열지 못했습니다.'); window.open(data.signedUrl, '_blank', 'noopener'); };
 const studioRefModal = () => { studio.tab = 'ref-new'; studio.refNew = null; render(); window.scrollTo(0, 0); };
 
+/* ---------- 시연 모드 · 기능 소개 (11-04 김현우 「궁니르 온보딩 미팅 — 시연 모드, 기능 소개」) ----------
+   실제 화면 위에서 한 곳씩 밝혀 순서대로 소개한다. 데이터는 바꾸지 않는다(화면 이동·보기만).
+   ← → · 스페이스로 넘기고 Esc 로 끝낸다. 오른쪽 위 「시연 모드」 단추 또는 주소 끝 #tour 로 시작 */
+const tourStudio = tab => { closeDrawer(); if (page !== 'studio') { page = 'studio'; try { history.replaceState(null, '', '#studio'); } catch {} } studio.tab = tab; studio.refNew = null; if (tab === 'archive') studio.arch = studio.arch || null; render(); };
+const tourSample = () => { const xs = studio.list || []; return xs.find(p => p.status === 'done') || xs.slice().sort((a, b) => b.stage - a.stage)[0]; };
+const TOUR = [
+  {t: '궁니르 기능 소개', d: '궁니르는 더올마이티의 IP 콜라보 제안서 스튜디오입니다. IP를 입력하면 파트너 추천·리서치·컨셉·제안서 초안·이미지까지 궁니르 봇이 진행하고, 담당자는 결정할 때만 확인합니다.', go: () => tourStudio('projects')},
+  {el: '#add-btn', t: '새 프로젝트', d: 'IP 하나와 받을 회사만 입력하면 시작합니다. 콜라보 상대 IP를 비워 두면 궁니르 봇이 어울리는 후보를 점수와 함께 추천합니다.', go: () => tourStudio('projects')},
+  {el: '.todo-panel', t: '내가 할 일', d: '내가 기안한 프로젝트 중 내 결정을 기다리는 것이 맨 위에 모입니다. 오래 기다린 것부터 보이고, 하루가 넘으면 「하루 넘게 대기」로 강조됩니다.', go: () => tourStudio('projects')},
+  {el: '.stats', t: '한눈에 보는 현황', d: '진행 중 · 결정 대기 · 궁니르 봇 처리 중 · 완료 건수입니다. 카드를 누르면 그 건만 아래 표에 남습니다.', go: () => tourStudio('projects')},
+  {el: '.pf-bar', t: '검색과 조건', d: '프로젝트·IP·수신사·기안자 이름을 입력하면 바로 걸러집니다. 단계·상태·기안자로 조건을 더하고, 「조건 초기화」로 전체를 다시 봅니다.', go: () => tourStudio('projects')},
+  {el: '#pj-body', t: '프로젝트 목록', d: '궁니르 봇이 작업 중인 프로젝트는 진행률과 지금 하는 일이 실시간으로 보입니다. 열 제목을 누르면 정렬됩니다.', go: () => tourStudio('projects')},
+  {el: '.pv-steps', t: '8단계 진행', d: 'IP 입력부터 생성·검수까지 8단계입니다. 표시가 있는 결정 단계만 담당자가 고르고, 나머지는 궁니르 봇이 진행합니다. 화면을 닫아도 작업은 계속됩니다.', go: async () => { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); }},
+  {el: '#drawer', t: '프로젝트 화면', d: '「지금 할 일」 카드만 보고 결정하면 됩니다. 초안 보기·내려받기, 페이지 위에서 이미지 바로 수정, 원고 수정 요청까지 이 화면에서 합니다.', go: async () => { if ($('#drawer').hidden) { tourStudio('projects'); const p = tourSample(); if (p) await openProposal(p.id); } }},
+  {el: '#ref-body', t: '레퍼런스 라이브러리', d: '팀이 실제로 보낸 완성 제안서 모음입니다. 누구 × 누구 콜라보인지와 유형이 보이고, 이름·유형으로 찾을 수 있습니다. 새 제안서는 고른 레퍼런스를 따라 씁니다.', go: () => tourStudio('refs')},
+  {el: '[data-ref-new]', t: '레퍼런스 등록', d: 'PDF를 올리면 궁니르 봇이 처음부터 끝까지 읽고 디자인·페이지 구성·문어체·설득 흐름을 자세히 배웁니다. 배운 내용은 「학습 완료 보기」에서 확인합니다.', go: () => tourStudio('refs')},
+  {el: '#content', t: '이미지 아카이브', d: '공식 이미지·로고·AI 이미지 등 지금까지 찾거나 만든 이미지가 종류별로 쌓입니다. 다른 제안서에 다시 쓸 수 있습니다.', go: () => tourStudio('archive')},
+  {el: '[data-page="chart"]', t: '소싱 · IP 차트', d: '요즘 뜨는 IP 순위와 IP 스코어, 조합 시뮬레이션을 봅니다. 차트에 없는 IP도 이름을 넣으면 바로 분석합니다.', go: () => tourStudio('projects'), skip: () => !ipcCan},
+  {el: '[data-page="manual"]', t: '사용 매뉴얼', d: '화면별 사용법과 자주 묻는 질문을 정리했습니다. 「매뉴얼에 물어보기」에 질문하면 매뉴얼 내용으로 바로 답합니다.', go: () => tourStudio('projects')},
+  {t: '소개를 마쳤습니다', d: '헤임달 계정 또는 「슬랙으로 로그인」으로 바로 쓸 수 있습니다. 궁금한 점은 사용 매뉴얼이나 AX팀에 문의해 주세요.', go: () => tourStudio('projects'), end: true},
+];
+let tourAt = -1;
+const tourSteps = () => TOUR.filter(s => !s.skip?.());
+async function tourWait(sel, ms = 5000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width) return el; await new Promise(r => setTimeout(r, 120)); } return null; }
+function tourPlace() {
+  const box = $('#tour'); if (!box) return;
+  const s = tourSteps()[tourAt], hole = box.querySelector('.tour-hole'), card = box.querySelector('.tour-card');
+  const el = s?.el && document.querySelector(s.el), phone = innerWidth < 600;
+  if (!el) { hole.hidden = true; card.classList.add('mid'); card.style.cssText = ''; return; }
+  const r = el.getBoundingClientRect(), pad = 6, top = Math.max(4, r.top - pad), h = Math.min(innerHeight - top - 4, r.height + pad * 2);
+  hole.hidden = false; Object.assign(hole.style, {left: `${Math.max(4, r.left - pad)}px`, top: `${top}px`, width: `${Math.min(innerWidth - 8, r.width + pad * 2)}px`, height: `${h}px`});
+  card.classList.remove('mid');
+  if (phone) { card.style.cssText = ''; return; }
+  const cw = card.offsetWidth, ch = card.offsetHeight, below = top + h + 14, above = top - ch - 14;
+  const y = below + ch < innerHeight ? below : above > 8 ? above : Math.max(8, innerHeight - ch - 16);
+  const x = Math.min(innerWidth - cw - 16, Math.max(16, r.left + r.width / 2 - cw / 2));
+  card.style.cssText = `left:${x}px;top:${y}px`;
+}
+async function tourShow(i) {
+  const steps = tourSteps(); tourAt = Math.max(0, Math.min(steps.length - 1, i));
+  const s = steps[tourAt], box = $('#tour'), card = box.querySelector('.tour-card');
+  card.classList.add('busy');
+  if (!studio.list) await loadStudio();
+  try { await s.go?.(); } catch (e) { console.warn('[시연 모드]', e); }
+  const el = s.el ? await tourWait(s.el) : null;
+  if (tourAt !== steps.indexOf(s) || !$('#tour')) return;
+  el?.scrollIntoView({block: el.offsetHeight > innerHeight * .6 ? 'start' : 'center', behavior: 'instant'});
+  card.innerHTML = `<div class="tour-top"><span class="tour-n">${tourAt + 1} / ${steps.length}</span><button class="icon-btn" data-tour="x" aria-label="시연 모드 끝내기">${icon('close')}</button></div><div class="tour-bar"><i style="width:${(tourAt + 1) / steps.length * 100}%"></i></div><h3>${esc(s.t)}</h3><p>${esc(s.d)}</p>
+  <div class="tour-acts">${tourAt ? '<button class="button" data-tour="prev">← 이전</button>' : '<span></span>'}${s.end ? '<span class="tour-end"><button class="button" data-tour="0">처음부터</button><button class="button primary" data-tour="x">마치기</button></span>' : '<button class="button primary" data-tour="next">다음 →</button>'}</div>`;
+  card.classList.remove('busy');
+  card.querySelectorAll('[data-tour]').forEach(b => b.onclick = () => { const v = b.dataset.tour; v === 'x' ? tourEnd() : tourShow(v === 'prev' ? tourAt - 1 : v === 'next' ? tourAt + 1 : 0); });
+  requestAnimationFrame(tourPlace);
+  card.querySelector('[data-tour="next"],[data-tour="x"]:last-child')?.focus({preventScroll: true});
+}
+function tourKey(e) {
+  if (!$('#tour')) return;
+  if (e.key === 'Escape') { e.preventDefault(); tourEnd(); }
+  else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); if (tourAt < tourSteps().length - 1) tourShow(tourAt + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); tourShow(tourAt - 1); }
+}
+function tourStart() {
+  if ($('#tour')) return;
+  const box = document.createElement('div'); box.id = 'tour'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', '궁니르 기능 소개');
+  box.innerHTML = '<div class="tour-hole" hidden></div><div class="tour-card mid busy"><p>준비하는 중<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
+  document.body.appendChild(box); document.body.classList.add('touring');
+  document.addEventListener('keydown', tourKey, true); addEventListener('resize', tourPlace); addEventListener('scroll', tourPlace, true);
+  tourShow(0);
+}
+function tourEnd() {
+  $('#tour')?.remove(); document.body.classList.remove('touring'); tourAt = -1;
+  document.removeEventListener('keydown', tourKey, true); removeEventListener('resize', tourPlace); removeEventListener('scroll', tourPlace, true);
+  closeDrawer(); tourStudio('projects'); window.scrollTo(0, 0);
+}
+
 /* ---------- 내보내기 · 이동 ---------- */
 function download(name, rows) {
   const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/^[=+@-]/, "'").replace(/"/g, '""') + '"').join(',')).join('\r\n');
@@ -3499,6 +3574,7 @@ async function start() {
   try { await load(); } catch (e) { $('#content').innerHTML = `<div class="notice">이그드라실 DB를 불러오지 못했습니다: ${esc(e?.message || '')}</div>`; return; }
   const [h, id] = location.hash.slice(1).split('/'); page = h && !h.includes('=') ? h : APP === 'gungnir' ? 'studio' : 'home'; render();
   if (id) openRoute(page, id);
+  if (APP === 'gungnir' && h === 'tour' && studioCan) setTimeout(tourStart, 300);     // 주소 끝 #tour 로 시연 모드 바로 시작
 }
 
 $('#search-icon').innerHTML = icon('search'); $('#bell-icon').innerHTML = icon('bell');
