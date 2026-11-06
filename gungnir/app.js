@@ -2172,12 +2172,17 @@ const OL_TPL = {
 const olType = id => (studio.ptypes || []).find(t => t.id === id);
 const olSnap = t => ({id: t.id, name: t.name, layout: t.layout, grp: t.grp, descr: t.descr || '', ...(t.learned && (t.source_refs || []).length ? {from: t.source_refs.map(s => s.title).join(', ').slice(0, 120)} : {})});
 const olImg = x => `page_types/${encodeURIComponent(x.layout)}.jpg`;
-const olDefault = p => p.mode === 'collab' ? 'collab' : 'brand';
-const olFromTpl = k => OL_TPL[k][1].split(' ').map(olType).filter(Boolean).map(olSnap);
+// 11-06 대표님 「레퍼런스 넣고 돌리면 구성도 레퍼런스에서 끌고 오는 게 효과적」 — 고른 레퍼런스 포맷의 페이지 순서(profile.outline · 봇 page_types.sync_from_ref)가 기본 구성
+const olRefs = () => (studio.refs || []).filter(r => r.status === 'ready' && r.profile?.outline?.length);
+const olRefOf = p => { const ids = [p.ref_id, ...(p.data?.deck_style?.refs || [])].filter(Boolean); return ids.map(id => olRefs().find(r => r.id === id)).find(Boolean); };
+const olDefault = p => { const r = olRefOf(p); return r ? 'ref:' + r.id : p.mode === 'collab' ? 'collab' : 'brand'; };
+const olTplName = k => { if (!k.startsWith('ref:')) return OL_TPL[k]?.[0] || ''; const r = olRefs().find(x => 'ref:' + x.id === k); return r ? `레퍼런스 구성 · ${refName(r)}` : '레퍼런스 구성'; };
+const olTplOpts = () => [...olRefs().map(r => ['ref:' + r.id, olTplName('ref:' + r.id)]), ...Object.entries(OL_TPL).map(([k, [n]]) => [k, n])];
+const olFromTpl = k => (k.startsWith('ref:') ? olRefs().find(r => 'ref:' + r.id === k)?.profile.outline || [] : OL_TPL[k][1].split(' ')).map(olType).filter(Boolean).map(olSnap);
 const olOf = p => p.data?.outline?.length ? p.data.outline : olFromTpl(olDefault(p));
 function olSummary(p) {
   const ol = olOf(p), saved = !!p.data?.outline?.length;
-  return `<div class="ol-sum"><div class="ol-sum-h"><b>페이지 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(OL_TPL[olDefault(p)][0]) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
+  return `<div class="ol-sum"><div class="ol-sum-h"><b>페이지 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(olTplName(olDefault(p))) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
     <ol class="ol-strip">${ol.map((x, i) => `<li title="${i + 1}. ${esc(x.name)}"><span style="background-image:url('${olImg(x)}')"></span><small>${i + 1}</small></li>`).join('')}</ol></div>`;
 }
 function olEditor(p) {
@@ -2189,7 +2194,7 @@ function olEditor(p) {
     tpl = p.data?.outline?.length ? (p.data.outline_tpl || '') : olDefault(p);
   D.innerHTML = `<div class="rv-head"><div><h2>제안서 구성 · ${esc(pTitle(p))}</h2><small>${later ? '확정한 컨셉에 맞게 페이지를 넣고 빼거나 순서를 바꿉니다. 저장한 구성 그대로 제안서를 생성합니다.' : '제안 방향에 맞는 기본 구성을 불러와 뼈대를 정합니다. 저장한 구성은 리서치·컨셉 설계·제안서 생성에 반영됩니다.'}</small></div><div class="rv-nav"><button class="button" type="button" id="ol-close">닫기</button><button class="button primary" type="button" id="ol-save">이 구성으로 저장</button></div></div>
   <div class="ol-grid">
-    <section class="ol-panel" aria-label="페이지 구역"><div class="ol-ph"><h3>페이지 구역 <small id="ol-count"></small></h3><label class="ol-tpl"><span>기본 구성</span><select id="ol-tpl" aria-label="기본 구성"><option value="">선택</option>${Object.entries(OL_TPL).map(([k, [n]]) => `<option value="${k}"${k === tpl ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+    <section class="ol-panel" aria-label="페이지 구역"><div class="ol-ph"><h3>페이지 구역 <small id="ol-count"></small></h3><label class="ol-tpl"><span>기본 구성</span><select id="ol-tpl" aria-label="기본 구성"><option value="">선택</option>${olTplOpts().map(([k, n]) => `<option value="${esc(k)}"${k === tpl ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
       <div class="ol-selbar" id="ol-selbar" hidden><span><b id="ol-seln">0</b>개 선택 · 선택한 구역 중 하나를 끌면 한꺼번에 이동합니다</span><span><button type="button" id="ol-seldel" class="danger">선택 삭제</button><button type="button" id="ol-selclear">선택 해제</button></span></div>
       <ol class="ol-list" id="ol-list"></ol><button type="button" class="ol-addend" id="ol-addend">+ 맨 아래에 페이지 구역 추가</button>
       <p class="ol-legend">⠿ 를 끌어 순서 변경 · 체크하면 여러 개를 한꺼번에 이동 · 맨 아래 칸에 놓으면 끝으로 · + 아래에 추가 · − 삭제</p></section>
@@ -2323,7 +2328,7 @@ function olEditor(p) {
   q('#ol-apply').onclick = toggle;
   q('#ol-tpl').onchange = async e => {
     const k = e.target.value; if (!k) return;
-    if (dirty && !(await confirmBox({title: `「${OL_TPL[k][0]}」 구성을 불러올까요?`, body: '지금 편집한 페이지 구역이 이 기본 구성으로 바뀝니다.', ok: '기본 구성 불러오기', cancel: '지금 구성 유지'}))) { e.target.value = tpl; return; }
+    if (dirty && !(await confirmBox({title: `「${olTplName(k)}」 구성을 불러올까요?`, body: '지금 편집한 페이지 구역이 이 기본 구성으로 바뀝니다.', ok: '기본 구성 불러오기', cancel: '지금 구성 유지'}))) { e.target.value = tpl; return; }
     tpl = k; rows = olFromTpl(k).map(x => ({k: ++uid, x})); sel = 0; last = null; touch(); syncCarousel(); draw(); toast('기본 구성을 불러왔습니다. 필요한 페이지를 넣고 빼 주세요.');
   };
   const close = async () => {
