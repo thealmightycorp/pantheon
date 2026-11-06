@@ -1374,6 +1374,39 @@ function metricsPanel() {
   </tbody></table></div></section>`;
 }
 
+/* ---------- AI 비용 (11-06 · sql/2026-11-06_ai_usage) — 봇 cost.py 가 남긴 Claude 사용량 · 기능별·날짜별 (금액은 표준 단가 추정) ---------- */
+const COST_KO = {ipchart: 'IP 차트', fandom: '팬덤 수집', sourcing: '소싱', hdlink: '헤임달 미팅 연동', relscore: '관계 점수', knowledge: '지식 관리',
+  slack: '슬랙 질문·명함', aside: 'Aside 캡처 정리', mailscan: '메일 거래처 수집', '궁니르': '궁니르 기타',
+  partners: '파트너 IP 추천', research: '리서치', concepts: '컨셉 설계', build: '원고 작성', image_plan: '이미지 계획', generate: '이미지 생성',
+  finalize: '제안서 다시 생성', qa: '자동 검수', analyze_reference: '레퍼런스 학습', page_types: '페이지 종류 정리', aside_task: 'Aside 작업'};
+const costName = f => { const [a, b] = String(f || '').split(':'); return b ? '궁니르 · ' + (COST_KO[b] || b) : (COST_KO[a] || a || '기타'); };
+const costUsd = v => '$' + (Number(v) || 0).toFixed(Number(v) >= 100 ? 0 : 2);
+async function loadCost() {
+  const { data, error } = await SB.rpc('pt_ai_cost', {p_days: admin.costDays || 30});
+  admin.cost = error ? {err: error.message} : {rows: data || [], at: new Date()}; if (page === 'admin' && admin.tab === 'cost') render();
+}
+function costPanel() {
+  if (!admin.cost) { setTimeout(loadCost); return '<div class="empty"><p>AI 사용 비용을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; }
+  if (admin.cost.err) return `<div class="notice">AI 사용 비용을 불러오지 못했습니다: ${esc(admin.cost.err)}</div>`;
+  const rows = admin.cost.rows, days = admin.costDays || 30;
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const sum = a => a.reduce((s, r) => s + Number(r.usd || 0), 0);
+  const byDay = {}, byFeat = {};
+  rows.forEach(r => { (byDay[r.day] ||= []).push(r); const k = costName(r.feature); byFeat[k] ||= {usd: 0, calls: 0, searches: 0, models: new Set()}; byFeat[k].usd += Number(r.usd || 0); byFeat[k].calls += Number(r.calls || 0); byFeat[k].searches += Number(r.searches || 0); byFeat[k].models.add(String(r.model || '').replace('claude-', '').replace(/-(\d)-(\d)$/, ' $1.$2')); });
+  const total = sum(rows), dayKeys = Object.keys(byDay).sort().reverse(), nDays = Math.max(1, dayKeys.length);
+  const feats = Object.entries(byFeat).sort((a, b) => b[1].usd - a[1].usd);
+  const top = (list) => { const m = {}; list.forEach(r => { const k = costName(r.feature); m[k] = (m[k] || 0) + Number(r.usd || 0); }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(k)} ${costUsd(v)}`).join(' · '); };
+  return `<div class="notice">Claude API 사용 비용입니다. 표준 단가로 계산한 금액이라 실제 청구액과 조금 다를 수 있습니다. 하루 사용액이 $40을 넘으면 슬랙으로 알림이 갑니다.</div>
+  <section class="panel"><div class="panel-head"><div class="panel-title">AI 비용 <small>최근 ${days}일</small></div><div style="display:flex;gap:8px;flex-wrap:wrap">${[7, 30, 90].map(d => `<button class="button ${d === days ? 'primary' : ''}" type="button" data-cost-days="${d}">${d}일</button>`).join('')}<button class="button" type="button" id="cost-reload">${icon('clock')} 새로고침</button></div></div>
+  <div class="cost-kpi"><div><span>오늘</span><b>${costUsd(sum(byDay[today] || []))}</b></div><div><span>최근 ${days}일 합계</span><b>${costUsd(total)}</b></div><div><span>하루 평균</span><b>${costUsd(total / nDays)}</b></div></div>
+  ${rows.length ? `<h3 class="cost-h">기능별</h3><div class="table-wrap"><table><thead><tr><th>기능</th><th>비용</th><th>비중</th><th>호출</th><th>웹 검색</th><th>모델</th></tr></thead><tbody>
+  ${feats.map(([k, v]) => `<tr><td>${esc(k)}</td><td><b>${costUsd(v.usd)}</b></td><td>${total ? Math.round(v.usd * 100 / total) : 0}%</td><td>${v.calls.toLocaleString()}</td><td>${v.searches.toLocaleString()}</td><td><small>${esc([...v.models].join(', '))}</small></td></tr>`).join('')}
+  </tbody></table></div>
+  <h3 class="cost-h">날짜별</h3><div class="table-wrap"><table><thead><tr><th>날짜</th><th>비용</th><th>많이 쓴 기능</th></tr></thead><tbody>
+  ${dayKeys.map(d => `<tr><td>${esc(dotDate(d))}</td><td><b>${costUsd(sum(byDay[d]))}</b></td><td><small>${top(byDay[d])}</small></td></tr>`).join('')}
+  </tbody></table></div>` : '<div class="empty"><p>아직 기록이 없습니다. 이그드라실 봇이 AI를 사용하면 1분 안에 표시됩니다.</p></div>'}</section>`;
+}
+
 /* ---------- DB 관리 (관리자) — 변경 기록 · 질문 기록 ---------- */
 const TABLE_KO = {pt_contact: '주소록', pt_affiliation: '소속', pt_card: '명함', pt_rel_event: '관계 기록', pt_review_queue: '확인 대기', pt_erasure_request: '개인정보 삭제'};
 const FIELD_KO = {pipeline:'관계 단계', contact_depth:'관계 깊이', depth_event:'깊이 근거', owned_ip:'당사 IP', rel_owner:'관계 담당자', type:'종류', occurred_on:'날짜', summary:'내용', outcome:'반응', status:'상태', received_where:'명함 수령 경로', mobile:'휴대폰', email:'이메일', title:'직함', trigger_type:'등록 경로', contact_id:'사람', entity_id:'회사', via_contact_id:'소개자', name:'이름', en:'영문 이름', kind:'유형', aliases:'별칭', parent_id:'회사 연결', agency:'소속 / 회사', role:'직함', rel:'관계 근거', points:'연락처', facts:'업무 기록', note:'리서치 노트', sides:'관련 계열사', owners:'내부 담당자', img:'프로필 이미지', card_img:'명함 이미지', first_seen:'최초 확인일', last_seen:'최근 확인일', hidden:'숨김', id:'ID'};
@@ -1398,7 +1431,7 @@ const whoName = (id, fallback) => id ? (admin.people[id]?.name || fallback || '�
 function adminView() {
   if (!isAdmin) return '<div class="notice">DB 관리는 DB 관리자만 볼 수 있습니다.</div>';
   if (!admin.changes && !admin.loading && !admin.err) setTimeout(loadAdmin);
-  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['erase', '개인정보 삭제'], ['bot', '궁니르 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
+  const tabs = `<div class="tabs" style="margin-bottom:16px">${[['log', '변경 기록'], ['asks', '질문 기록'], ['quality', '데이터 점검'], ['score', '관계 점수 기준'], ['knowledge', '지식 점검'], ['metrics', '운영 지표'], ['cost', 'AI 비용'], ['erase', '개인정보 삭제'], ['bot', '궁니르 봇']].map(([k, t]) => `<button class="tab ${admin.tab === k ? 'active' : ''}" data-admin-tab="${k}">${t}</button>`).join('')}</div>`;
   if (admin.err) return tabs + `<div class="notice">${esc(admin.err)}</div>`;
   if (!admin.changes) return tabs + '<div class="empty"><p>기록을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>';
   if (admin.tab === 'asks') return tabs + asksPanel();
@@ -1407,6 +1440,7 @@ function adminView() {
   if (admin.tab === 'score') return tabs + scorePanel();
   if (admin.tab === 'knowledge') return tabs + healthPanel();
   if (admin.tab === 'metrics') return tabs + metricsPanel();
+  if (admin.tab === 'cost') return tabs + costPanel();
   if (admin.tab === 'erase') return tabs + erasePanel();
   const people = [...new Set(admin.changes.map(x => x.actor || '(화면 밖)'))];
   const list = admin.changes.filter(x => (!admin.who || (x.actor || '(화면 밖)') === admin.who) && (!admin.q || String(x.entity_name).toLowerCase().includes(admin.q.toLowerCase()))).slice(0, 300);
@@ -1549,6 +1583,8 @@ function bindAdmin() {
     if (error) return toast('복원하지 못했습니다: ' + error.message); admin.score = null; await loadRel(); render(); toast('이전 기준으로 복원했습니다.');
   });
   $$('[data-admin-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.adminTab; render(); });
+  $$('[data-cost-days]').forEach(b => b.onclick = () => { admin.costDays = +b.dataset.costDays; admin.cost = null; render(); });
+  const costRe = $('#cost-reload'); if (costRe) costRe.onclick = () => { admin.cost = null; render(); };
   $('#erase-add')?.addEventListener('click', eraseAdd);
   $$('[data-erase-cancel]').forEach(b => b.onclick = async () => {
     const ok = await confirmBox({title: '접수를 취소할까요?', body: '잘못 접수한 요청만 취소해 주세요. 연락처는 그대로 유지됩니다.', ok: '접수 취소', cancel: '닫기'});
@@ -3462,7 +3498,7 @@ async function exportCSV() {
   download(page === 'contacts' ? 'pantheon-contacts.csv' : 'pantheon-entities.csv', [['이름', '영문 이름', '유형', '소속 / 회사 연결', '직함', '관계 근거', '등록된 담당자', '내부 담당자', '연락처(업무)'], ...arr.map(e => [e.name, e.en, e.type, agencyOf(e), e.role, e.rel, contactsOf(e).map(c => c.name).join(' / '), e.owners.join(' / '), e.points.join(' / ')])]);
 }
 function go(p) { page = p; filter = '전체'; entState = '전체'; query = ''; $('#global-search').value = ''; try { history.replaceState(null, '', '#' + p); } catch {} render(); window.scrollTo(0, 0); }
-/* ---------- IP 차트 (10-31) — 요즘 뜨는 신규 IP · 전체 IP 순위 (sql/012 · 봇 ipchart.py 가 하루 4번 갱신) ---------- */
+/* ---------- IP 차트 (10-31) — 요즘 뜨는 신규 IP · 전체 IP 순위 (sql/012 · 봇 ipchart.py 가 매일 08시 갱신 — 11-06 하루 4번에서 줄임) ---------- */
 const IPK = {kpop: 'K-POP', character: '캐릭터', animation: '애니메이션', movie: '영화', ott: 'OTT', influencer: '인플루언서', other: '기타'};
 const IPP = [['rt', '실시간', '전일 대비'], ['day', '일간', '전일 대비'], ['week', '주간', '전주 대비'], ['month', '월간', '전월 대비'], ['year', '연간', '전년 대비'], ['range', '기간 설정', '직전 같은 기간 대비']];
 const ipc = {chart: 'new', period: 'rt', kind: 'all', from: '', to: '', rows: null, ips: {}, run: null, err: '', key: '', poll: null, open: null, openChart: ''};
@@ -3476,7 +3512,7 @@ function ipRange() {
 const IP_RUN = 'id,at,status,progress,step,done_at';
 // 순위 기준 — 봇 ipchart.py 의 score()·SEGS·POOL_HOURS·DECAY 와 같은 내용 (바꾸면 둘 다)
 const IP_HOW = `<details class="ipc-how"><summary>순위 산정 기준</summary><div class="ipc-how-body">
-  <h4>수집 대상</h4><p>하루 4회(오전 2·8시, 오후 2·8시) 웹에서 최근 7일 전후의 기사·음원 차트·OTT 순위·SNS 화제·조회수를 검색해 11개 분야(K-POP 신인 보이그룹·걸그룹 · K-POP · 국내 캐릭터 · 해외·게임 캐릭터 · 애니메이션 · 영화 · 드라마 · 예능 · 유튜버 · SNS 크리에이터)에서 IP 330여 개를 수집합니다. 최근 3일 이내에 수집된 IP도 후보로 유지하며, 이번 갱신에 다시 수집되지 않으면 갱신마다 점수가 15%씩 감소합니다.</p>
+  <h4>수집 대상</h4><p>매일 오전 8시에 웹에서 최근 7일 전후의 기사·음원 차트·OTT 순위·SNS 화제·조회수를 검색해 11개 분야(K-POP 신인 보이그룹·걸그룹 · K-POP · 국내 캐릭터 · 해외·게임 캐릭터 · 애니메이션 · 영화 · 드라마 · 예능 · 유튜버 · SNS 크리에이터)에서 IP 330여 개를 수집합니다. 최근 3일 이내에 수집된 IP도 후보로 유지하며, 이번 갱신에 다시 수집되지 않으면 갱신마다 점수가 15%씩 감소합니다.</p>
   <h4>점수 (100점 만점)</h4><table class="ipc-how-t"><thead><tr><th>항목</th><th>뜻</th><th>신규 IP</th><th>전체 IP</th></tr></thead><tbody>
   <tr><td>상승 속도</td><td>최근 7일간의 화제 상승 속도 (급상승할수록 높음)</td><td>40%</td><td>25%</td></tr>
   <tr><td>화제 크기</td><td>현재 기사·차트·SNS에서의 언급 규모</td><td>25%</td><td>50%</td></tr>
