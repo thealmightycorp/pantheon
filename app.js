@@ -7,6 +7,17 @@
    · 이번 범위 = 10/21 회의 지시(엔티티 DB·등록·명함·회사 연결·연락) — 모니터링·딜은 숨김 */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// 판테온 지도에서 바로 들어오는 일회용 로그인 링크 (11-07 홍석진 대표님) — 화면 주소(#chart)와 로그인 정보(#access_token=…)가 「#chart#access_token=…」처럼 겹쳐 오면
+// 로그인 정보만 주소에 남겨 supabase 가 읽게 하고, 화면은 로그인 뒤에 연다. 지도는 ?go=<화면> 으로 보내도 된다(이쪽이 확실함)
+const HANDOFF = (() => {
+  const q = new URLSearchParams(location.search), h = location.hash || '';
+  let go = q.get('go') || '';
+  const m = h.match(/^#([^#=&]*)[#&]((?:.*&)?(?:access_token|error|error_code)=.*)$/);
+  if (m) { go = go || m[1]; try { history.replaceState(null, '', location.pathname + location.search + '#' + m[2]); } catch {} }
+  const on = q.has('go') || !!m;
+  if (q.has('go')) { q.delete('go'); const s = q.toString(); try { history.replaceState(null, '', location.pathname + (s ? '?' + s : '') + location.hash); } catch {} }
+  return {on, go: go.replace(/[^\w\-/]/g, '')};
+})();
 // 비밀번호 재설정 메일 링크로 들어왔는지 — supabase 가 주소를 읽어 지우기 전에 본다 (헤임달과 같은 방식)
 let RECOVERY = /type=recovery/.test(location.hash || '');
 // 이미 쓴·만료된 메일 링크로 들어오면 주소에 error_code 만 붙어 온다 — 아무 안내 없이 로그인 화면만 뜨던 것 (11-03 정원하 대표님이 오전 메일 링크를 다시 누르심)
@@ -14,7 +25,7 @@ let RECOVERY = /type=recovery/.test(location.hash || '');
 const AUTH_Q = decodeURIComponent((location.hash || '') + (location.search || '')).replace(/\+/g, ' ');
 const SLACK_ERR = sessionStorage.getItem('pt_slack') && /error/.test(AUTH_Q) ? (/saving new user/i.test(AUTH_Q) ? '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.' : /access_denied/.test(AUTH_Q) ? '슬랙 로그인을 취소했습니다.' : '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.') : '';
 if (SLACK_ERR) { sessionStorage.removeItem('pt_slack'); try { history.replaceState(null, '', location.pathname); } catch {} }
-const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? '이미 사용했거나 만료된 링크입니다. 비밀번호 찾기를 다시 진행하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.' : '';
+const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? (HANDOFF.on ? '이미 사용했거나 만료된 로그인 링크입니다. 판테온 지도에서 다시 눌러 주세요.' : '이미 사용했거나 만료된 링크입니다. 비밀번호 찾기를 다시 진행하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.') : '';
 if (LINK_ERR) try { history.replaceState(null, '', location.pathname); } catch {}
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -4022,6 +4033,8 @@ async function start() {
     $('.top-avatar').innerHTML = img; const a = $('#profile .avatar'); if (a) { a.innerHTML = img; a.style.overflow = 'hidden'; }
   });
   try { await load(); } catch (e) { $('#content').innerHTML = `<div class="notice">이그드라실 DB를 불러오지 못했습니다: ${esc(e?.message || '')}</div>`; return; }
+  if (HANDOFF.go) try { history.replaceState(null, '', location.pathname + location.search + '#' + HANDOFF.go); } catch {}     // 지도에서 고른 화면
+  HANDOFF.go = '';
   const [h, id] = location.hash.slice(1).split('/'); page = h && !h.includes('=') ? h : APP === 'gungnir' ? 'studio' : 'home'; render();
   if (id) openRoute(page, id);
   if (APP === 'gungnir' && h === 'tour' && studioCan) setTimeout(tourStart, 300);     // 주소 끝 #tour 로 시연 모드 바로 시작
