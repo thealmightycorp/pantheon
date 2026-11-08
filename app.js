@@ -52,7 +52,7 @@ const BRAND = APP === 'gungnir' ? 'GUNGNIR' : 'YGGDRASIL';
 const GUNGNIR_URL = 'https://thealmightycorp.github.io/pantheon/gungnir/', YGG_URL = 'https://thealmightycorp.github.io/pantheon/';
 // 11-02 홍석진 대표님: 이그드라실은 엔티티 DB 축적·관리만 · 콜라보 점수·IP 차트(소싱)는 궁니르에서
 const menus = APP === 'gungnir' ? [['studio','제안서 스튜디오'],['chart','소싱 · IP 차트'],['manual','사용 매뉴얼']]
-  : [['home','대시보드'],['contacts','주소록'],['entities','엔티티'],['graph','관계 그래프'],['review','확인 대기'],['admin','DB 관리'],['manual','사용 매뉴얼']];
+  : [['home','대시보드'],['contacts','주소록'],['cards','명함 올리기'],['entities','엔티티'],['graph','관계 그래프'],['review','확인 대기'],['admin','DB 관리'],['manual','사용 매뉴얼']];
 const navMenus = () => menus.filter(m => (m[0] !== 'admin' || isAdmin) && (m[0] !== 'studio' || studioCan) && (m[0] !== 'chart' || ipcCan));
 const byId = id => all.find(e => e.id === id);
 const isContact = e => e.type === '거래처 담당자';
@@ -164,7 +164,7 @@ async function save(id, patch, isNew = false) {
   return e;
 }
 async function load() {
-  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), loadRel().catch(() => {})]);
+  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), loadRel().catch(() => {}), APP === 'ygg' ? loadAcc().catch(() => {}) : null]);
   if (error) throw error;
   all = data.map(fromRow);
 }
@@ -196,7 +196,7 @@ const match = e => (filter === '전체' || e.type === filter) && stateOk(e) && h
 // 주소록 (PRD R-09) — 사람 단위로 현 소속 · 휴대폰 · 이메일 · 회사 관계 단계 · 마지막 접촉 · 담당 직원 (칸은 pt_directory)
 function contactTable(arr) {
   const cell = (v, link) => v ? `${esc(v)} ${link}` : '—';
-  return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>현 소속</th><th>직함</th><th>휴대폰</th><th>이메일</th><th>관계 단계</th><th>마지막 접촉</th><th>담당 직원</th></tr></thead><tbody>${arr.map(c => { const d = rel.dir[c.id] || {}, mob = d.mobile || '', mail = d.email || (c.points.find(p => /@/.test(p)) || ''); return `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름"><b>${esc(c.name)}</b>${c.cardImg ? ' <span class="pill muted" title="명함 있음">명함</span>' : ''}</td><td data-label="현 소속">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="휴대폰">${cell(mob, mob ? contactLink(mob) : '')}</td><td data-label="이메일">${cell(mail, mail ? contactLink(mail) : '')}</td><td data-label="관계 단계">${d.pipeline ? stagePill(d.pipeline) : '—'}</td><td data-label="마지막 접촉">${d.last_touch ? touchText(d.last_touch) : '—'}</td><td data-label="담당 직원">${esc(c.owners[0] || registrar(c) || '—')}</td></tr>`; }).join('') || `<tr><td colspan="8"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="ct"><thead><tr><th>이름</th><th>현 소속</th><th>직함</th><th>휴대폰</th><th>이메일</th><th>관계 단계</th><th>마지막 접촉</th><th>담당 직원</th></tr></thead><tbody>${arr.map(c => { const d = rel.dir[c.id] || {}, mob = d.mobile || '', mail = d.email || (c.points.find(p => /@/.test(p)) || ''), lk = !d.can_see && d.n_channels ? '<span class="lock-cell" title="열람 승인 후 볼 수 있습니다">🔒</span>' : '—'; return `<tr class="clickable" data-detail="${c.id}" tabindex="0"><td data-label="이름"><b>${esc(c.name)}</b>${d.has_card ? ' <span class="pill muted" title="명함 있음">명함</span>' : ''}</td><td data-label="현 소속">${c.parentId ? `<button type="button" class="pill good ref-pill" data-open-ent="${c.parentId}">${esc(agencyOf(c))}</button>` : esc(c.agencyText || '회사 미연결')}</td><td data-label="직함">${esc(c.role || '—')}</td><td data-label="휴대폰">${mob ? cell(mob, contactLink(mob)) : lk}</td><td data-label="이메일">${mail ? cell(mail, contactLink(mail)) : lk}</td><td data-label="관계 단계">${d.pipeline ? stagePill(d.pipeline) : '—'}</td><td data-label="마지막 접촉">${d.last_touch ? touchText(d.last_touch) : '—'}</td><td data-label="담당 직원">${esc(c.owners[0] || registrar(c) || '—')}</td></tr>`; }).join('') || `<tr><td colspan="8"><div class="empty">${NOT_FOUND}</div></td></tr>`}</tbody></table></div>`;
 }
 
 // 통합 검색 (10-26) — 어느 메뉴에서든 엔티티·거래처 담당자 전체에서 찾는다. Enter: 하나면 바로 상세
@@ -216,7 +216,7 @@ function render() {
   $('#nav').innerHTML = navMenus().map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
-  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾고 바로 연락할 수 있습니다.'], chart:['소싱 · IP 차트','인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. IP 차트는 하루 4회 갱신됩니다.'], graph:['관계 그래프','회사·IP·담당자 간 연결 관계를 그래프로 확인합니다. 항목을 클릭하면 연결된 대상이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 이전되었습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 이그드라실 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 결과가 하나이면 Enter 키로 상세 화면을 바로 열 수 있습니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
+  const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾습니다. 연락처는 직접 올린 분과 승인권자가 보고, 다른 분은 열람 요청으로 볼 수 있습니다.'], cards:['명함 올리기','받은 명함을 여러 장 한 번에 올리고, 한 장씩 보며 어디서 만났는지 메모를 남깁니다.'], chart:['소싱 · IP 차트','인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. IP 차트는 하루 4회 갱신됩니다.'], graph:['관계 그래프','회사·IP·담당자 간 연결 관계를 그래프로 확인합니다. 항목을 클릭하면 연결된 대상이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 이전되었습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 이그드라실 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 결과가 하나이면 Enter 키로 상세 화면을 바로 열 수 있습니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
   document.title = title[0] + ' · ' + BRAND;
@@ -229,11 +229,12 @@ function render() {
   let html = '';
   if (page === 'moved') { const to = GUNGNIR_URL + location.hash; html = `<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 궁니르로 이전되었습니다.</b></p><p>프로젝트·이미지·레퍼런스는 그대로 유지되며, 같은 헤임달 계정으로 로그인할 수 있습니다.</p><p><a class="button primary" href="${esc(to)}">궁니르에서 열기</a></p></div></section>`; }
   if (page === 'review') html = reviewView();
+  if (page === 'cards') html = cardsView();
   if (page === 'graph') html = graphView();
   if (page === 'manual') html = manualView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
   if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
-  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력하고, 명함 이미지와 수령 경로도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
+  if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력하고, 명함 이미지와 수령 경로도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="cards-btn">명함 여러 장 올리기</button><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
   if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 사용할 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
   if (page === 'chart') html = srcView();
@@ -318,13 +319,11 @@ function openDetail(id, keep) {
 }
 function openContact(c, keep) {
   const org = c.parentId && byId(c.parentId), card = imgSrc(c.cardImg);
-  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${c.id}">그래프에서 보기</button>` : ''}${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div>${pointsBlock(c) || '<p>기록된 업무 연락처가 없습니다.</p>'}</div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>명함</h3>${c.cardImg ? (card ? `<button type="button" id="card-view" style="border:0;padding:0;background:none;width:100%"><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border:1px solid #e4eae4;border-radius:7px;display:block"></button><p>클릭하면 확대해서 볼 수 있습니다.</p>` : '<p>명함을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>') : '<p>등록된 명함이 없습니다.</p>'}<label class="button" style="display:inline-flex;margin-top:6px;cursor:pointer">${c.cardImg ? '명함 변경' : '명함 이미지 업로드'}<input id="card-replace" type="file" accept="image/*" hidden></label></div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(c)}`, keep, 'CONTACT');
-  bindNote(c); bindAdminTools(c); loadOwnerHistory(c.id); bindRel(byId(c.parentId) || c, c); loadCard(c);
+  showDrawer(`<span class="entity-avatar">${esc(c.name.slice(0, 2))}</span><h2>${esc(c.name)}</h2><span class="detail-sub">${esc(c.role ? c.role + ' · ' : '')}거래처 담당자</span><div class="drawer-actions"><button class="button" id="edit-contact">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${c.id}">그래프에서 보기</button>` : ''}${adminTools(c)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>회사 연결</span><b>${org ? `<button class="ref" type="button" data-open="${org.id}">${esc(org.name)}</button> <button class="text-btn" type="button" id="link-company">변경</button>` : `<button class="button" type="button" id="link-company">${icon('link')} 회사 미연결 · 연결하기</button>`}</b></div><div class="detail-row"><span>관계 근거</span><b>${c.rel ? esc(c.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(c.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(c) || '—')}</b></div><div id="priv-box">${privHtml(c)}</div></div>${APP === 'ygg' ? personBlock(c) + timelineBlock(evOfContact(c.id), true) : ''}<div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>`, keep, 'CONTACT');
+  bindAdminTools(c); loadOwnerHistory(c.id); bindRel(byId(c.parentId) || c, c); bindPriv(c); if (!keep || !priv[c.id]) loadPriv(c);
   $('#card-where')?.addEventListener('click', () => cardWhereModal(c));
   $('#link-company').onclick = () => linkModal(c);
   $('#edit-contact').onclick = () => contactEditModal(c);
-  $('#card-view')?.addEventListener('click', () => modal(`<h2>${esc(c.name)} 명함</h2><img src="${card}" alt="${esc(c.name)} 명함" style="width:100%;border-radius:7px;margin-top:10px"><div class="modal-actions"><button class="button primary" data-cancel>닫기</button></div>`));
-  $('#card-replace').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const r = await resize(f, 1600, .82); const path = await upload(r.blob, 'cards'); if (await save(c.id, {cardImg: path})) { openDetail(c.id); toast('명함 이미지를 저장했습니다.'); } } catch { toast('이미지를 업로드하지 못했습니다.'); } };
 }
 
 /* ---------- 관계 레이어 (이그드라실 PRD v2 CL-2 · 11-01 · sql/014) ----------
@@ -495,7 +494,7 @@ function cardWhereModal(c) {
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
 const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 인식 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별칭 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
-const reviewCount = () => rel.review.length + hints().length;
+const reviewCount = () => rel.review.length + hints().length + (acc.approver ? pendingReqs().length : 0);
 function ipHitSelect(r) {
   const P = r.payload || {}, pool = entities().filter(e => e.type === 'IP·유명인' && !e.hidden);
   const hits = [...new Set([...(r.target_id && byId(r.target_id) ? [byId(r.target_id)] : []), ...nameHits([P.name, P.name_en, r.title], pool)])];
@@ -514,7 +513,7 @@ function reviewView() {
         <ul class="rq-mail-people">${(P(r).people || []).map((x, i) => `<li><label><input type="checkbox" data-mail-p="${r.id}|${i}" checked> <input class="rq-mail-nm" data-mail-nm="${r.id}|${i}" value="${esc(x.name || '')}" placeholder="이름" aria-label="이름"></label><span>${esc(x.email)}</span><small>${esc(x.count)}통 · ${esc(dotDate(x.last))} · ${esc((x.staff || []).join(', '))}</small></li>`).join('')}</ul></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-mail-go="${r.id}">선택한 담당자 등록</button></span></li>`
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
-  return `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인 또는 제외한 항목은 목록에서 사라지고 이력에 기록됩니다.</div>
+  return accPanel() + `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인 또는 제외한 항목은 목록에서 사라지고 이력에 기록됩니다.</div>
     <section class="panel"><div class="panel-head"><div class="panel-title">관계 단계 승격 후보 <small>${hs.length}건</small></div></div>${hs.length ? `<ul class="rq-list">${hs.map(({e, h}) => `<li class="rq-item"><div><b>${esc(e.name)}</b> ${stagePill(e.pipeline)} → <span class="rl-stage s-${h.s}">${h.s} · ${STAGE[h.s]}</span><small>근거: ${esc(dotDate(h.ev.occurred_on))} ${esc(EV[h.ev.type])}${h.ev.summary ? ' · ' + esc(h.ev.summary.slice(0, 60)) : ''}</small></div><span class="rq-acts"><button class="button" type="button" data-detail="${e.id}">상세</button><button class="button primary" type="button" data-rq-stage="${e.id}|${h.s}|${h.ev.id}">단계 상향</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>승격 후보가 없습니다. 접촉 기록이 누적되면 시스템이 후보를 찾습니다.</p></div>'}</section>
     <section class="panel" style="margin-top:16px"><div class="panel-head"><div class="panel-title">확인할 항목 <small>${rel.review.length}건</small></div></div>${Object.keys(byKind).length > 1 ? `<div class="rq-kinds" role="group" aria-label="종류별로 보기"><button type="button" class="tab ${!byKind[rqKind] ? 'active' : ''}" data-rq-kind="" aria-pressed="${!byKind[rqKind]}">전체 ${rel.review.length}</button>${Object.keys(byKind).map(k => `<button type="button" class="tab ${rqKind === k ? 'active' : ''}" data-rq-kind="${k}" aria-pressed="${rqKind === k}">${esc(RQ[k] || k)} ${byKind[k].length}</button>`).join('')}</div>` : ''}${rel.review.length ? Object.keys(byKind).filter(k => !byKind[rqKind] || k === rqKind).map(k => `<h4 class="rq-kind">${esc(RQ[k] || k)}</h4><ul class="rq-list">${byKind[k].map(card).join('')}</ul>`).join('') : '<div class="empty"><p>확인할 항목이 없습니다. 미팅·리서치·IP 차트에서 나온 후보가 생기면 이곳에 표시됩니다.</p></div>'}</section>`;
 }
@@ -670,9 +669,19 @@ function linkModal(c) {
   $('#link-form').onsubmit = ev => { ev.preventDefault(); const org = byId($('#link-select').value); if (!org) { $('#link-error').textContent = '연결할 회사를 선택해 주세요.'; return; } go(org); };
 }
 function contactEditModal(c) {
-  modal(`<form id="ce-form"><h2>연락처 수정</h2><p>저장한 내용은 전 직원에게 공유되며, 변경 이력이 기록됩니다.</p><label>이름 *<input id="ce-name" required maxlength="50" value="${esc(c.name)}"></label><label>직함 · 부서<input id="ce-role" maxlength="100" value="${esc(c.role)}"></label><label>연락처 (한 줄에 하나씩 입력)<textarea id="ce-points" rows="5" style="display:block;width:100%;border:1px solid #dde4d9;border-radius:5px;padding:10px;margin-top:8px;font:inherit">${esc(c.points.join('\n'))}</textarea></label><label>관계 근거<input id="ce-rel" maxlength="200" value="${esc(c.rel)}"></label><div class="field"><span class="flabel">내부 담당자</span><div id="ce-owners"></div></div><div id="ce-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">변경 저장</button></div></form>`);
+  // 11-08 연락처 잠금: 연락처 칸은 볼 수 있는 분(승인권자·승인받은 분 · 직접 올린 분은 자기 값)만 고친다 — pt_contact_set_channels
+  const p = priv[c.id] || {}, own = (p.cards || []).find(k => k.mine)?.fields || {}, ch = p.can_see ? (p.channels || {}) : {mobile: own.mobile, office_phone: own.phone || own.office_phone, email: own.email, address: own.address, web: own.web};
+  const canCh = p.can_see || (p.cards || []).some(k => k.mine);
+  const CHF = [['mobile', '휴대폰'], ['office_phone', '전화'], ['email', '이메일'], ['address', '주소'], ['web', '웹사이트']];
+  modal(`<form id="ce-form"><h2>연락처 수정</h2><p>이름·직함·관계 근거는 전 직원에게 공유되며 변경 이력이 기록됩니다.</p><label>이름 *<input id="ce-name" required maxlength="50" value="${esc(c.name)}"></label><label>직함 · 부서<input id="ce-role" maxlength="100" value="${esc(c.role)}"></label>${canCh ? CHF.map(([k, l]) => `<label>${l}<input data-ce-ch="${k}" maxlength="200" value="${esc(ch[k] || '')}"></label>`).join('') + `<p class="lock-note">${p.can_see ? '연락처는 승인권자와 승인받은 분만 봅니다.' : '직접 올린 명함의 연락처를 고칩니다.'}</p>` : '<p class="lock-note">🔒 연락처는 열람 승인을 받은 뒤 고칠 수 있습니다.</p>'}<label>관계 근거<input id="ce-rel" maxlength="200" value="${esc(c.rel)}"></label><div class="field"><span class="flabel">내부 담당자</span><div id="ce-owners"></div></div><div id="ce-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">변경 저장</button></div></form>`);
   const owners = ownersInput($('#ce-owners'), c.owners);
-  $('#ce-form').onsubmit = async ev => { ev.preventDefault(); const name = $('#ce-name').value.trim(); if (!name) { $('#ce-error').textContent = '이름을 입력해 주세요.'; return; } if (!await save(c.id, {name, role: $('#ce-role').value.trim(), points: $('#ce-points').value.split('\n').map(s => s.trim()).filter(Boolean), rel: $('#ce-rel').value.trim(), owners: owners.value()})) return; $('#modal').close(); render(); openDetail(c.id); toast('연락처를 수정했습니다.'); };
+  $('#ce-form').onsubmit = async ev => {
+    ev.preventDefault(); const name = $('#ce-name').value.trim(); if (!name) { $('#ce-error').textContent = '이름을 입력해 주세요.'; return; }
+    if (!await save(c.id, {name, role: $('#ce-role').value.trim(), rel: $('#ce-rel').value.trim(), owners: owners.value()})) return;
+    if (canCh) { const f = {}; $$('[data-ce-ch]').forEach(i => { if ((ch[i.dataset.ceCh] || '') !== i.value.trim()) f[i.dataset.ceCh] = i.value.trim(); });
+      if (Object.keys(f).length) { if (f.office_phone !== undefined) f.phone = f.office_phone; const { error } = await SB.rpc('pt_contact_set_channels', {p_contact: c.id, f}); if (error) return toast('연락처를 저장하지 못했습니다: ' + error.message); delete priv[c.id]; } }
+    $('#modal').close(); render(); openDetail(c.id); toast('연락처를 수정했습니다.');
+  };
 }
 function entityModal(e) {
   modal(`<form id="entity-form"><h2>${e ? '엔티티 수정' : '새 엔티티 등록'}</h2><p>저장한 내용은 전 직원에게 공유되며, 변경 이력이 기록됩니다.</p><div class="img-field"><span id="img-preview">${avatar(e || {initial: '+', color: 'gray'})}</span><div><label for="entity-img" style="margin-top:0">프로필 이미지</label><input id="entity-img" type="file" accept="image/png,image/jpeg,image/webp"><button class="text-btn" type="button" id="img-clear" ${e?.img ? '' : 'hidden'}>이미지 삭제</button><small><b>권장 크기: 정사각형 500×500px 이상</b> (PNG·JPG, 15MB 이하)<br>로고 또는 인물 사진을 사용해 주세요. 정사각형이 아니면 가운데 부분을 잘라 240×240px로 저장합니다.</small></div></div><label>한글 이름 *<input id="entity-name" required maxlength="50" value="${esc(e?.name || '')}" placeholder="예: 분데스리가"></label><label>영문 이름<input id="entity-en" maxlength="80" value="${esc(e?.en || '')}" placeholder="예: BUNDESLIGA"></label><label>유형<select id="entity-type">${TYPES.map(t => `<option ${e?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label><label>별칭 <input id="entity-alias" maxlength="200" value="${esc(e?.aliases.join(', ') || '')}" placeholder="쉼표로 구분해 주세요"></label><label>관계 근거 <input id="entity-rel" maxlength="200" value="${esc(e?.rel || '')}" placeholder="예: 골포스트 공식 미디어 파트너"></label><div class="field"><span class="flabel">내부 담당자</span><div id="entity-owners"></div></div><label id="parent-field">소속 회사<select id="entity-parent"><option value="">(없음)</option>${all.filter(x => HOLDERS.includes(x.type) && !x.hidden && x.id !== e?.id).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(x => `<option value="${x.id}" ${x.id === e?.parentId ? 'selected' : ''}>${esc(x.name)}${x.en ? ' · ' + esc(x.en) : ''}</option>`).join('')}</select></label><div class="field" id="kids-field"><span class="flabel">운영 브랜드 · 연결 엔티티</span><div id="entity-kids"></div></div><div id="form-error" style="color:#ba775e;margin-top:15px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${e ? '변경 저장' : '엔티티 등록'}</button></div></form>`);
@@ -1129,7 +1138,7 @@ function rememberModal() {
 }
 function contactModal(pre = {}) {
   const F = [['c-name','이름 *','명함에서 읽은 이름'],['c-title','직함 · 부서',''],['c-company','회사명 (명함 표기)',''],['c-email','이메일',''],['c-phone','사무실 전화',''],['c-mobile','휴대전화',''],['c-address','주소',''],['c-web','웹사이트','']];
-  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 수령 경로<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 입력하지 않아도 됩니다"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용하며, 등록한 내용은 전 직원에게 공유됩니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
+  modal(`<form id="contact-form"><h2>연락처 등록</h2><p>명함 사진을 업로드하면 이그드라실 봇이 내용을 자동으로 입력합니다(약 20~40초). 저장 전에 내용을 확인해 주세요. 명함 이미지도 함께 저장됩니다.</p><label>명함 이미지<input id="c-card" type="file" accept="image/*" capture="environment"></label><div id="c-preview" hidden><img id="c-img" alt="업로드한 명함" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #e4eae4;border-radius:7px;margin-top:10px;background:#fafbfa"></div><p id="c-status" class="ask-note" role="status" style="margin-top:8px"></p>${F.map(([id, l, ph]) => `<label>${l}<input id="${id}" maxlength="200" ${id === 'c-name' ? 'required' : ''} placeholder="${ph}"></label>`).join('')}<label>회사 연결<select id="c-org"><option value="">연결 안 함</option><option value="__new">새 회사로 등록 (입력한 회사명으로)</option>${companyOptions('')}</select></label><label>명함 수령 경로<input id="c-where" maxlength="200" placeholder="예: 10/22 KREAM 미팅 · 모르면 입력하지 않아도 됩니다"></label><label>메모<input id="c-memo" maxlength="300" placeholder="예: 다음 주 샘플 전달 예정"></label><p class="rl-note">연락처는 업무 목적으로만 사용합니다. 이름·회사·직함은 전 직원에게 공유되고, 연락처·명함·메모는 등록한 분과 승인권자만 봅니다. 여러 장은 「명함 올리기」에서 한 번에 올릴 수 있습니다.</p><div id="c-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit" id="c-save">연락처 등록</button></div></form>`);
   if (pre.name) { [['c-name', pre.name], ['c-title', pre.role], ['c-company', pre.company], ['c-where', pre.where]].forEach(([id, v]) => { if (v) $('#' + id).value = v; }); const m = (pre.orgId && byId(pre.orgId)) || (pre.company && matchCompany(pre.company)); if (m) $('#c-org').value = m.id; else if (pre.company) $('#c-org').value = '__new'; }
   let cardPath = '';
   const setStatus = s => $('#c-status').textContent = s;
@@ -1159,7 +1168,7 @@ function contactModal(pre = {}) {
     ev.preventDefault(); const g = id => $('#' + id).value.trim(); const name = g('c-name'), email = g('c-email');
     if (!name) { $('#c-error').textContent = '이름을 입력해 주세요.'; return; }
     let orgId = $('#c-org').value, org = orgId && orgId !== '__new' ? byId(orgId) : null;
-    const dup = contacts().find(x => (email && x.points.some(p => p.toLowerCase() === email.toLowerCase())) || (x.name === name && (!org || x.parentId === org.id)));
+    const dupHit = (await cuMatch({name, email, mobile: g('c-mobile'), company: g('c-company'), org: org?.id || null}))[0], dup = dupHit && byId(dupHit.contact_id);
     if (dup && !$('#contact-form').dataset.dupOk) { $('#c-error').innerHTML = `동일 인물로 보이는 연락처가 이미 있습니다: <b>${esc(dup.name)}</b>${agencyOf(dup) ? ' (' + esc(agencyOf(dup)) + ')' : ''}. 그래도 등록하려면 「연락처 등록」을 한 번 더 눌러 주세요.`; $('#contact-form').dataset.dupOk = '1'; return; }
     if (cardPath && !g('c-where') && !$('#contact-form').dataset.whereOk) {
       const v = await confirmBox({title: '명함을 수령 경로을 적을까요?', body: '어디서 받았는지 남겨 두면 나중에 관계를 확인하기 쉽습니다. 모르면 그대로 저장해도 됩니다.', ok: '모름으로 저장', cancel: '수령 경로 적기'});
@@ -3924,7 +3933,8 @@ async function openIp(id, keep) {
 function bindContent() {
   if (page === 'graph') graphMount();
   if (page === 'manual') manualMount();
-  $('#remember-btn')?.addEventListener('click', rememberModal);
+  $('#remember-btn')?.addEventListener('click', () => { cu.tab = 'remember'; cu.step = 'pick'; go('cards'); });
+  $('#cards-btn')?.addEventListener('click', () => { cu.tab = 'photo'; go('cards'); });
   $$('[data-page]').forEach(b => b.onclick = ev => { ev.preventDefault(); go(b.dataset.page); });
   $$('[data-state]').forEach(b => b.onclick = () => { entState = b.dataset.state; render(); });
   $$('[data-state-go]').forEach(b => b.onclick = () => { go('entities'); entState = b.dataset.stateGo; render(); });
@@ -3946,7 +3956,357 @@ function bindContent() {
   $$('[data-stat]').forEach(b => { const open = () => { const v = b.dataset.stat; if (v === 'contacts') return go('contacts'); go('entities'); if (v === LINKED) entState = '담당자 있음'; else filter = v; render(); }; b.onclick = open; b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } }; });
   $$('[data-detail]').forEach(b => { b.onclick = () => openDetail(b.dataset.detail); b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(b.dataset.detail); } }; });
   $('#admin-export')?.addEventListener('click', exportCSV);
-  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'review') bindReview(); if (page === 'studio') bindStudio(); if (page === 'chart') bindSrc();
+  bindAsk(); if (page === 'admin') bindAdmin(); if (page === 'review') { bindReview(); bindAcc(); } if (page === 'cards') bindCards(); if (page === 'studio') bindStudio(); if (page === 'chart') bindSrc();
+}
+
+/* ---------- 명함 올리기 · 연락처 잠금 · 열람 승인 (11-08 · 홍석진 대표님 「이그드라실 명함 올리기 PRD v0.2」 · sql/032) ----------
+   누가 누구를 아는지 · 이름·회사·직함은 전 구성원 공개 / 휴대폰·전화·이메일·주소·명함 사진·메모는 올린 사람(자기 것만) · 승인권자 · 승인받은 사람(90일)만.
+   사진 여러 장 → 봇이 6장씩 함께 읽음(pt_ask ocr) → 한 장씩 보며 메모 / 바로 입력 → pt_card_save(서버가 사람·회사·명함·메모·아는 사람을 한 번에) */
+icons.cards = '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8.5" cy="12" r="2"/><path d="M13 10.5h5 M13 13.5h3.5"/>';
+const CU_MAX = 50;
+const CH_KO = {mobile: '휴대폰', office_phone: '전화', fax: '팩스', email: '이메일', address: '주소', web: '웹사이트'};
+const CF_FIELDS = [['name', '이름', 1], ['name_en', '영문 이름'], ['company', '회사'], ['dept', '부서'], ['title', '직함'], ['mobile', '휴대폰'], ['phone', '전화'], ['email', '이메일'], ['fax', '팩스'], ['address', '주소', 2], ['web', '웹사이트', 2]];
+const acc = {approvers: [], approver: false, owner: false, reqs: [], log: [], tab: 'req'};
+const priv = {};
+const cu = {tab: 'photo', mine: [], loaded: false, files: [], met: '', event: '', step: 'pick', idx: 0, list: [], res: null, busy: false, imp: null};
+
+async function loadAcc() {
+  const { data } = await SB.from('pt_contact_approver').select('member_id,is_owner');
+  acc.approvers = data || []; const mine = acc.approvers.find(a => a.member_id === me.id);
+  acc.approver = !!mine; acc.owner = !!mine?.is_owner;
+  if (acc.approver) {
+    const [r, l] = await Promise.all([SB.from('pt_contact_access_request').select('*').order('id', {ascending: false}).limit(200),
+      SB.from('pt_contact_access_log').select('*').order('id', {ascending: false}).limit(200)]);
+    acc.reqs = r.data || []; acc.log = l.data || [];
+  }
+}
+const memName = id => (MEMBERS || []).find(m => m.id === id)?.name || '';
+const approverNames = () => acc.approvers.map(a => memName(a.member_id)).filter(Boolean);
+const pendingReqs = () => acc.reqs.filter(r => r.status === 'pending');
+const fromOcr = r => { const v = k => String(r?.[k] || '').trim(); return {name: v('name') || v('name_en'), name_en: v('name') ? v('name_en') : '', company: v('company') || v('company_en'), dept: '', title: v('title'), mobile: v('mobile'), phone: v('phone'), email: v('email').toLowerCase(), fax: v('fax'), address: v('address'), web: v('website')}; };
+
+/* ---- 사람 상세: 잠긴 것 ---- */
+async function loadPriv(c) {
+  const { data, error } = await SB.rpc('pt_contact_private', {p_contact: c.id});
+  priv[c.id] = error ? {error: error.message} : data;
+  if (activeDetail === c.id) { const box = $('#priv-box'); if (box) { box.innerHTML = privHtml(c); bindPriv(c); } }
+}
+function privHtml(c) {
+  const p = priv[c.id], d = rel.dir[c.id] || {};
+  const knowers = (d.knowers || []).map(k => k.name).filter(Boolean);
+  const know = `<div class="detail-row"><span>알고 있는 사람</span><b>${knowers.length ? knowers.map(esc).join(', ') : '—'}</b></div>`;
+  if (!p) return know + '<p>연락처를 확인하는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>';
+  if (p.error) return know + `<p>연락처를 불러오지 못했습니다: ${esc(p.error)}</p>`;
+  const cards = p.cards || [], notes = p.notes || [];
+  let ch = [];
+  if (p.can_see && p.channels) ch = Object.entries(CH_KO).map(([k, l]) => [l, p.channels[k]]).filter(([, v]) => v).concat((p.channels.other || []).map(v => ['기타', v]));
+  else { const f = {}; cards.forEach(k => Object.entries(k.fields || {}).forEach(([key, v]) => { if (v && !f[key]) f[key] = v; })); ch = [['휴대폰', f.mobile], ['전화', f.phone || f.office_phone], ['팩스', f.fax], ['이메일', f.email], ['주소', f.address], ['웹사이트', f.web]].filter(([, v]) => v); }
+  const chHtml = ch.length ? ch.map(([l, v], i) => `<div class="point"><code id="pv-${c.id}-${i}"><small>${esc(l)}</small> ${esc(v)}</code><span class="point-acts">${contactLink(v)}<button type="button" data-copy="pv-${c.id}-${i}">복사</button></span></div>`).join('') : '';
+  const own = !p.can_see && (cards.length || notes.length);
+  const locked = !p.can_see ? (() => {
+    const parts = [d.n_channels ? `연락처 ${d.n_channels}개` : '', d.n_cards ? `명함 ${d.n_cards}장` : '', d.n_notes ? `메모 ${d.n_notes}개` : ''].filter(Boolean);
+    const st = d.my_request, req = st === 'pending' ? `<span class="pill">열람 요청 대기 중</span> <button class="text-btn" type="button" id="acc-cancel">요청 취소</button>`
+      : `<button class="button" type="button" id="acc-req">${st === 'rejected' ? '다시 열람 요청' : st === 'expired' ? '다시 열람 요청 (90일 지남)' : '열람 요청'}</button>${st === 'rejected' ? ' <small>지난 요청이 거절되었습니다.</small>' : ''}`;
+    return parts.length ? `<div class="lock-box"><p>🔒 ${parts.join(' · ')}${knowers.length ? ` · ${esc(knowers.slice(0, 3).join(', '))}${knowers.length > 3 ? ` 외 ${knowers.length - 3}명` : ''} 님이 알고 있음` : ''}</p><p class="lock-note">${own ? '직접 올린 명함과 직접 쓴 메모만 보입니다. ' : ''}전체 명함·연락처·메모는 승인권자(${esc(approverNames().join(', ') || '대표님')})의 승인을 받으면 90일 동안 볼 수 있습니다.</p>${req}</div>` : '';
+  })() : '';
+  const cardHtml = cards.filter(k => k.image_path).length ? `<div class="pv-cards">${cards.filter(k => k.image_path).map(k => { const s = imgSrc(k.image_path); return `<figure>${s ? `<button type="button" data-pv-card="${esc(k.image_path)}"><img src="${s}" alt="명함"></button>` : '<div class="pv-ph">불러오는 중</div>'}<figcaption>${esc(dotDate(k.received_at) || '')}${k.received_where ? ' · ' + esc(k.received_where) : ''}${k.by ? ` · ${esc(k.by)}` : ''}</figcaption></figure>`; }).join('')}</div>` : '';
+  const noteHtml = `<div class="pv-notes">${notes.map(n => `<div class="pv-note"><p>${esc(n.body)}</p><small>${esc(n.author || '')} · ${esc(ymd(n.at))}${n.source === 'remember' ? ' · 리멤버에서 가져옴' : n.source === 'card' ? ' · 명함 올리기' : ''}</small></div>`).join('')}<form id="pv-note-form" class="pv-note-form"><textarea id="pv-note" rows="2" maxlength="2000" placeholder="어디서 만났는지, 무슨 이야기를 했는지"></textarea><button class="button" type="submit">메모 남기기</button></form><p class="lock-note">메모는 직접 쓴 사람과 승인권자·승인받은 사람만 볼 수 있습니다.</p></div>`;
+  return know + locked + (chHtml ? `<h4 class="pv-h">연락처${p.can_see ? '' : ' (직접 올린 명함)'}</h4>${chHtml}` : (p.can_see ? '<p>기록된 업무 연락처가 없습니다.</p>' : '')) + (cardHtml ? `<h4 class="pv-h">명함</h4>${cardHtml}` : '') + `<h4 class="pv-h">메모</h4>${noteHtml}`;
+}
+function bindPriv(c) {
+  $('#acc-req')?.addEventListener('click', () => accRequestModal(c));
+  $('#acc-cancel')?.addEventListener('click', async () => {
+    const { data } = await SB.from('pt_contact_access_request').select('id').eq('contact_id', c.id).eq('requester', me.id).eq('status', 'pending').maybeSingle();
+    if (!data) return; const { error } = await SB.rpc('pt_access_revoke', {p_id: data.id});
+    if (error) return toast('요청을 취소하지 못했습니다: ' + error.message);
+    await loadRel().catch(() => {}); openDetail(c.id, true); toast('열람 요청을 취소했습니다.');
+  });
+  $$('[data-pv-card]').forEach(b => b.onclick = () => modal(`<h2>${esc(c.name)} 명함</h2><img src="${imgSrc(b.dataset.pvCard)}" alt="${esc(c.name)} 명함" style="width:100%;border-radius:7px;margin-top:10px"><div class="modal-actions"><button class="button primary" data-cancel>닫기</button></div>`));
+  $('#pv-note-form')?.addEventListener('submit', async ev => {
+    ev.preventDefault(); const t = $('#pv-note').value.trim(); if (!t) return;
+    const { error } = await SB.rpc('pt_note_add', {p_contact: c.id, p_body: t});
+    if (error) return toast('메모를 저장하지 못했습니다: ' + error.message);
+    await loadPriv(c); loadRel().catch(() => {}); toast('메모를 남겼습니다.');
+  });
+  $$('#priv-box [data-copy]').forEach(b => b.onclick = () => { const el = document.getElementById(b.dataset.copy); navigator.clipboard?.writeText(el.textContent.replace(/^\S+\s/, '')); toast('복사했습니다.'); });
+}
+function accRequestModal(c) {
+  modal(`<form id="ar-form"><h2>연락처 열람 요청</h2><p><b>${esc(c.name)}</b>${agencyOf(c) ? ' · ' + esc(agencyOf(c)) : ''} 님의 명함·연락처·메모 열람을 요청합니다. 승인권자(${esc(approverNames().join(', ') || '대표님')})에게 슬랙으로 알림이 가고, 승인되면 이 사람의 것만 90일 동안 열립니다.</p><label>요청 사유 *<textarea id="ar-why" rows="3" maxlength="300" required placeholder="예: ○○ 콜라보 제안 연락"></textarea></label><div id="ar-err" style="color:#ba775e;font-size:12px;margin-top:8px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">열람 요청 보내기</button></div></form>`);
+  $('#ar-form').onsubmit = async ev => {
+    ev.preventDefault(); const why = $('#ar-why').value.trim(); if (!why) { $('#ar-err').textContent = '요청 사유를 입력해 주세요.'; return; }
+    const { error } = await SB.rpc('pt_access_request', {p_contact: c.id, p_reason: why});
+    if (error) { $('#ar-err').textContent = '요청하지 못했습니다: ' + error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await loadRel().catch(() => {}); openDetail(c.id, true); toast('열람 요청을 보냈습니다. 결과는 슬랙으로 알려 드립니다.');
+  };
+}
+
+/* ---- 확인 대기: 연락처 열람 요청 (승인권자) ---- */
+const ACC_ACT = {view: '열람', request: '요청', approve: '승인', reject: '거절', revoke: '승인 취소', expire: '기간 만료', cancel: '요청 취소', approver_add: '승인권자 추가', approver_remove: '승인권자 제외'};
+const ACC_ST = {pending: '대기 중', approved: '승인', rejected: '거절', revoked: '승인 취소', expired: '기간 만료', cancelled: '요청 취소'};
+function accPanel() {
+  if (!acc.approver) return '';
+  const nm = id => esc((rel.dir[id] || {}).name || byId(id)?.name || '삭제된 연락처');
+  const pend = pendingReqs(), done = acc.reqs.filter(r => r.status !== 'pending').slice(0, 40);
+  const tabs = [['req', `열람 요청 ${pend.length}`], ['hist', '처리한 요청'], ['log', '열람 기록'], ['who', '승인권자']];
+  const body = acc.tab === 'req' ? (pend.length ? `<ul class="rq-list">${pend.map(r => `<li class="rq-item rq-wide"><div><b>${esc(memName(r.requester) || '직원')}</b> → <button class="text-btn" type="button" data-detail="${esc(r.contact_id)}">${nm(r.contact_id)}</button><small>사유: ${esc(r.reason)}</small><time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-acc-no="${r.id}">거절</button><button class="button primary" type="button" data-acc-ok="${r.id}">승인 (90일)</button></span></li>`).join('')}</ul>` : '<div class="empty"><p>기다리는 열람 요청이 없습니다.</p></div>')
+    : acc.tab === 'hist' ? (done.length ? `<div class="table-wrap"><table class="ct"><thead><tr><th>요청자</th><th>대상</th><th>사유</th><th>결과</th><th>처리</th><th>만료</th><th></th></tr></thead><tbody>${done.map(r => `<tr><td data-label="요청자">${esc(memName(r.requester))}</td><td data-label="대상">${nm(r.contact_id)}</td><td data-label="사유">${esc(r.reason)}</td><td data-label="결과">${esc(ACC_ST[r.status] || r.status)}${r.reject_reason ? ` <small>${esc(r.reject_reason)}</small>` : ''}</td><td data-label="처리">${esc(memName(r.decided_by))} ${esc(ymd(r.decided_at))}</td><td data-label="만료">${r.status === 'approved' ? esc(ymd(r.expires_at)) : '—'}</td><td>${r.status === 'approved' ? `<button class="text-btn" type="button" data-acc-revoke="${r.id}">승인 취소</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><p>처리한 요청이 없습니다.</p></div>')
+    : acc.tab === 'log' ? (acc.log.length ? `<div class="table-wrap"><table class="ct"><thead><tr><th>시각</th><th>누가</th><th>무엇</th><th>대상</th><th>내용</th></tr></thead><tbody>${acc.log.map(l => `<tr><td data-label="시각">${esc(new Date(l.at).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'}))}</td><td data-label="누가">${esc(memName(l.member_id))}</td><td data-label="무엇">${esc(ACC_ACT[l.action] || l.action)}</td><td data-label="대상">${l.contact_id ? nm(l.contact_id) : '—'}</td><td data-label="내용">${esc(l.detail)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><p>기록이 없습니다.</p></div>')
+    : `<ul class="rq-list">${acc.approvers.map(a => `<li class="rq-item"><div><b>${esc(memName(a.member_id) || '—')}</b>${a.is_owner ? ' <span class="pill good">대표</span>' : ''}</div><span class="rq-acts">${acc.owner && !a.is_owner ? `<button class="button" type="button" data-appr-off="${a.member_id}">목록에서 빼기</button>` : ''}</span></li>`).join('')}</ul>${acc.owner ? `<form id="appr-add" class="appr-add"><input id="appr-name" list="pt-mnames" placeholder="승인권자로 추가할 직원 이름" aria-label="추가할 직원 이름"><button class="button" type="submit">승인권자 추가</button></form>` : ''}<p class="lock-note">승인권자는 모든 명함·연락처·메모를 보고 열람 요청을 승인합니다. 목록은 대표님만 바꿀 수 있습니다. DB 관리자라도 승인권자가 아니면 연락처를 볼 수 없습니다.</p>`;
+  return `<section class="panel" style="margin-bottom:16px"><div class="panel-head"><div class="panel-title">연락처 열람 요청 <small>승인권자</small></div></div><div class="rq-kinds" role="group" aria-label="열람 요청 보기">${tabs.map(([k, l]) => `<button type="button" class="tab ${acc.tab === k ? 'active' : ''}" data-acc-tab="${k}" aria-pressed="${acc.tab === k}">${esc(l)}</button>`).join('')}</div>${body}</section>`;
+}
+function bindAcc() {
+  $$('[data-acc-tab]').forEach(b => b.onclick = () => { acc.tab = b.dataset.accTab; render(); });
+  const decide = async (id, ok, why = '') => { const { error } = await SB.rpc('pt_access_decide', {p_id: id, p_approve: ok, p_reason: why}); if (error) return toast('처리하지 못했습니다: ' + error.message); await loadAcc(); render(); toast(ok ? '승인했습니다. 요청자에게 슬랙으로 알립니다.' : '거절했습니다. 요청자에게 슬랙으로 알립니다.'); };
+  $$('[data-acc-ok]').forEach(b => b.onclick = () => decide(Number(b.dataset.accOk), true));
+  $$('[data-acc-no]').forEach(b => b.onclick = () => {
+    const REJ = ['업무 목적을 확인할 수 없음', '담당 직원을 통해 연락 바람', '지금은 공유하기 어려움', '기타'];
+    modal(`<form id="rj-form"><h2>열람 요청 거절</h2><label>거절 사유<select id="rj-why">${REJ.map(x => `<option>${esc(x)}</option>`).join('')}</select></label><label>덧붙일 말<input id="rj-more" maxlength="200"></label><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">거절</button></div></form>`);
+    $('#rj-form').onsubmit = ev => { ev.preventDefault(); const w = $('#rj-why').value + ($('#rj-more').value.trim() ? ' · ' + $('#rj-more').value.trim() : ''); $('#modal').dataset.dirty = ''; $('#modal').close(); decide(Number(b.dataset.accNo), false, w); };
+  });
+  $$('[data-acc-revoke]').forEach(b => b.onclick = async () => {
+    if (await confirmBox({title: '승인을 취소할까요?', body: '요청자는 이 사람의 명함·연락처·메모를 바로 볼 수 없게 됩니다.', ok: '승인 취소', cancel: '닫기', danger: true}) !== true) return;
+    const { error } = await SB.rpc('pt_access_revoke', {p_id: Number(b.dataset.accRevoke)}); if (error) return toast('취소하지 못했습니다: ' + error.message); await loadAcc(); render(); toast('승인을 취소했습니다.');
+  });
+  $$('[data-appr-off]').forEach(b => b.onclick = async () => { const { error } = await SB.rpc('pt_approver_set', {p_member: b.dataset.apprOff, p_on: false}); if (error) return toast(error.message); await loadAcc(); render(); toast('승인권자 목록에서 뺐습니다.'); });
+  $('#appr-add')?.addEventListener('submit', async ev => { ev.preventDefault(); const m = findMember($('#appr-name').value); if (!m) return toast('직원을 찾지 못했습니다. 이름을 확인해 주세요.'); const { error } = await SB.rpc('pt_approver_set', {p_member: m.id, p_on: true}); if (error) return toast(error.message); await loadAcc(); render(); toast(`${m.name} 님을 승인권자로 추가했습니다.`); });
+}
+
+/* ---- 명함 올리기 화면 ---- */
+async function loadMyCards() {
+  const { data } = await SB.from('pt_card').select('id,image_path,fields,draft,review_status,batch_id,batch_order,received_at,received_where,source,created_at')
+    .eq('received_by', me.id).in('review_status', ['reading', 'pending', 'needs_check']).order('created_at').order('batch_order').limit(500);
+  cu.mine = data || []; cu.loaded = true;
+}
+const cuReading = () => cu.mine.filter(k => k.review_status === 'reading' && k.source === 'photo');
+const cuPending = () => cu.mine.filter(k => k.review_status === 'pending');
+const cuCheck = () => cu.mine.filter(k => k.review_status === 'needs_check');
+function cardsView() {
+  if (!cu.loaded) { loadMyCards().then(render); return '<section class="panel"><div class="empty"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></section>'; }
+  const tabs = [['photo', '사진 올리기'], ['remember', '리멤버 엑셀 가져오기'], ['check', `확인 필요 ${cuCheck().length}`]];
+  const head = `<div class="notice">받은 명함 사진을 한 번에 최대 ${CU_MAX}장 올리면 이그드라실 봇이 글자를 읽습니다. 한 장씩 보며 어디서 만났는지 메모를 남기거나, 메모 없이 바로 저장할 수 있습니다. 이름·회사·직함은 전 직원이 보고, 연락처·명함 사진·메모는 올린 분과 승인권자(${esc(approverNames().join(', ') || '대표님')})만 봅니다.</div>
+    <div class="rq-kinds cu-tabs" role="tablist" aria-label="명함 올리기">${tabs.map(([k, l]) => `<button type="button" class="tab ${cu.tab === k ? 'active' : ''}" data-cu-tab="${k}" aria-pressed="${cu.tab === k}">${esc(l)}</button>`).join('')}</div>`;
+  if (cu.tab === 'remember') return head + rememberPanel();
+  if (cu.tab === 'check' && cu.step !== 'review') return head + `<section class="panel"><div class="panel-head"><div class="panel-title">확인 필요 <small>${cuCheck().length}장</small></div>${cuCheck().length ? '<button class="button primary" type="button" id="cu-check-go">한 장씩 처리하기</button>' : ''}</div>${cuCheck().length ? `<p class="cu-sub">이름을 읽지 못했거나 같은 사람인지 애매한 명함입니다. 한 장씩 확인해 저장하거나 버려 주세요.</p><ul class="cu-thumbs">${cuCheck().map(k => `<li>${k.image_path ? `<img src="${imgSrc(k.image_path)}" alt="">` : '<span class="cu-noimg">리멤버</span>'}<b>${esc((k.draft || k.fields || {}).name || '이름 없음')}</b><small>${esc((k.draft || k.fields || {}).company || '')}</small></li>`).join('')}</ul>` : '<div class="empty"><p>확인이 필요한 명함이 없습니다.</p></div>'}</section>`;
+  return head + photoPanel();
+}
+function photoPanel() {
+  if (cu.step === 'review') return reviewCardPanel();
+  if (cu.step === 'result') { const r = cu.res || {}; return `<section class="panel cu-result"><div class="panel-head"><div class="panel-title">저장 결과</div></div><p class="cu-big">새 사람 <b>${r.new || 0}</b> · 기존 사람에 붙음 <b>${r.attached || 0}</b> · 확인 필요 <b>${r.needs_check || 0}</b> · 버림 <b>${r.discarded || 0}</b></p>${(r.people || []).length ? `<ul class="cu-people">${r.people.map(p => `<li><button class="text-btn" type="button" data-detail="${esc(p.id)}">${esc(p.name)}</button> <span class="pill ${p.how === 'new' ? 'good' : ''}">${p.how === 'new' ? '새 사람' : '기존 사람'}</span></li>`).join('')}</ul>` : ''}<div class="modal-actions" style="justify-content:flex-start"><button class="button primary" type="button" id="cu-again">명함 더 올리기</button>${cuCheck().length ? `<button class="button" type="button" data-cu-tab="check">확인 필요 ${cuCheck().length}장 처리</button>` : ''}</div></section>`; }
+  const reading = cuReading(), pend = cuPending();
+  if (reading.length) { const tot = reading.length + pend.length, done = pend.length; const pc = tot ? Math.round(done / tot * 100) : 0;
+    return `<section class="panel"><div class="panel-head"><div class="panel-title">글자 읽기</div></div><div class="ref-prog cu-prog"><span class="row"><span class="bar" role="progressbar" aria-valuenow="${pc}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${done} / ${tot}장 읽음 · 이그드라실 봇이 명함 글자를 읽는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span> 이 화면을 나가도 계속 읽습니다.</small></div><ul class="cu-thumbs">${[...pend, ...reading].map(k => `<li class="${k.review_status === 'reading' ? 'reading' : 'done'}"><img src="${imgSrc(k.image_path)}" alt=""><small>${k.review_status === 'reading' ? '읽는 중' : esc((k.fields || {}).name || '읽음')}</small></li>`).join('')}</ul></section>`; }
+  if (pend.length) return `<section class="panel"><div class="panel-head"><div class="panel-title">${cu.files.length ? '다 읽었습니다' : `올리다 만 명함 ${pend.length}장이 있습니다`}</div></div><p class="cu-sub">명함 ${pend.length}장을 어떻게 저장할까요?</p><div class="cu-choose"><button type="button" class="cu-opt primary" id="cu-review"><b>한 장씩 보며 메모 달기</b><span>사진과 읽은 값을 확인하고, 어디서 만났는지 메모를 남깁니다.</span></button><button type="button" class="cu-opt" id="cu-quick"><b>바로 입력</b><span>메모 없이 읽은 값 그대로 저장합니다. 이름을 못 읽었거나 같은 사람인지 애매한 명함은 「확인 필요」로 남깁니다.</span></button></div><p class="cu-sub"><button class="text-btn" type="button" id="cu-drop-all">이 명함들 모두 버리기</button></p></section>`;
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">명함 사진 올리기</div></div>
+    <label class="cu-drop" id="cu-drop"><input type="file" id="cu-files" accept="image/*,.heic,.heif" multiple hidden><b>명함 사진을 끌어다 놓거나 눌러서 선택</b><span>사진 한 장에 명함 한 장만 찍어 주세요 · JPG·PNG·HEIC · 한 번에 최대 ${CU_MAX}장</span></label>
+    <div id="cu-picked">${cu.files.length ? `<p class="cu-sub">${cu.files.length}장 선택됨 <button class="text-btn" type="button" id="cu-clear">다시 선택</button></p><ul class="cu-thumbs">${cu.files.map(f => `<li><img src="${f.url}" alt=""></li>`).join('')}</ul>` : ''}</div>
+    <div class="cu-meta"><label>만난 날짜 (선택)<input type="date" id="cu-met" value="${esc(cu.met)}"></label><label>행사·장소 (선택)<input id="cu-event" maxlength="200" value="${esc(cu.event)}" placeholder="예: 11/8 코엑스 라이선싱 쇼"></label></div>
+    <p class="cu-sub">만난 날짜·행사를 입력하면 모든 장에 기본값으로 들어가고, 한 장씩 볼 때 고칠 수 있습니다.</p>
+    <div id="cu-up"></div><div class="modal-actions" style="justify-content:flex-start"><button class="button primary" type="button" id="cu-go" ${cu.files.length && !cu.busy ? '' : 'disabled'}>${cu.files.length ? `${cu.files.length}장 올리고 읽기` : '올리고 읽기'}</button></div></section>`;
+}
+async function cuPick(files) {
+  const arr = [...files].filter(f => /^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name));
+  if (arr.length > CU_MAX) toast(`한 번에 ${CU_MAX}장까지 올릴 수 있습니다. 앞의 ${CU_MAX}장만 골랐습니다.`);
+  const out = [];
+  for (const f of arr.slice(0, CU_MAX)) { try { const r = await resize(f, 1600, .85); out.push({name: f.name, blob: r.blob, url: r.url}); } catch { toast(`${f.name} 사진을 열지 못했습니다. HEIC는 아이폰 사파리에서 올리거나 JPG로 바꿔 주세요.`); } }
+  cu.files = out; render();
+}
+async function cuUpload() {
+  if (!cu.files.length || cu.busy) return; cu.busy = true;
+  cu.met = $('#cu-met')?.value || ''; cu.event = $('#cu-event')?.value.trim() || '';
+  const { data: b, error: be } = await SB.from('pt_card_batch').insert({created_by: me.id, total: cu.files.length, met_at: cu.met || null, event: cu.event}).select('id').single();
+  if (be) { cu.busy = false; return toast('올리지 못했습니다: ' + be.message); }
+  const prog = (i, t) => { const w = $('#cu-up'); if (w) w.innerHTML = `<div class="ref-prog"><span class="row"><span class="bar"><i style="width:${Math.round(i / t * 100)}%"></i></span><b>${Math.round(i / t * 100)}%</b></span><small>${i} / ${t}장 업로드 중</small></div>`; };
+  let n = 0; prog(0, cu.files.length);
+  for (const [i, f] of cu.files.entries()) {
+    try {
+      const path = await upload(f.blob, 'cards');
+      const { data: ask } = await SB.from('pt_ask').insert({kind: 'ocr', image_path: path}).select('id').single();
+      await SB.from('pt_card').insert({received_by: me.id, image_path: path, batch_id: b.id, batch_order: i, review_status: 'reading', source: 'photo', received_at: cu.met || today(), received_where: cu.event, draft: {ask: ask?.id || null}});
+      n++;
+    } catch (e) { toast(`${f.name}을(를) 올리지 못했습니다.`); }
+    prog(i + 1, cu.files.length);
+  }
+  cu.busy = false; cu.files = []; await loadMyCards(); render(); cuPoll();
+  toast(`명함 ${n}장을 올렸습니다. 이그드라실 봇이 읽는 중입니다.`);
+}
+let cuTimer = null;
+async function cuPoll() {
+  clearTimeout(cuTimer);
+  const reading = cuReading(); if (!reading.length) return;
+  const ids = reading.map(k => k.draft?.ask).filter(Boolean);
+  if (ids.length) {
+    const { data } = await SB.from('pt_ask').select('id,status,result').in('id', ids);
+    for (const a of data || []) {
+      if (!['done', 'fail'].includes(a.status)) continue;
+      const k = reading.find(x => x.draft?.ask === a.id); if (!k) continue;
+      const f = a.status === 'done' && a.result ? fromOcr(a.result) : {};
+      const { error } = await SB.from('pt_card').update({fields: f, ocr_result: a.result || null, review_status: 'pending', draft: {failed: a.status !== 'done' || !a.result}}).eq('id', k.id);
+      if (!error) Object.assign(k, {fields: f, review_status: 'pending', draft: {failed: a.status !== 'done' || !a.result}});
+    }
+  }
+  reading.filter(k => !k.draft?.ask).forEach(k => { k.review_status = 'pending'; SB.from('pt_card').update({review_status: 'pending', draft: {failed: true}}).eq('id', k.id); });
+  if (page === 'cards' && cu.tab === 'photo' && cu.step === 'pick') render();
+  if (cuReading().length) cuTimer = setTimeout(cuPoll, 3000);
+}
+const cuMatch = async f => { const { data } = await SB.rpc('pt_card_match', {p_name: f.name || '', p_email: f.email || '', p_mobile: f.mobile || '', p_company: f.company || '', p_org: f.org || null}); return data || []; };
+function cuOrgOf(f) { const m = (f.company && matchCompany(f.company)) || (f.email && matchByDomain(f.email)); return m ? m.id : ''; }
+async function cuQuick(list) {
+  const r = cu.res = {new: 0, attached: 0, needs_check: 0, discarded: 0, people: []};
+  const w = $('#cu-quick-prog') || (() => { const d = document.createElement('div'); d.id = 'cu-quick-prog'; $('#content .panel')?.appendChild(d); return d; })();
+  for (const [i, k] of list.entries()) {
+    w.innerHTML = `<div class="ref-prog"><span class="row"><span class="bar"><i style="width:${Math.round(i / list.length * 100)}%"></i></span><b>${Math.round(i / list.length * 100)}%</b></span><small>${i} / ${list.length}장 저장 중</small></div>`;
+    const f = {...(k.fields || {})}, org = cuOrgOf(f), ms = f.name ? await cuMatch({...f, org}) : [];
+    const strong = ms.find(m => m.how !== 'name_company'), weak = !strong && ms.length;
+    const { data, error } = await SB.rpc('pt_card_save', {p_card: k.id, f, p_memo: '', p_attach: strong?.contact_id || null, p_org: org || null, p_org_new: null,
+      p_met: k.received_at || null, p_event: k.received_where || '', p_status: !f.name || weak ? 'needs_check' : 'saved'});
+    if (error) { r.needs_check++; continue; }
+    r[data.result === 'already' ? 'attached' : data.result] = (r[data.result === 'already' ? 'attached' : data.result] || 0) + 1;
+    if (data.contact_id) r.people.push({id: data.contact_id, name: f.name, how: data.result});
+  }
+  await Promise.all([load(), loadMyCards()]); cu.step = 'result'; render();
+}
+/* 한 장씩 확인 */
+function cuStartReview(list) { cu.list = list.map(k => k.id); cu.idx = 0; cu.step = 'review'; cu.res = {new: 0, attached: 0, needs_check: 0, discarded: 0, people: []}; render(); }
+const cuCur = () => cu.mine.find(k => k.id === cu.list[cu.idx]);
+function reviewCardPanel() {
+  const k = cuCur(); if (!k) { cu.step = cu.res ? 'result' : 'pick'; return photoPanel(); }
+  const f = {...(k.fields || {}), ...(k.draft && k.draft.name !== undefined ? k.draft : {})}, img = k.image_path ? imgSrc(k.image_path) : '';
+  const orgSel = f.org !== undefined ? f.org : cuOrgOf(f);
+  return `<section class="panel cu-review" data-card="${k.id}"><div class="panel-head"><div class="panel-title">한 장씩 확인 <small>${cu.idx + 1} / ${cu.list.length}</small></div><button class="text-btn" type="button" id="cu-exit">나중에 이어서 하기</button></div>
+    <ol class="cu-strip">${cu.list.map((id, i) => { const x = cu.mine.find(m => m.id === id); const st = !x ? 'done' : x.review_status === 'pending' || x.review_status === 'needs_check' ? (i === cu.idx ? 'cur' : 'todo') : 'done'; return `<li class="${st}">${x?.image_path ? `<img src="${imgSrc(x.image_path)}" alt="">` : '<span></span>'}</li>`; }).join('')}</ol>
+    <div class="cu-grid"><div class="cu-photo">${k.image_path ? (img ? `<img id="cu-img" src="${img}" alt="명함 사진" style="transform:rotate(${Number(f.rot || 0)}deg)"><button class="button" type="button" id="cu-rot">돌리기</button>` : '<div class="pv-ph">사진을 불러오는 중</div>') : '<div class="pv-ph">리멤버에서 가져온 명함 (사진 없음)</div>'}${k.draft?.failed ? '<p class="cu-warn">글자를 읽지 못했습니다. 사진을 보고 직접 입력해 주세요.</p>' : ''}</div>
+    <form id="cu-form" class="cu-form" autocomplete="off"><div id="cu-dup"></div><div class="cu-fields">${CF_FIELDS.map(([key, l, w]) => `<label class="${w === 2 ? 'wide' : ''}">${l}${w === 1 ? ' *' : ''}<input data-cf="${key}" value="${esc(f[key] || '')}" maxlength="200"></label>`).join('')}</div>
+    <label>회사 연결<select id="cu-org"><option value="">${f.company ? '글자만 저장 (회사 엔티티 연결 안 함)' : '연결 안 함'}</option><option value="__new" ${orgSel === '__new' ? 'selected' : ''}>새 회사로 만들기 (입력한 회사명으로)</option>${companyOptions(orgSel && orgSel !== '__new' ? orgSel : '')}</select></label>
+    <div class="cu-meta"><label>만난 날짜<input type="date" id="cu-k-met" value="${esc(f.met || k.received_at || '')}"></label><label>행사·장소<input id="cu-k-event" maxlength="200" value="${esc(f.event !== undefined ? f.event : k.received_where || '')}"></label></div>
+    <label>메모<textarea id="cu-memo" rows="4" maxlength="2000" placeholder="어디서 만났는지, 무슨 이야기를 했는지">${esc(f.memo || '')}</textarea></label>
+    <div class="cu-acts"><button class="button" type="button" id="cu-prev" ${cu.idx ? '' : 'disabled'}>이전</button><button class="button" type="button" id="cu-discard">이 명함 버리기</button><button class="button" type="button" id="cu-rest">남은 장은 바로 입력</button><button class="button primary" type="submit" id="cu-save">저장하고 다음</button></div>
+    <p class="cu-sub">Enter: 저장하고 다음 · 메모 칸에서는 Ctrl(⌘)+Enter</p></form></div></section>`;
+}
+function cuReadForm() {
+  const f = {}; $$('[data-cf]').forEach(i => { f[i.dataset.cf] = i.value.trim(); }); if (f.email) f.email = f.email.toLowerCase();
+  return {f, org: $('#cu-org')?.value || '', met: $('#cu-k-met')?.value || '', event: $('#cu-k-event')?.value.trim() || '', memo: $('#cu-memo')?.value.trim() || '', rot: Number($('#cu-img')?.dataset.rot || 0)};
+}
+let cuDraftT = null, cuAttach = null;
+function cuSaveDraft(k) { clearTimeout(cuDraftT); cuDraftT = setTimeout(() => { const v = cuReadForm(); const d = {...v.f, org: v.org, met: v.met, event: v.event, memo: v.memo, rot: v.rot, failed: k.draft?.failed || false}; k.draft = d; SB.from('pt_card').update({draft: d}).eq('id', k.id); }, 600); }
+async function cuShowDup(k) {
+  const v = cuReadForm(), box = $('#cu-dup'); if (!box) return;
+  const ms = v.f.name || v.f.email || v.f.mobile ? await cuMatch({...v.f, org: v.org && v.org !== '__new' ? v.org : null}) : [];
+  if (!ms.length) { cuAttach = null; box.innerHTML = ''; return; }
+  const strong = ms.find(m => m.how !== 'name_company');
+  if (cuAttach === undefined || cuAttach === null) cuAttach = strong ? strong.contact_id : null;
+  box.innerHTML = `<div class="cu-dupbox"><b>이미 있는 사람</b>${ms.map(m => `<label><input type="radio" name="cu-att" value="${esc(m.contact_id)}" ${cuAttach === m.contact_id ? 'checked' : ''}> ${esc(m.name)}${m.entity_name ? ' · ' + esc(m.entity_name) : ''}${m.title ? ' · ' + esc(m.title) : ''}${m.card_date ? ` <small>(${esc(dotDate(m.card_date))} 명함)</small>` : ''} <small>${m.how === 'email' ? '이메일 같음' : m.how === 'mobile' ? '휴대폰 같음' : '이름·회사만 같음'}</small></label>`).join('')}<label><input type="radio" name="cu-att" value="" ${!cuAttach ? 'checked' : ''}> 다른 사람이다 (새 사람으로 저장)</label></div>`;
+  $$('[name=cu-att]').forEach(r => r.onchange = () => { cuAttach = r.value || ''; });
+}
+async function cuSubmit(status = 'saved') {
+  const k = cuCur(); if (!k || cu.busy) return; const v = cuReadForm();
+  if (status === 'saved' && !v.f.name) { toast('이름을 입력해 주세요. 이름을 모르면 「이 명함 버리기」나 「나중에 이어서 하기」를 눌러 주세요.'); $('[data-cf=name]')?.focus(); return; }
+  if (status === 'saved' && v.org === '__new' && !v.f.company) { toast('새 회사로 만들려면 회사명을 입력해 주세요.'); return; }
+  cu.busy = true; $('#cu-save') && ($('#cu-save').disabled = true);
+  const { data, error } = await SB.rpc('pt_card_save', {p_card: k.id, f: v.f, p_memo: v.memo, p_attach: status === 'saved' ? (cuAttach || null) : null,
+    p_org: v.org && v.org !== '__new' ? v.org : null, p_org_new: v.org === '__new' ? v.f.company : null, p_met: v.met || null, p_event: v.event, p_status: status});
+  cu.busy = false;
+  if (error) { $('#cu-save') && ($('#cu-save').disabled = false); return toast('저장하지 못했습니다: ' + error.message); }
+  const key = data.result === 'already' ? 'attached' : data.result; cu.res[key] = (cu.res[key] || 0) + 1;
+  if (data.contact_id) cu.res.people.push({id: data.contact_id, name: v.f.name, how: data.result});
+  k.review_status = data.result === 'discarded' ? 'discarded' : data.result === 'needs_check' ? 'needs_check' : 'saved';
+  cuAttach = null; cu.idx++;
+  if (cu.idx >= cu.list.length) { await Promise.all([load(), loadMyCards()]); cu.step = 'result'; }
+  render();
+}
+function bindCards() {
+  $$('[data-cu-tab]').forEach(b => b.onclick = () => { cu.tab = b.dataset.cuTab; if (cu.step === 'review' || cu.step === 'result') cu.step = 'pick'; render(); });
+  const inp = $('#cu-files'), drop = $('#cu-drop');
+  if (inp) inp.onchange = () => cuPick(inp.files);
+  if (drop) { drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); }; drop.ondragleave = () => drop.classList.remove('over'); drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); cuPick(e.dataTransfer.files); }; }
+  $('#cu-clear')?.addEventListener('click', () => { cu.files = []; render(); });
+  $('#cu-met')?.addEventListener('change', e => { cu.met = e.target.value; });
+  $('#cu-event')?.addEventListener('input', e => { cu.event = e.target.value; });
+  $('#cu-go')?.addEventListener('click', cuUpload);
+  $('#cu-review')?.addEventListener('click', () => cuStartReview(cuPending()));
+  $('#cu-quick')?.addEventListener('click', e => { e.target.closest('button').disabled = true; cuQuick(cuPending()); });
+  $('#cu-check-go')?.addEventListener('click', () => cuStartReview(cuCheck()));
+  $('#cu-again')?.addEventListener('click', () => { cu.step = 'pick'; cu.res = null; cu.tab = 'photo'; render(); });
+  $('#cu-drop-all')?.addEventListener('click', async () => {
+    const list = cuPending(); if (await confirmBox({title: `명함 ${list.length}장을 버릴까요?`, body: '저장하지 않은 명함이 목록에서 사라집니다. 사진은 기록으로만 남고 누구에게도 보이지 않습니다.', ok: `${list.length}장 버리기`, cancel: '닫기', danger: true}) !== true) return;
+    for (const k of list) await SB.rpc('pt_card_save', {p_card: k.id, f: k.fields || {}, p_status: 'discarded'});
+    await loadMyCards(); render(); toast('명함을 버렸습니다.');
+  });
+  if (page === 'cards' && cu.tab === 'photo' && cuReading().length && !cuTimer) cuPoll();
+  if (cu.tab === 'remember') bindRemember();
+  const k = cuCur(), form = $('#cu-form');
+  if (cu.step === 'review' && k && form) {
+    cuAttach = k.draft?.candidate ?? null; cuShowDup(k);
+    $$('[data-cf]').forEach(i => i.addEventListener('input', () => cuSaveDraft(k)));
+    ['email', 'mobile', 'name', 'company'].forEach(key => $(`[data-cf=${key}]`)?.addEventListener('change', () => cuShowDup(k)));
+    $('#cu-org').addEventListener('change', () => { cuSaveDraft(k); cuShowDup(k); });
+    ['cu-k-met', 'cu-k-event', 'cu-memo'].forEach(id => $('#' + id)?.addEventListener('input', () => cuSaveDraft(k)));
+    $('#cu-rot')?.addEventListener('click', () => { const im = $('#cu-img'); const r = (Number(im.dataset.rot || k.draft?.rot || 0) + 90) % 360; im.dataset.rot = r; im.style.transform = `rotate(${r}deg)`; cuSaveDraft(k); });
+    form.onsubmit = ev => { ev.preventDefault(); cuSubmit('saved'); };
+    form.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.tagName === 'TEXTAREA' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); cuSubmit('saved'); } });
+    $('#cu-prev').onclick = () => { if (cu.idx > 0) { cu.idx--; const p = cuCur(); if (p && p.review_status === 'saved') { toast('이미 저장한 명함은 사람 화면에서 고쳐 주세요.'); cu.idx++; return; } render(); } };
+    $('#cu-discard').onclick = () => cuSubmit('discarded');
+    $('#cu-rest').onclick = async () => { const rest = cu.list.slice(cu.idx).map(id => cu.mine.find(m => m.id === id)).filter(x => x && ['pending', 'needs_check'].includes(x.review_status)); const keep = cu.res; await cuQuick(rest); ['new', 'attached', 'needs_check', 'discarded'].forEach(x => { cu.res[x] = (cu.res[x] || 0) + (keep[x] || 0); }); cu.res.people = [...keep.people, ...cu.res.people]; render(); };
+    $('#cu-exit').onclick = () => { cu.step = 'pick'; render(); toast('쓰던 값과 메모는 저장해 두었습니다. 다시 들어오면 이어서 할 수 있습니다.'); };
+    setTimeout(() => { const n = $('[data-cf=name]'); if (n && !n.value) n.focus(); else $('#cu-memo')?.focus(); }, 30);
+  }
+}
+
+/* ---- 리멤버 엑셀 가져오기 (서버가 같은 사람 찾기·중복 막기) ---- */
+Object.assign(RM_COLS, {group: /^(그룹|group|태그|분류)/i, registered: /^(명함 ?등록일|등록일|registered|created)/i, registrar: /^(명함 ?등록자|등록자|registrant|owner)/i});
+const RM_KO = {name: '이름', company: '회사', dept: '부서', title: '직책', mobile: '휴대폰', phone: '전화', fax: '팩스', email: '이메일', address: '주소', web: '홈페이지', memo: '메모', group: '그룹', registered: '명함 등록일', registrar: '명함 등록자'};
+function rememberPanel() {
+  const s = cu.imp;
+  if (!s) return `<section class="panel"><div class="panel-head"><div class="panel-title">리멤버 엑셀 가져오기</div></div><p class="cu-sub">리멤버 앱 <b>명함첩 → 편집 → 전체 선택 → 더 보기 → 파일로 내보내기</b>(PC 웹은 명함첩에서 명함 선택 → 파일로 내보내기)로 메일로 받은 엑셀(XLS·XLSX·CSV)을 올려 주세요. 사진은 들어오지 않고 글자 정보만 가져옵니다. 같은 파일을 다시 올려도 사람이 두 번 생기지 않습니다.</p><label class="cu-drop"><input type="file" id="rm2-file" accept=".xls,.xlsx,.csv" hidden><b>엑셀 파일 선택</b><span>한 파일 최대 5,000줄</span></label><div id="rm2-err" class="cu-warn" role="alert"></div></section>`;
+  const map = Object.keys(RM_KO).map(k => `<label>${RM_KO[k]}<select data-rm2-col="${k}"><option value="">없음</option>${s.head.map((h, i) => `<option value="${i}" ${s.col[k] === i ? 'selected' : ''}>${esc(h || `${i + 1}번째 열`)}</option>`).join('')}</select></label>`).join('');
+  const pv = s.preview;
+  return `<section class="panel"><div class="panel-head"><div class="panel-title">${esc(s.file)} <small>${s.rows.length}줄</small></div><button class="text-btn" type="button" id="rm2-reset">다른 파일</button></div>
+    <h4 class="pv-h">열 맞추기</h4><p class="cu-sub">리멤버 열 이름을 자동으로 맞췄습니다. 맞지 않는 열만 골라 주세요.</p><div class="rm2-map">${map}</div>
+    <h4 class="pv-h">미리 보기</h4>${pv ? (pv.loading ? `<div class="ref-prog"><span class="row"><span class="bar indet"><i></i></span></span><small>같은 사람을 찾는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></small></div>` : `<p class="cu-big">${s.rows.length}명 · 새 사람 <b>${pv.new}</b> · 기존 사람에 붙음 <b>${pv.attached}</b> · 확인 필요 <b>${pv.needs_check}</b>${pv.skipped ? ` · 이미 가져옴 <b>${pv.skipped}</b>` : ''}</p>`) : ''}
+    <div class="table-wrap"><table class="ct"><thead><tr>${['name', 'company', 'title', 'email', 'mobile', 'memo'].map(k => `<th>${RM_KO[k]}</th>`).join('')}</tr></thead><tbody>${rm2Rows(s).slice(0, 8).map(r => `<tr>${['name', 'company', 'title', 'email', 'mobile', 'memo'].map(k => `<td data-label="${RM_KO[k]}">${esc(String(r[k] || '').slice(0, 40))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div id="rm2-prog"></div><div class="modal-actions" style="justify-content:flex-start"><button class="button primary" type="button" id="rm2-go" ${pv && !pv.loading && !s.busy ? '' : 'disabled'}>가져오기</button></div><p class="cu-sub">연락처·메모는 올린 분과 승인권자만 봅니다. 엑셀의 그룹은 태그로, 메모는 메모로 들어갑니다. 「확인 필요」는 이 화면의 「확인 필요」 탭에서 한 장씩 처리합니다.</p></section>`;
+}
+function rm2Rows(s) { const v = (r, k) => s.col[k] === undefined || s.col[k] === '' ? '' : String(r[s.col[k]] ?? '').trim(); return s.rows.map(r => Object.fromEntries(Object.keys(RM_KO).map(k => [k, v(r, k)]))).filter(r => r.name || r.email || r.mobile); }
+async function rm2Preview() {
+  const s = cu.imp; s.preview = {loading: true}; render();
+  const rows = rm2Rows(s), tot = {new: 0, attached: 0, needs_check: 0, skipped: 0};
+  for (let i = 0; i < rows.length; i += 300) {
+    const { data, error } = await SB.rpc('pt_remember_import', {p_import: null, p_rows: rows.slice(i, i + 300), p_dry: true});
+    if (error) { s.preview = null; render(); return toast('미리 보기를 만들지 못했습니다: ' + error.message); }
+    Object.keys(tot).forEach(k => { tot[k] += data[k] || 0; });
+  }
+  if (cu.imp === s) { s.preview = tot; render(); }
+}
+function bindRemember() {
+  $('#rm2-file')?.addEventListener('change', async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      await loadXlsx();
+      const wb = XLSX.read(await f.arrayBuffer(), {type: 'array'}), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: '', raw: false});
+      const hi = Math.max(0, rows.findIndex(r => r.filter(c => Object.values(RM_COLS).some(re => re.test(String(c).trim()))).length >= 2));
+      const head = (rows[hi] || []).map(c => String(c).trim()), col = {};
+      head.forEach((h, i) => { for (const [k, re] of Object.entries(RM_COLS)) if (col[k] === undefined && re.test(h)) col[k] = i; });
+      const body = rows.slice(hi + 1).filter(r => r.some(c => String(c).trim()));
+      if (body.length > 5000) { $('#rm2-err').textContent = '한 파일은 5,000줄까지 가져올 수 있습니다. 나눠서 올려 주세요.'; return; }
+      cu.imp = {file: f.name, head, col, rows: body, preview: null}; render(); rm2Preview();
+    } catch (e) { $('#rm2-err').textContent = '파일을 읽지 못했습니다: ' + (e?.message || ''); }
+  });
+  $('#rm2-reset')?.addEventListener('click', () => { cu.imp = null; render(); });
+  $$('[data-rm2-col]').forEach(sl => sl.onchange = () => { const v = sl.value; cu.imp.col[sl.dataset.rm2Col] = v === '' ? undefined : Number(v); rm2Preview(); });
+  $('#rm2-go')?.addEventListener('click', async () => {
+    const s = cu.imp, rows = rm2Rows(s); s.busy = true; $('#rm2-go').disabled = true;
+    const { data: imp, error: ie } = await SB.from('pt_contact_import').insert({created_by: me.id, file_name: s.file, mapping: s.col}).select('id').single();
+    if (ie) { s.busy = false; return toast('가져오지 못했습니다: ' + ie.message); }
+    const tot = {new: 0, attached: 0, needs_check: 0, skipped: 0};
+    for (let i = 0; i < rows.length; i += 100) {
+      const pc = Math.round(i / rows.length * 100); $('#rm2-prog').innerHTML = `<div class="ref-prog"><span class="row"><span class="bar"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${i} / ${rows.length}명 가져오는 중</small></div>`;
+      const { data, error } = await SB.rpc('pt_remember_import', {p_import: imp.id, p_rows: rows.slice(i, i + 100), p_dry: false});
+      if (error) { toast(`${i}번째 줄부터 가져오지 못했습니다: ${error.message}`); break; }
+      Object.keys(tot).forEach(k => { tot[k] += data[k] || 0; });
+    }
+    cu.imp = null; await Promise.all([load(), loadMyCards()]);
+    cu.res = {new: tot.new, attached: tot.attached, needs_check: tot.needs_check, discarded: 0, people: []}; cu.tab = 'photo'; cu.step = 'result'; render();
+    toast(`리멤버에서 가져왔습니다 · 새 사람 ${tot.new} · 기존 사람 ${tot.attached} · 확인 필요 ${tot.needs_check}${tot.skipped ? ` · 이미 가져옴 ${tot.skipped}` : ''}`);
+  });
 }
 
 /* ---------- 로그인 ---------- */
