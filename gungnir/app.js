@@ -3981,7 +3981,7 @@ async function loadAcc() {
   }
 }
 const memName = id => (MEMBERS || []).find(m => m.id === id)?.name || '';
-const approverNames = () => acc.approvers.map(a => memName(a.member_id)).filter(Boolean);
+const approverNames = () => [...acc.approvers].sort((a, b) => b.is_owner - a.is_owner).map(a => memName(a.member_id)).filter(Boolean);
 const pendingReqs = () => acc.reqs.filter(r => r.status === 'pending');
 const fromOcr = r => { const v = k => String(r?.[k] || '').trim(); return {name: v('name') || v('name_en'), name_en: v('name') ? v('name_en') : '', company: v('company') || v('company_en'), dept: '', title: v('title'), mobile: v('mobile'), phone: v('phone'), email: v('email').toLowerCase(), fax: v('fax'), address: v('address'), web: v('website')}; };
 
@@ -4003,7 +4003,8 @@ function privHtml(c) {
   else { const f = {}; cards.forEach(k => Object.entries(k.fields || {}).forEach(([key, v]) => { if (v && !f[key]) f[key] = v; })); ch = [['휴대폰', f.mobile], ['전화', f.phone || f.office_phone], ['팩스', f.fax], ['이메일', f.email], ['주소', f.address], ['웹사이트', f.web]].filter(([, v]) => v); }
   const chHtml = ch.length ? ch.map(([l, v], i) => `<div class="point"><code id="pv-${c.id}-${i}"><small>${esc(l)}</small> ${esc(v)}</code><span class="point-acts">${contactLink(v)}<button type="button" data-copy="pv-${c.id}-${i}">복사</button></span></div>`).join('') : '';
   const own = !p.can_see && (cards.length || notes.length);
-  const locked = !p.can_see ? (() => {
+  const otherCards = Math.max(0, (d.n_cards || 0) - cards.filter(k => k.image_path).length), otherNotes = Math.max(0, (d.n_notes || 0) - notes.length), otherCh = Math.max(0, (d.n_channels || 0) - ch.length);
+  const locked = !p.can_see && (otherCards || otherNotes || otherCh) ? (() => {
     const parts = [d.n_channels ? `연락처 ${d.n_channels}개` : '', d.n_cards ? `명함 ${d.n_cards}장` : '', d.n_notes ? `메모 ${d.n_notes}개` : ''].filter(Boolean);
     const st = d.my_request, req = st === 'pending' ? `<span class="pill">열람 요청 대기 중</span> <button class="text-btn" type="button" id="acc-cancel">요청 취소</button>`
       : `<button class="button" type="button" id="acc-req">${st === 'rejected' ? '다시 열람 요청' : st === 'expired' ? '다시 열람 요청 (90일 지남)' : '열람 요청'}</button>${st === 'rejected' ? ' <small>지난 요청이 거절되었습니다.</small>' : ''}`;
@@ -4095,7 +4096,7 @@ function photoPanel() {
   const reading = cuReading(), pend = cuPending();
   if (reading.length) { const tot = reading.length + pend.length, done = pend.length; const pc = tot ? Math.round(done / tot * 100) : 0;
     return `<section class="panel"><div class="panel-head"><div class="panel-title">글자 읽기</div></div><div class="ref-prog cu-prog"><span class="row"><span class="bar" role="progressbar" aria-valuenow="${pc}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pc}%"></i></span><b>${pc}%</b></span><small>${done} / ${tot}장 읽음 · 이그드라실 봇이 명함 글자를 읽는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span> 이 화면을 나가도 계속 읽습니다.</small></div><ul class="cu-thumbs">${[...pend, ...reading].map(k => `<li class="${k.review_status === 'reading' ? 'reading' : 'done'}"><img src="${imgSrc(k.image_path)}" alt=""><small>${k.review_status === 'reading' ? '읽는 중' : esc((k.fields || {}).name || '읽음')}</small></li>`).join('')}</ul></section>`; }
-  if (pend.length) return `<section class="panel"><div class="panel-head"><div class="panel-title">${cu.files.length ? '다 읽었습니다' : `올리다 만 명함 ${pend.length}장이 있습니다`}</div></div><p class="cu-sub">명함 ${pend.length}장을 어떻게 저장할까요?</p><div class="cu-choose"><button type="button" class="cu-opt primary" id="cu-review"><b>한 장씩 보며 메모 달기</b><span>사진과 읽은 값을 확인하고, 어디서 만났는지 메모를 남깁니다.</span></button><button type="button" class="cu-opt" id="cu-quick"><b>바로 입력</b><span>메모 없이 읽은 값 그대로 저장합니다. 이름을 못 읽었거나 같은 사람인지 애매한 명함은 「확인 필요」로 남깁니다.</span></button></div><p class="cu-sub"><button class="text-btn" type="button" id="cu-drop-all">이 명함들 모두 버리기</button></p></section>`;
+  if (pend.length) return `<section class="panel"><div class="panel-head"><div class="panel-title">${cu.justRead ? '다 읽었습니다' : `올리다 만 명함 ${pend.length}장이 있습니다`}</div></div><p class="cu-sub">명함 ${pend.length}장을 어떻게 저장할까요?</p><div class="cu-choose"><button type="button" class="cu-opt primary" id="cu-review"><b>한 장씩 보며 메모 달기</b><span>사진과 읽은 값을 확인하고, 어디서 만났는지 메모를 남깁니다.</span></button><button type="button" class="cu-opt" id="cu-quick"><b>바로 입력</b><span>메모 없이 읽은 값 그대로 저장합니다. 이름을 못 읽었거나 같은 사람인지 애매한 명함은 「확인 필요」로 남깁니다.</span></button></div><p class="cu-sub"><button class="text-btn" type="button" id="cu-drop-all">이 명함들 모두 버리기</button></p></section>`;
   return `<section class="panel"><div class="panel-head"><div class="panel-title">명함 사진 올리기</div></div>
     <label class="cu-drop" id="cu-drop"><input type="file" id="cu-files" accept="image/*,.heic,.heif" multiple hidden><b>명함 사진을 끌어다 놓거나 눌러서 선택</b><span>사진 한 장에 명함 한 장만 찍어 주세요 · JPG·PNG·HEIC · 한 번에 최대 ${CU_MAX}장</span></label>
     <div id="cu-picked">${cu.files.length ? `<p class="cu-sub">${cu.files.length}장 선택됨 <button class="text-btn" type="button" id="cu-clear">다시 선택</button></p><ul class="cu-thumbs">${cu.files.map(f => `<li><img src="${f.url}" alt=""></li>`).join('')}</ul>` : ''}</div>
@@ -4126,7 +4127,7 @@ async function cuUpload() {
     } catch (e) { toast(`${f.name}을(를) 올리지 못했습니다.`); }
     prog(i + 1, cu.files.length);
   }
-  cu.busy = false; cu.files = []; await loadMyCards(); render(); cuPoll();
+  cu.busy = false; cu.files = []; cu.justRead = true; await loadMyCards(); render(); cuPoll();
   toast(`명함 ${n}장을 올렸습니다. 이그드라실 봇이 읽는 중입니다.`);
 }
 let cuTimer = null;
@@ -4166,7 +4167,7 @@ async function cuQuick(list) {
   await Promise.all([load(), loadMyCards()]); cu.step = 'result'; render();
 }
 /* 한 장씩 확인 */
-function cuStartReview(list) { cu.list = list.map(k => k.id); cu.idx = 0; cu.step = 'review'; cu.res = {new: 0, attached: 0, needs_check: 0, discarded: 0, people: []}; render(); }
+function cuStartReview(list) { cu.justRead = false; cu.list = list.map(k => k.id); cu.idx = 0; cu.step = 'review'; cu.res = {new: 0, attached: 0, needs_check: 0, discarded: 0, people: []}; render(); }
 const cuCur = () => cu.mine.find(k => k.id === cu.list[cu.idx]);
 function reviewCardPanel() {
   const k = cuCur(); if (!k) { cu.step = cu.res ? 'result' : 'pick'; return photoPanel(); }
