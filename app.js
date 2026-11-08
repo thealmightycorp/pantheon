@@ -25,7 +25,7 @@ let RECOVERY = /type=recovery/.test(location.hash || '');
 const AUTH_Q = decodeURIComponent((location.hash || '') + (location.search || '')).replace(/\+/g, ' ');
 const SLACK_ERR = sessionStorage.getItem('pt_slack') && /error/.test(AUTH_Q) ? (/saving new user/i.test(AUTH_Q) ? '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.' : /access_denied/.test(AUTH_Q) ? '슬랙 로그인을 취소했습니다.' : '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.') : '';
 if (SLACK_ERR) { sessionStorage.removeItem('pt_slack'); try { history.replaceState(null, '', location.pathname); } catch {} }
-const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? (HANDOFF.on ? '이미 사용했거나 만료된 로그인 링크입니다. 판테온 지도에서 다시 눌러 주세요.' : '이미 사용했거나 만료된 링크입니다. 비밀번호 찾기를 다시 진행하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.') : '';
+const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? (HANDOFF.on ? '이미 사용했거나 만료된 로그인 링크입니다. 판테온 지도에서 다시 눌러 주세요.' : '이미 사용했거나 만료된 링크입니다. 로그인 화면의 「처음이거나 비밀번호를 잊었어요」에서 다시 요청하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.') : '';
 if (LINK_ERR) try { history.replaceState(null, '', location.pathname); } catch {}
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -3959,7 +3959,7 @@ const slackHintDue = () => { if (!mobileDevice()) return false; try { return loc
 const SLACK_HINT = '휴대폰에서는 슬랙 앱이 아니라 브라우저에서 슬랙 로그인 화면이 열립니다. 처음 한 번은 회사 슬랙 계정으로 로그인해 주세요(이메일로 받은 코드로도 로그인할 수 있습니다). 한 번 로그인하면 다음부터는 바로 들어옵니다.';
 function loginScreen(msg) {
   $('#login').hidden = false;
-  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인할 수 있습니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><p id="lg-hint" hidden style="margin:10px 0 0;padding:10px 12px;border-radius:8px;background:#f1f5f2;color:#3d4a43;font-size:13px;line-height:1.6;text-align:left">${SLACK_HINT}</p><button class="text-btn" type="button" id="lg-reset" style="margin-top:14px;font-size:12px">비밀번호를 잊으셨나요? 비밀번호 찾기</button></form>`;
+  $('#login').innerHTML = `<form class="login-box" id="login-form"><div class="brand"><span class="brand-mark">${BRAND[0]}</span>${BRAND}<span class="brand-dot">®</span></div><p>헤임달 계정으로 로그인합니다.<br>헤임달에 가입 완료된 더올마이티 임직원만 로그인할 수 있습니다.</p><label>이메일<input id="lg-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="lg-pw" type="password" autocomplete="current-password" required></label><div id="lg-err" role="alert" style="color:#ba775e;font-size:12px;margin-top:10px">${esc(msg || '')}</div><button class="button primary" type="submit" style="width:100%;justify-content:center;margin-top:16px">로그인</button><button class="button" type="button" id="lg-slack" style="width:100%;justify-content:center;gap:8px;margin-top:8px">${SLACK_SVG}<span>슬랙으로 로그인</span></button><p id="lg-hint" hidden style="margin:10px 0 0;padding:10px 12px;border-radius:8px;background:#f1f5f2;color:#3d4a43;font-size:13px;line-height:1.6;text-align:left">${SLACK_HINT}</p><a class="text-btn" id="lg-reset" href="https://axdx-dashboard.vercel.app/forgot-password" style="display:inline-block;margin-top:14px;font-size:12px">처음이거나 비밀번호를 잊었어요</a></form>`;
   $('#login-form').onsubmit = async ev => {
     ev.preventDefault(); $('#lg-err').textContent = ''; $('#lg-err').style.color = '#ba775e';
     const { error } = await SB.auth.signInWithPassword({email: $('#lg-email').value.trim(), password: $('#lg-pw').value});
@@ -3975,21 +3975,7 @@ function loginScreen(msg) {
     const { error } = await slackSignIn();
     if (error) { sessionStorage.removeItem('pt_slack'); b.disabled = false; b.lastChild.textContent = '슬랙으로 로그인'; $('#lg-err').textContent = '슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.'; }
   };
-  $('#lg-reset').onclick = async () => {
-    const email = $('#lg-email').value.trim(), out = $('#lg-err');
-    if (!email) { out.textContent = '이메일을 먼저 입력해 주세요. 입력한 주소로 비밀번호 재설정 메일을 발송합니다.'; $('#lg-email').focus(); return; }
-    const btn = $('#lg-reset'); btn.disabled = true;
-    const { error } = await SB.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
-    // 같은 계정은 60초 안에 다시 보낼 수 없다(429) — 메일은 이미 나간 것이므로 실패로 보이지 않게 (11-03 정원하 대표님 6번 다시 누르심)
-    const wait = error && (error.status === 429 || /seconds|rate limit/i.test(error.message || '')) ? (+((error.message || '').match(/after (\d+) seconds/) || [])[1] || 60) : 0;
-    const sent = `${email}(으)로 비밀번호 재설정 메일을 발송했습니다. 몇 분 이내에 도착하니 메일함과 스팸함을 확인해 주세요. 메일의 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.`;
-    out.style.color = error && !wait ? '#ba775e' : '#38674d';
-    if (error && !wait) { btn.disabled = false; out.textContent = '메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.'; return; }
-    out.textContent = wait ? `방금 ${email}(으)로 재설정 메일을 발송했습니다. 메일함과 스팸함을 먼저 확인해 주세요.` : sent;
-    let n = wait || 60; const label = '비밀번호를 잊으셨나요? 비밀번호 찾기';
-    const tick = () => { if (!btn.isConnected) return; if (n <= 0) { btn.disabled = false; btn.textContent = label; return; } btn.textContent = `메일이 오지 않았다면 ${n}초 후 재발송할 수 있습니다`; n--; setTimeout(tick, 1000); };
-    tick();
-  };
+  // 비밀번호 찾기 창구는 노른 하나 (11-08 홍석진 대표님) — 링크만 둔다
 }
 // 메일 링크로 들어온 분 — 새 비밀번호. 헤임달과 같은 계정이라 헤임달 비밀번호도 이것으로 바뀐다
 function recoveryScreen(msg) {
@@ -4002,7 +3988,7 @@ function recoveryScreen(msg) {
     if (a !== b) return recoveryScreen('입력한 두 비밀번호가 일치하지 않습니다.');
     const btn = $('#np-form [type=submit]'); btn.disabled = true; btn.textContent = '변경하는 중…';
     const { error } = await SB.auth.updateUser({password: a});
-    if (error) return recoveryScreen(/same|different/i.test(error.message) ? '현재 비밀번호와 다른 비밀번호를 입력해 주세요.' : '비밀번호를 변경하지 못했습니다. 메일 링크가 만료되었을 수 있으니 비밀번호 찾기를 다시 진행해 주세요.');
+    if (error) return recoveryScreen(/same|different/i.test(error.message) ? '현재 비밀번호와 다른 비밀번호를 입력해 주세요.' : '비밀번호를 변경하지 못했습니다. 메일 링크가 만료되었을 수 있으니 로그인 화면의 「처음이거나 비밀번호를 잊었어요」에서 다시 요청해 주세요.');
     RECOVERY = false; try { history.replaceState(null, '', location.pathname); } catch {}
     toast('비밀번호를 변경했습니다. 헤임달에서도 새 비밀번호로 로그인해 주세요.'); start();
   };
