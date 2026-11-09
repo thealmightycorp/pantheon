@@ -2461,6 +2461,7 @@ function imagesPanel(p) {
   const firstMiss = keys.find(k => S[k].status === 'missing'), firstAi = keys.find(k => S[k].status === 'ai');
   return `<div class="detail-block pv-decide"><h3>지금 할 일 · ${final ? '최종 확인' : '이미지 수급·AI 이미지 승인'}</h3>
   <div class="pv-stats">${stat('확보', n('found') + n('uploaded') + n('generated'), 'good')}${stat('미확보', n('missing'), n('missing') ? 'bad' : '', firstMiss && S[firstMiss].slide)}${stat('AI 생성 대기', n('ai'), n('ai') ? 'wait' : '', firstAi && S[firstAi].slide)}${qa ? stat('검수 확인 필요 항목', flags.length, flags.length ? 'bad' : 'good', flags[0]?.slide) : ''}</div>
+  ${n('missing') ? `<div class="ai-box"><b>미확보 이미지 ${n('missing')}개</b><small>Aside가 공식 이미지·로고·캡처를 한 번에 찾아 해당 페이지에 넣습니다</small><div class="drawer-actions"><button class="button" id="img-aside-all">${n('missing')}개 한 번에 Aside로 찾기</button></div></div>` : ''}
   ${ai}${qaBlock(p)}
   <div class="pv-main-act"><button class="button primary" data-review="${flags[0]?.slide || 1}">${icon('image')} 제안서 화면에서 이미지 확인·수정</button><small>페이지에서 이미지를 클릭하면 교체·위치 조정·다시 생성할 수 있습니다</small></div>
   <div class="drawer-actions pv-final"><button class="button" id="img-rerender">변경 사항 반영</button><button class="button primary" id="img-done">이 버전으로 완료</button></div></div>`;
@@ -3289,6 +3290,17 @@ async function openProposal(id, keep) {
   $('#redesign')?.addEventListener('click', async ev => {
     if (!(await confirmBox({title: '새 디자인을 적용할까요?', body: '원고를 원본 제안서 디자인 레이아웃으로 다시 작성합니다. 이미지는 그대로 사용하지만 페이지 구성과 문장 배치가 변경될 수 있습니다. 현재 버전은 이력에 보관됩니다.', ok: '새 디자인 적용'}))) return;
     ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {redesign: true}}, '원본 제안서 디자인 적용을 요청했습니다(이미지는 유지)', '새 디자인을 적용합니다. 진행률은 화면에서 확인할 수 있습니다.'); });
+  // 미확보 한 번에 Aside로 (11-09 대표님 「하나씩 누르는 거 말고 한 번에 넣는 기능」)
+  $('#img-aside-all')?.addEventListener('click', async ev => {
+    const S = liveSlots(d), miss = Object.keys(S).sort().filter(k => S[k].status === 'missing');
+    if (!miss.length) return;
+    if (!(await confirmBox({title: `미확보 이미지 ${miss.length}개를 Aside로 찾을까요?`, body: '찾은 이미지는 해당 페이지에 자동으로 들어가고 그 페이지만 다시 생성됩니다. 한 번에 약 10~20분 걸리며, 찾지 못한 칸은 그대로 남습니다.', ok: `${miss.length}개 한 번에 찾기`}))) return;
+    const ims = (d.build?.deck?.slides || []).flatMap(x => x.images || []);
+    const slots = miss.map(key => { const s = S[key], im = ims.find(x => x.key === key) || {};
+      return {key, kind: s.kind, what: s.what || '', ratio: s.ratio || '', search: im.search || '', avoid: [s.source_page, s.image_url].filter(Boolean)}; });
+    ev.target.disabled = true;
+    go({status: 'working'}, {kind: 'aside', input: {slots, ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}}, `미확보 이미지 ${miss.length}개를 한 번에 Aside에 요청했습니다`, 'Aside에 요청했습니다. 찾으면 제안서에 자동 반영됩니다.');
+  });
   $('#ai-est')?.addEventListener('click', ev => { ev.target.disabled = true; go({status: 'working'}, {kind: 'generate', input: {estimate_only: true}}, 'AI 이미지 견적을 요청했습니다'); });
   $('#ai-go')?.addEventListener('click', async ev => {
     const usd = +ev.target.dataset.usd, n = d.images.ai_estimate.count;
