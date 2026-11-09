@@ -4369,7 +4369,7 @@ async function start() {
   me = session.user;
   const [can, adm, mem, sc, ic] = await Promise.all([SB.rpc('pt_can_use'), SB.rpc('pt_is_admin'), SB.from('hd_member').select('name,role,status').eq('id', me.id).maybeSingle(), SB.rpc('pt_studio_can'), SB.rpc('pt_ipchart_can')]);
   studioCan = !sc.error && !!sc.data; ipcCan = !ic.error && !!ic.data;            // 제안서 스튜디오 — 시험 기간 3명만 (함수가 없거나 거절이면 숨김)
-  if (!can.data) { const left = mem.data?.status === 'left'; await SB.auth.signOut(); return loginScreen(left ? '퇴사 처리된 계정입니다. 더 이상 이용하실 수 없습니다.' : '헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요.'); }
+  if (!can.data) { const left = mem.data?.status === 'left'; await SB.auth.signOut({scope: 'local'}); return loginScreen(left ? '퇴사 처리된 계정입니다. 더 이상 이용하실 수 없습니다.' : '헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요.'); }
   isAdmin = !!adm.data; myName = mem.data?.name || me.email;
   $('#login').hidden = true;
   $('#profile').innerHTML = `<span class="avatar">${esc(myName.slice(0, 1))}</span><span>${esc(myName)}<small>${isAdmin ? 'DB 관리자' : '구성원'}</small></span>${isAdmin ? '<span class="admin">ADMIN</span>' : ''}`;
@@ -4409,7 +4409,7 @@ $('#add-btn').onclick = () => page === 'contacts' ? contactModal() : page === 's
 $('#export-btn').onclick = exportCSV;
 $('#notification').onclick = () => go('home');
 $('.top-avatar').onclick = () => $('#profile').click();      // 폰에서는 왼쪽 메뉴가 아래 막대가 되어 프로필이 위 오른쪽 사진으로
-$('#profile').onclick = async () => { if (!me) return; modal(`<h2>내 계정</h2><p><b>${esc(myName)}</b> · ${isAdmin ? 'DB 관리자' : '구성원'}<br>${esc(me.email || '')}</p><p>로그아웃하면 헤임달에서도 함께 로그아웃됩니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button" type="button" id="logout-go">로그아웃</button></div>`); $('#logout-go').onclick = async () => { await SB.auth.signOut(); location.reload(); }; };
+$('#profile').onclick = async () => { if (!me) return; modal(`<h2>내 계정</h2><p><b>${esc(myName)}</b> · ${isAdmin ? 'DB 관리자' : '구성원'}<br>${esc(me.email || '')}</p><p>이 브라우저에서만 로그아웃됩니다. 다른 기기의 로그인은 그대로입니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button" type="button" id="logout-go">로그아웃</button></div>`); $('#logout-go').onclick = async () => { await SB.auth.signOut({scope: 'local'}); location.reload(); }; };
 $('#overlay').onclick = closeDrawer;
 $('#drawer').addEventListener('click', ev => { const b = ev.target.closest('[data-graph-go]'); if (b) location.hash = '#graph/' + b.dataset.graphGo; });   // 상세 「그래프에서 보기」 (11-03 · PRD E-07-11)
 SB.auth.onAuthStateChange(e => { if (e === 'PASSWORD_RECOVERY') { RECOVERY = true; recoveryScreen(); } });
