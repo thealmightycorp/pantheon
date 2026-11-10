@@ -114,16 +114,22 @@ function confirmBox({title, body = '', ok, cancel = '취소', danger = false}) {
 const askLeave = () => confirmBox({title: '작성 중인 내용이 있습니다', body: '저장하지 않고 닫으면 입력한 내용이 사라집니다.', ok: '계속 작성', cancel: '저장하지 않고 닫기'}).then(v => v === false);
 
 /* ---------- 이미지 (비공개 저장소 → 잠깐 쓰는 주소) ---------- */
-const imgUrl = {}, imgLoading = new Set();
+// 한 화면에서 부른 이미지는 모아서 한 번에 주소를 받는다 (11-10 홍석진 실장님 점검: 한 장마다 따로 받아 장당 약 0.5초)
+const imgUrl = {}, imgLoading = new Set(), imgQueue = new Set(); let imgFlush;
 function imgSrc(path) {
   if (!path) return '';
   if (path.startsWith('data:') || path.startsWith('blob:')) return path;
   if (imgUrl[path]) return imgUrl[path];
   if (!imgLoading.has(path)) {
-    imgLoading.add(path);
-    SB.storage.from('pt-files').createSignedUrl(path, 3600).then(({data}) => {
-      if (data?.signedUrl) { imgUrl[path] = data.signedUrl; rerender(); }
-    });
+    imgLoading.add(path); imgQueue.add(path);
+    clearTimeout(imgFlush); imgFlush = setTimeout(() => {
+      const paths = [...imgQueue]; imgQueue.clear();
+      SB.storage.from('pt-files').createSignedUrls(paths, 3600).then(({data}) => {
+        let got = false;
+        (data || []).forEach(x => { if (x.signedUrl) { imgUrl[x.path] = x.signedUrl; got = true; } });
+        if (got) rerender();
+      }, () => paths.forEach(x => imgLoading.delete(x)));
+    }, 30);
   }
   return '';
 }
@@ -2019,6 +2025,7 @@ async function pollRefJobs() {
   if (page !== 'studio') return;
   const ids = (studio.refs || []).filter(r => r.status === 'uploaded' || r.status === 'analyzing').map(r => r.id);
   if (!ids.length) return;
+  if (document.hidden) { studioPoll = setTimeout(pollRefJobs, 3000); return; }      // 탭이 안 보이면 서버에 묻지 않고 3초 뒤 다시 본다 (11-10 홍석진 실장님 점검: 상태 확인 하루 1만 5천 번)
   const { data, error } = await SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').eq('kind', 'analyze_reference').in('ref_id', ids).order('at', {ascending: false});
   if (error || page !== 'studio') return;
   if (ids.some(id => { const j = data.find(x => x.ref_id === id); return j && (j.status === 'done' || j.status === 'fail'); })) return loadStudio();
@@ -2041,6 +2048,7 @@ async function pollProjects() {
   if (page !== 'studio' || studio.tab !== 'projects') return;
   const ids = (studio.list || []).filter(p => p.status === 'working').map(p => p.id);
   if (!ids.length) return;
+  if (document.hidden) { listPoll = setTimeout(pollProjects, 3000); return; }
   const [ps, js] = await Promise.all([SB.from('pt_proposal').select('id,status,stage').in('id', ids),
     SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').in('proposal_id', ids).in('status', ['wait', 'work'])]);
   if (ps.error || js.error || page !== 'studio' || !studio.list) return;          // 그 사이 목록을 새로 읽는 중이면 그쪽에 맡긴다
@@ -2176,7 +2184,9 @@ const liveJobs = id => studio.jobs.filter(j => j.proposal_id === id && ['wait', 
 let propPoll, propShown = '';     // 상세 화면이 지금 그리고 있는 상태(상태|단계) — 목록이 먼저 바뀌어도 화면을 다시 그리게 (11-04)
 async function pollProposal(id) {
   if (activeDetail !== 'p:' + id) return;
-  const [p, j] = await Promise.all([SB.from('pt_proposal').select('*').eq('id', id).single(), SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').eq('proposal_id', id).order('id', {ascending: false}).limit(4)]);
+  if (document.hidden) { propPoll = setTimeout(() => pollProposal(id), 3000); return; }
+  // 상태·단계만 비교하므로 그 두 칸만 읽는다 — 예전엔 제안서 전체(data)를 3초마다 받았다
+  const [p, j] = await Promise.all([SB.from('pt_proposal').select('id,status,stage').eq('id', id).single(), SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').eq('proposal_id', id).order('id', {ascending: false}).limit(4)]);
   if (activeDetail !== 'p:' + id || p.error || !studio.list) { if (activeDetail === 'p:' + id) propPoll = setTimeout(() => pollProposal(id), 3000); return; }
   // 화면에 그린 상태와 비교한다 — 목록(studio.list)은 따로 새로 고쳐져 먼저 바뀔 수 있어, 그것과 비교하면 파트너 추천이 끝나도 화면이 「진행 중」에 머물렀다 (11-04 김현우)
   if (`${p.data.status}|${p.data.stage}` !== propShown) { studio.list = null; await loadStudio(); return openProposal(id, true); }
