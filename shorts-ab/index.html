@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>숏폼 A·B 시연</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#F5F7FA;--surface:#FFFFFF;--raised:#F8FAFC;--sunken:#EEF2F6;--line:#DDE3EA;--line-soft:#EDF1F5;
+  --ink:#0C1425;--ink-2:#2B3648;--ink-3:#5A6779;--ink-4:#7A8699;
+  --brand:#0A1436;--accent:#2457E6;--accent-soft:#EDF2FE;
+  --a:#1250C4;--a-bg:#EDF2FE;--a-line:#BCD0FA;
+  --b:#9A5B00;--b-bg:#FFF6E5;--b-line:#FBDCA0;
+  --go:#046C4E;--go-bg:#E9F8F1;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --t-xs:12px;--t-sm:13px;--t-md:15px;--t-lg:18px;--t-xl:28px;--t-num:40px;
+  --r:12px;--r-sm:8px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0B111C;--surface:#121A28;--raised:#172133;--sunken:#0E1520;--line:#263247;--line-soft:#1C2638;
+  --ink:#EEF2F8;--ink-2:#C9D2E0;--ink-3:#97A3B6;--ink-4:#748196;
+  --brand:#C9D6FF;--accent:#7FA2FF;--accent-soft:#1B2A4D;
+  --a:#9CB8FF;--a-bg:#16264A;--a-line:#2D4580;--b:#F3C36B;--b-bg:#33260D;--b-line:#5C451A;--go:#6FD6AE;--go-bg:#0F2E24;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:var(--t-md);line-height:1.6;word-break:keep-all}
+.wrap{max-width:1120px;margin:0 auto;padding:var(--s6) var(--s5) var(--s7)}
+.eyebrow{font-size:var(--t-xs);letter-spacing:.12em;color:var(--ink-3);font-weight:700;text-transform:uppercase}
+h1{font-size:var(--t-xl);margin:var(--s2) 0 var(--s2);letter-spacing:-.02em;line-height:1.3}
+h2{font-size:var(--t-lg);margin:0 0 var(--s3);letter-spacing:-.01em}
+h3{font-size:var(--t-md);margin:0}
+.lead{color:var(--ink-2);margin:0;max-width:760px}
+.meta{color:var(--ink-3);font-size:var(--t-sm);margin-top:var(--s2)}
+section{margin-top:var(--s7)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s5)}
+.note{color:var(--ink-3);font-size:var(--t-sm);margin:var(--s2) 0 0}
+.tag{display:inline-block;font-size:var(--t-xs);font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid;white-space:nowrap}
+.tag.a{color:var(--a);background:var(--a-bg);border-color:var(--a-line)}
+.tag.b{color:var(--b);background:var(--b-bg);border-color:var(--b-line)}
+.tag.go{color:var(--go);background:var(--go-bg);border-color:transparent}
+.tag.mute{color:var(--ink-3);background:var(--sunken);border-color:transparent}
+/* 한눈에 */
+.sum{width:100%;border-collapse:collapse;font-size:var(--t-sm);font-variant-numeric:tabular-nums}
+.sum th,.sum td{padding:var(--s3) var(--s2);border-bottom:1px solid var(--line-soft);text-align:right;vertical-align:top}
+.sum th:first-child,.sum td:first-child{text-align:left}
+.sum thead th{color:var(--ink-3);font-weight:600;font-size:var(--t-xs)}
+.sum td b{font-size:var(--t-md)}
+.sum .sub{display:block;color:var(--ink-3);font-size:var(--t-xs)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);margin-top:var(--s5)}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s4)}
+.kpi .n{font-size:var(--t-num);font-weight:800;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--ink-3);font-size:var(--t-sm)}
+/* 프롬프트 */
+.pr{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)}
+.pr .panel h3{display:flex;gap:var(--s2);align-items:center;margin-bottom:var(--s3)}
+pre{white-space:pre-wrap;word-break:keep-all;font-family:inherit;font-size:var(--t-sm);color:var(--ink-2);background:var(--raised);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:var(--s3);margin:0}
+details{margin-top:var(--s4)}
+summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:var(--t-sm)}
+/* 팀 고르개 */
+.seg{display:inline-flex;gap:2px;background:var(--sunken);border-radius:999px;padding:3px;margin-bottom:var(--s4);flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:var(--t-sm);padding:6px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+/* 원본 */
+.src{margin-top:var(--s6)}
+.src-h{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:baseline;margin-bottom:var(--s3)}
+.src-h h2{margin:0}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);margin-bottom:var(--s3)}
+.vs .col-h{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);font-size:var(--t-sm);color:var(--ink-3);padding:0 var(--s1)}
+.vs .col-h b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);margin-top:var(--s4)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s4);display:grid;grid-template-columns:150px 1fr;gap:var(--s4);align-content:start}
+.card.a{border-top:3px solid var(--a)}
+.card.b{border-top:3px solid var(--b)}
+.card.empty{display:block;color:var(--ink-4);font-size:var(--t-sm);border-style:dashed}
+video{width:150px;aspect-ratio:9/16;border-radius:var(--r-sm);background:#000;object-fit:cover;display:block}
+.t1{font-weight:800;font-size:var(--t-md);line-height:1.35}
+.when{font-size:var(--t-xs);color:var(--ink-3);margin:var(--s1) 0 var(--s2);font-variant-numeric:tabular-nums}
+.k{font-size:var(--t-xs);color:var(--ink-3);font-weight:700;margin-top:var(--s2)}
+.v{font-size:var(--t-sm);color:var(--ink-2)}
+.nums{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);font-size:var(--t-xs);color:var(--ink-3);margin-top:var(--s3);padding-top:var(--s2);border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums}
+.nums b{color:var(--ink)}
+.links{display:flex;flex-wrap:wrap;gap:var(--s1);margin-top:var(--s2)}
+.links a{font-size:var(--t-xs);color:var(--go);background:var(--go-bg);padding:2px 8px;border-radius:999px;text-decoration:none;font-weight:600}
+ul.plain{margin:0;padding-left:1.2em;color:var(--ink-2)}
+ul.plain li{margin:var(--s1) 0}
+footer{margin-top:var(--s7);color:var(--ink-4);font-size:var(--t-xs)}
+footer a{color:var(--ink-3)}
+.login{max-width:440px;margin:12vh auto 0;text-align:center}
+.login .lead{margin:var(--s3) auto var(--s5)}
+.slack{font:inherit;font-weight:700;font-size:var(--t-md);color:#fff;background:#4A154B;border:0;border-radius:var(--r-sm);padding:12px 24px;cursor:pointer;min-height:44px}
+.slack:disabled{opacity:.6;cursor:default}
+.err{color:#B42318;font-size:var(--t-sm);margin-top:var(--s3)}
+@media (max-width:860px){
+  .wrap{padding:var(--s5) var(--s4) var(--s7)}
+  .pr,.vs,.pair{grid-template-columns:1fr}
+  .vs{display:none}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi .n{font-size:var(--t-xl)}
+  .card{grid-template-columns:120px 1fr}
+  video{width:120px}
+  .pair .card::before{content:attr(data-label);grid-column:1/-1;font-size:var(--t-xs);font-weight:700;color:var(--ink-3)}
+}
+@media (max-width:380px){.card{grid-template-columns:1fr}video{width:100%;max-width:220px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script type="module">
+// 🔴 2026-11-11 김현우 「비공개로, 슬랙 로그인 붙여서 우리 회사 사람만」 — 판테온과 같은 헤임달 계정(슬랙 OIDC)으로 로그인하고,
+//    헤임달 승인 구성원(pt_can_use)만 비공개 보관함 shorts-ab 의 기록(data.json)·영상을 읽습니다. 이 페이지 파일에는 자료가 없습니다.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+const SB = createClient("https://dwoiobqucmikbtikfjwk.supabase.co", "sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9");
+const 함 = "shorts-ab";
+let D = null, 주소 = {};
+const 앱 = () => document.getElementById("app");
+const 슬랙로그인 = () => SB.auth.signInWithOAuth({ provider: "slack_oidc", options: { redirectTo: location.origin + location.pathname } });
+function 로그인화면(말) {
+  앱().innerHTML = `<div class="login"><div class="eyebrow">THE ALMIGHTY · AX팀</div><h1>숏폼 A·B 시연</h1>
+    <p class="lead">더올마이티 임직원만 볼 수 있는 내부 보고 페이지입니다. 회사 슬랙 계정으로 로그인해 주세요.<br>헤임달에서 승인된 계정만 들어올 수 있습니다.</p>
+    <button class="slack" id="slack">슬랙으로 로그인</button>${말 ? `<p class="err">${esc(말)}</p>` : ""}</div>`;
+  document.getElementById("slack").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "슬랙으로 이동하는 중…";
+    sessionStorage.setItem("ab_slack", "1");
+    const { error } = await 슬랙로그인();
+    if (error) { sessionStorage.removeItem("ab_slack"); 로그인화면("슬랙으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요."); }
+  };
+}
+async function 시작() {
+  const 오류 = new URLSearchParams(location.hash.slice(1)).get("error_description") || new URLSearchParams(location.search).get("error_description");
+  const { data: { session } } = await SB.auth.getSession();
+  if (!session) return 로그인화면(오류 ? "슬랙 로그인이 취소되었거나 실패했습니다." : "");
+  const 단계 = sessionStorage.getItem("ab_slack");
+  if (단계) {   // 슬랙 이메일이 헤임달 로그인 이메일과 다른 직원 — 판테온과 같은 연결 절차
+    sessionStorage.removeItem("ab_slack");
+    const { data: r } = await SB.rpc("hd_slack_link");
+    if (r === "linked" && 단계 === "1") { await SB.auth.signOut({ scope: "local" }); sessionStorage.setItem("ab_slack", "2"); return 슬랙로그인(); }
+    const 실패 = { linked: "슬랙 계정을 연결하지 못했습니다. 관리자에게 문의해 주세요.", other_team: "더올마이티 슬랙 계정으로만 로그인할 수 있습니다.", ambiguous: "이 슬랙 이메일과 연결된 헤임달 계정이 두 개 이상입니다. 관리자에게 문의해 주세요.", new: "헤임달에 가입되지 않은 계정입니다. 헤임달 가입·승인 후 다시 로그인해 주세요." }[r];
+    if (실패) { await SB.auth.signOut({ scope: "local" }); return 로그인화면(실패); }
+  }
+  const { data: 됨 } = await SB.rpc("pt_can_use");
+  if (!됨) { await SB.auth.signOut({ scope: "local" }); return 로그인화면("헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요."); }
+  if (location.hash.includes("access_token")) try { history.replaceState(null, "", location.pathname); } catch {}
+  앱().innerHTML = `<p class="lead">기록을 불러오는 중…</p>`;
+  const { data: 파일, error } = await SB.storage.from(함).download("data.json");
+  if (error) { 앱().innerHTML = `<p class="err">기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</p>`; return; }
+  D = JSON.parse(await 파일.text());
+  const 경로들 = D.원본.flatMap((x) => [...x.A.편, ...x.B.편]).flatMap((c) => [c.영상, c.표지]);
+  const { data: 서명 } = await SB.storage.from(함).createSignedUrls(경로들, 6 * 3600);
+  for (const s of 서명 ?? []) if (s.signedUrl) 주소[s.path] = s.signedUrl;
+  그리기(null);
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const 분초 = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+const 걸림 = (s) => s >= 60 ? `${Math.floor(s / 60)}분 ${Math.round(s % 60)}초` : `${Math.round(s)}초`;
+const 수 = (n) => Number(n).toLocaleString("ko-KR");
+const 채널 = { youtube: "유튜브 쇼츠", instagram: "인스타 릴스", tiktok: "틱톡" };
+const KST = (iso) => new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function 카드(c, 쪽) {
+  if (!c) return `<div class="card empty ${쪽.toLowerCase()}">${쪽}에서는 이 장면을 고르지 않았습니다.</div>`;
+  const 길이 = c.끝 - c.시작;
+  return `<article class="card ${쪽.toLowerCase()}" data-label="프롬프트 ${쪽}">
+    <video src="${esc(주소[c.영상] ?? "")}" poster="${esc(주소[c.표지] ?? "")}" controls preload="none" playsinline controlslist="nodownload"></video>
+    <div>
+      <div class="t1">${c.제목.map(esc).join("<br>")}</div>
+      <div class="when">원본 ${분초(c.시작)} ~ ${분초(c.끝)} · ${Math.round(길이)}초${c.채널 ? ` · <span class="tag a">${esc(채널[c.채널] ?? c.채널)}용</span>` : ""}</div>
+      ${c.채널규칙 ? `<div class="k">맞춘 채널 규칙</div><div class="v">${esc(c.채널규칙)}</div>` : ""}
+      ${c.참여 ? `<div class="k">반응을 부르는 지점</div><div class="v">${esc(c.참여)}</div>` : ""}
+      <div class="k">고른 이유</div><div class="v">${esc(c.이유)}</div>
+      <details><summary>캡션 보기</summary><div class="v" style="margin-top:6px">${esc(c.캡션)}</div></details>
+      <div class="nums"><span>편집까지 <b>${걸림(c.걸린초)}</b></span><span>토큰 <b>${수(c.토큰.입력 + c.토큰.출력)}</b> (입력 ${수(c.토큰.입력)} · 출력 ${수(c.토큰.출력)})</span><span>API <b>${수(c.원)}원</b> ($${c.달러.toFixed(4)})</span></div>
+      ${c.게시.length ? `<div class="links">${c.게시.map((g) => `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.곳)} ↗</a>`).join("")}</div>` : ""}
+    </div></article>`;
+}
+
+/** A 편마다 겹치는 구간이 가장 긴 B 편을 짝으로 */
+function 짝짓기(A, B) {
+  const 남은 = [...B], 줄 = [];
+  for (const a of A) {
+    let 고른 = -1, 최대 = 0;
+    남은.forEach((b, i) => { const 겹 = Math.min(a.끝, b.끝) - Math.max(a.시작, b.시작); if (겹 > 최대) { 최대 = 겹; 고른 = i; } });
+    줄.push([a, 고른 >= 0 ? 남은.splice(고른, 1)[0] : null]);
+  }
+  for (const b of 남은) 줄.push([null, b]);
+  return 줄;
+}
+
+function 그리기(팀) {
+  const 원본 = D.원본.filter((x) => !팀 || x.팀 === 팀);
+  const 모두 = 원본.flatMap((x) => [x.A.합, x.B.합]);
+  const 총 = { 편: 모두.reduce((a, s) => a + s.편수, 0), 초: 모두.reduce((a, s) => a + s.초, 0), 원: 모두.reduce((a, s) => a + s.원, 0), 토큰: 모두.reduce((a, s) => a + s.입력 + s.출력, 0) };
+  const 영상분 = 원본.reduce((a, x) => a + x.길이, 0) / 60;
+  const 팀들 = [...new Set(D.원본.map((x) => x.팀))];
+  const 같은장면 = 원본.reduce((a, x) => a + 짝짓기(x.A.편, x.B.편).filter(([a, b]) => a && b).length, 0);
+
+  document.getElementById("app").innerHTML = `
+  <header>
+    <div class="eyebrow">THE ALMIGHTY · AX팀 · 숏폼 자동 편집</div>
+    <h1>프롬프트 A·B 시연</h1>
+    <p class="lead">같은 롱폼 원본을 두 가지 지시(프롬프트 A·B)로 각각 자동 편집해, 고른 장면 · 제목 · 캡션과 <b>편집까지 걸린 시간 · 토큰 · API 사용료</b>를 나란히 놓았습니다. 자막 글꼴 · 로고 같은 디자인은 두 프롬프트 모두 같은 편집기가 똑같이 입힙니다.</p>
+    <div class="meta">기록 조회 ${KST(D.만든때)} · 작성 AX팀 김현우 · 숫자는 모두 작업자가 편집하면서 남긴 실측 기록입니다</div>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">${원본.length}<small style="font-size:18px">개</small></div><div class="l">원본 · 합계 ${Math.round(영상분)}분</div></div>
+    <div class="kpi"><div class="n">${총.편}<small style="font-size:18px">편</small></div><div class="l">만든 숏폼 (A·B 합)</div></div>
+    <div class="kpi"><div class="n">${걸림(총.초)}</div><div class="l">편집까지 걸린 시간 합</div></div>
+    <div class="kpi"><div class="n">${수(총.원)}<small style="font-size:18px">원</small></div><div class="l">API 사용료 합 · 토큰 ${수(총.토큰)}</div></div>
+  </div>
+
+  <section>
+    <h2>한눈에 — 원본별 A·B</h2>
+    <div class="panel scroll">
+      <table class="sum">
+        <thead><tr><th>원본</th><th>원본 길이</th><th><span class="tag a">A</span> 편집까지</th><th><span class="tag a">A</span> 토큰</th><th><span class="tag a">A</span> API</th><th><span class="tag b">B</span> 편집까지</th><th><span class="tag b">B</span> 토큰</th><th><span class="tag b">B</span> API</th></tr></thead>
+        <tbody>${원본.map((x) => `<tr>
+          <td><b>${esc(x.제목)}</b><span class="sub">${esc(x.팀)}</span></td>
+          <td>${걸림(x.길이)}</td>
+          ${[x.A.합, x.B.합].map((s) => `<td><b>${걸림(s.초)}</b><span class="sub">${s.편수}편</span></td><td>${수(s.입력 + s.출력)}<span class="sub">입력 ${수(s.입력)} · 출력 ${수(s.출력)}</span></td><td><b>${수(s.원)}원</b><span class="sub">$${s.달러.toFixed(3)}</span></td>`).join("")}
+        </tr>`).join("")}</tbody>
+      </table>
+      <p class="note">편집까지 걸린 시간 = 받아쓰기(서버 PC 그래픽카드) + 구간 고르기(Claude) + 세로 편집·자막 입히기. 받아쓰기·구간 고르기는 원본 한 번이라 편 수로 나눠 각 편에 얹었습니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>두 프롬프트</h2>
+    <div class="pr">
+      <div class="panel"><h3><span class="tag a">A</span>${esc(D.프롬프트.A.이름)}</h3><pre>${esc(D.프롬프트.A.머리)}\n\n${esc(D.프롬프트.A.길이)}</pre></div>
+      <div class="panel"><h3><span class="tag b">B</span>${esc(D.프롬프트.B.이름)}</h3><pre>${esc(D.프롬프트.B.머리)}\n\n${esc(D.프롬프트.B.길이)}</pre></div>
+    </div>
+    <details><summary>A·B 모두에 들어가는 공통 지시 보기</summary><pre style="margin-top:8px">${esc(D.프롬프트.공통)}</pre></details>
+  </section>
+
+  <section>
+    <h2>결과 — 같은 장면끼리 나란히</h2>
+    <p class="note" style="margin:-4px 0 12px">A·B가 겹치는 구간을 고른 편을 한 줄에 놓았습니다. 이번 시연에서는 ${같은장면}쌍이 같은 장면을 골랐습니다.</p>
+    ${팀들.length > 1 ? `<div class="seg" role="group" aria-label="팀 고르기"><button aria-pressed="${!팀}" data-t="">전체</button>${팀들.map((t) => `<button aria-pressed="${팀 === t}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>` : ""}
+    ${원본.map((x) => `<div class="src">
+      <div class="src-h"><h2>${esc(x.제목)}</h2><span class="tag mute">${esc(x.팀)} · 원본 ${걸림(x.길이)}</span></div>
+      <div class="vs">${[["A", x.A.합], ["B", x.B.합]].map(([k, s]) => `<div class="col-h"><span class="tag ${k.toLowerCase()}">프롬프트 ${k}</span><span>편집 <b>${걸림(s.초)}</b> · 토큰 <b>${수(s.입력 + s.출력)}</b> · <b>${수(s.원)}원</b></span></div>`).join("")}</div>
+      ${짝짓기(x.A.편, x.B.편).map(([a, b]) => `<div class="pair">${카드(a, "A")}${카드(b, "B")}</div>`).join("")}
+    </div>`).join("")}
+  </section>
+
+  <section>
+    <h2>어떻게 쟀나</h2>
+    <div class="panel"><ul class="plain">
+      <li><b>토큰</b> — Claude를 부를 때마다 응답에 실려 오는 입력 · 출력 토큰 수를 그대로 더했습니다.</li>
+      <li><b>API 사용료</b> — 토큰 × 작업자에 설정한 단가(${esc(D.원본[0]?.A.편[0]?.모델 ?? "")}, 100만 토큰당 입력 $4 · 출력 $20), 원화는 1달러 1,450원으로 셈했습니다. 받아쓰기는 사무실 서버 PC 그래픽카드에서 돌아 따로 드는 돈이 없습니다.</li>
+      <li><b>편집까지 걸린 시간</b> — 작업자가 원본을 잡은 뒤 받아쓰기 · 구간 고르기 · 세로 편집을 마칠 때까지의 실측입니다. 드라이브에서 원본을 받아 오는 시간, 대기 순서는 넣지 않았습니다.</li>
+      <li><b>원본</b> — 팀 드라이브 「숏폼 원본/팀/시연」 폴더에 넣은 영상만 A·B 두 번 돌았습니다.</li>
+    </ul></div>
+  </section>
+
+  <section>
+    <h2>확인 못 한 것</h2>
+    <div class="panel"><ul class="plain">
+      <li>SNS 반응(조회 · 저장 · 댓글)으로 A·B를 비교하지는 못했습니다. 출연자가 연예인이라 초상권 · 소속사 협의 전에는 외부에 올리지 않기로 했습니다(11-11 테스트 게시물은 모두 내림).</li>
+      <li>제목 · 캡션에 나온 곡 이름 · 해시태그(예: 공원 A 「#이리저리」)는 아직 사람이 원자료와 대조하지 않았습니다.</li>
+      <li>골포스트 · 맛출장 원본은 받는 중입니다. 들어오면 이 페이지에 같은 방식으로 더합니다.</li>
+    </ul></div>
+  </section>
+
+  <footer>THE ALMIGHTY · AX팀 — 임직원 전용 내부 보고 페이지입니다. 영상을 내려받거나 외부에 공유하지 말아 주세요. <a href="#" id="logout">로그아웃</a></footer>`;
+  document.getElementById("logout").onclick = async (e) => { e.preventDefault(); await SB.auth.signOut({ scope: "local" }); location.reload(); };
+
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => 그리기(b.dataset.t || null)));
+}
+시작();
+</script>
+</body>
+</html>
