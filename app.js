@@ -3816,7 +3816,7 @@ function ipbHave() {
 function ipbItems() {
   const have = ipbHave(), v = (r, k) => ipb.map[k] === '' || ipb.map[k] === undefined ? '' : String(r[ipb.map[k]] ?? '').trim();
   return ipb.rows.map(r => {
-    const name = v(r, 'name'), en = v(r, 'en'), ht = v(r, 'holder'), h = ht ? ipbHolder(ht) : null, ktext = v(r, 'kind');
+    const name = v(r, 'name'), en = v(r, 'en'), ht = v(r, 'holder'), h = ht && !/확인 ?필요|추정|미상/.test(ht) ? ipbHolder(ht) : null, ktext = v(r, 'kind');
     const facts = ipb.extra.filter(x => x.on && String(r[x.i] ?? '').trim()).map(x => `${x.label || ipb.head[x.i]}: ${String(r[x.i]).trim()}`);
     if (ht) facts.unshift(`권리자: ${ht}`);
     if (ktext) facts.unshift(`종류: ${ktext}`);
