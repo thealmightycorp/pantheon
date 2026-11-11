@@ -114,7 +114,7 @@ function confirmBox({title, body = '', ok, cancel = '취소', danger = false}) {
 const askLeave = () => confirmBox({title: '작성 중인 내용이 있습니다', body: '저장하지 않고 닫으면 입력한 내용이 사라집니다.', ok: '계속 작성', cancel: '저장하지 않고 닫기'}).then(v => v === false);
 
 /* ---------- 이미지 (비공개 저장소 → 잠깐 쓰는 주소) ---------- */
-// 한 화면에서 부른 이미지는 모아서 한 번에 주소를 받는다 (11-10 홍석진 실장님 점검: 한 장마다 따로 받아 장당 약 0.5초)
+// 한 화면에서 부른 이미지는 모아서 한 번에 주소를 받는다 (11-10 홍석진 대표님 점검: 한 장마다 따로 받아 장당 약 0.5초)
 const imgUrl = {}, imgLoading = new Set(), imgQueue = new Set(); let imgFlush;
 function imgSrc(path) {
   if (!path) return '';
@@ -239,7 +239,7 @@ function render() {
   if (page === 'graph') html = graphView();
   if (page === 'manual') html = manualView();
   if (page === 'home') html = stats() + `<div class="main-grid">${askPanel()}${alerts()}</div>`;
-  if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div><div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
+  if (page === 'entities') { const arr = entities().filter(match), cards = entView === 'card' || isPhone(); html = `<div class="notice">엔티티 ${entities().length}개가 등록되어 있습니다. 등록·수정한 내용은 전 직원에게 공유되며 변경 이력이 기록됩니다.</div><section class="panel"><div class="panel-head"><div class="panel-title">엔티티 목록 <small>${arr.length}개</small></div>${APP === 'ygg' ? '<button class="button" type="button" id="ipbulk-btn">IP 목록 올리기</button>' : ''}<div class="view-toggle" role="group" aria-label="보기 방식"><button type="button" class="segment ${cards ? '' : 'active'}" data-view="table" aria-pressed="${!cards}">표</button><button type="button" class="segment ${cards ? 'active' : ''}" data-view="card" aria-pressed="${cards}">카드</button></div></div><div class="watch-toolbar">${filters()}</div>${localForm('이름·영문 이름·별칭·브랜드명')}${arr.length ? (cards ? `<div class="entity-grid">${entSorted(arr).map(entityCard).join('')}</div>` : entityTable(arr)) : noHits('엔티티', '엔티티 등록')}</section>`; }
   if (page === 'contacts') { const arr = contacts().filter(c => hay(c).includes(query.trim().toLowerCase())); html = `<div class="notice">주소록의 연락처는 업무 목적으로만 사용합니다. 「연락처 등록」에서 명함 사진을 업로드하면 궁니르 봇이 내용을 자동으로 입력하고, 명함 이미지와 수령 경로도 함께 저장합니다. 본인이 삭제를 요청하면 DB 관리자에게 알려 주세요.</div><section class="panel"><div class="panel-head"><div class="panel-title">주소록 <small>사람 단위</small></div><div class="pf-tools"><button class="button" type="button" id="cards-btn">명함 여러 장 올리기</button><button class="button" type="button" id="remember-btn">리멤버에서 가져오기</button><span class="nav-count">${query.trim() ? arr.length + ' / ' : ''}${contacts().length}</span></div></div>${localForm('이름·회사·직함·연락처')}${arr.length ? contactTable(arr) : noHits('연락처', '연락처 등록')}</section>`; }
   if (page === 'admin') html = adminView();
   if (page === 'studio') html = studioCan ? studioView() : '<section class="panel"><div class="empty"><p><b>제안서 스튜디오는 시험 기간이라 일부 직원만 사용할 수 있습니다.</b></p><p>필요하면 AX팀에 요청해 주세요.</p></div></section>';
@@ -2025,7 +2025,7 @@ async function pollRefJobs() {
   if (page !== 'studio') return;
   const ids = (studio.refs || []).filter(r => r.status === 'uploaded' || r.status === 'analyzing').map(r => r.id);
   if (!ids.length) return;
-  if (document.hidden) { studioPoll = setTimeout(pollRefJobs, 3000); return; }      // 탭이 안 보이면 서버에 묻지 않고 3초 뒤 다시 본다 (11-10 홍석진 실장님 점검: 상태 확인 하루 1만 5천 번)
+  if (document.hidden) { studioPoll = setTimeout(pollRefJobs, 3000); return; }      // 탭이 안 보이면 서버에 묻지 않고 3초 뒤 다시 본다 (11-10 홍석진 대표님 점검: 상태 확인 하루 1만 5천 번)
   const { data, error } = await SB.from('pt_proposal_job').select('id,proposal_id,ref_id,kind,status,at,error,result,input').eq('kind', 'analyze_reference').in('ref_id', ids).order('at', {ascending: false});
   if (error || page !== 'studio') return;
   if (ids.some(id => { const j = data.find(x => x.ref_id === id); return j && (j.status === 'done' || j.status === 'fail'); })) return loadStudio();
@@ -3780,6 +3780,130 @@ function ipAddModal() {
     toast(`${name}을(를) 추가했습니다. 궁니르 봇이 몇 분 이내에 일정을 검색하고 IP 스코어를 산정합니다.`);
   };
 }
+/* ---------- IP 목록 올리기 (11-11 홍석진 대표님 「IP 목록을 CSV/엑셀로 한 번에 · 칸이 DB와 다르면 맞춰 넣기 · IP사 담당자와 함께 묶어서」) ----------
+   파일 머리 줄을 읽어 IP 이름·영문·종류·권리사·설명 칸을 자동으로 맞추고, 사람이 화면에서 바꿀 수 있다. 나머지 칸은 「칸 이름: 값」으로 IP 정보에 남긴다.
+   IP사(우리가 상대하는 회사 — 예: CJ ENM)를 고르면 IP 가 그 회사 아래로 들어가 그 회사 담당자와 묶인다. 넣기는 sql/035 pt_ip_bulk (이미 있는 IP 는 건너뜀) */
+const IPB_COLS = {name: /^(ip ?명|ip ?이름|ip_?name(_?ko)?|이름|작품명|name|title|ip)$|name_?ko|(ip|작품) ?명 ?\(?(한|국문)/i, en: /(영문|english|name_?en)/i,
+  kind: /^(종류|유형|분류|장르|type|ip_?type|category|kind)$/i, holder: /(권리|holder|원작사|라이선서|licensor|rights|소유)/i, rel: /(타깃|타겟|포지셔닝|target|positioning|소개|설명|description)/i};
+const IPB_SKIP = /^(no|no\.|번호|순번|#|id)$/i;
+const IPB_LABEL = {name: 'IP 이름', en: '영문 이름', kind: '종류', holder: '권리사', rel: '한 줄 설명'};
+const ipb = {file: '', head: [], rows: [], map: {}, extra: [], agent: ''};
+function ipbKind(t) {
+  t = String(t || '').trim();
+  const hit = Object.entries(IPK).find(([k, v]) => t === k || t === v);
+  if (hit) return hit[0];
+  if (/k-?pop|아이돌|가수|걸그룹|보이그룹|아티스트/i.test(t)) return 'kpop';
+  if (/애니/.test(t) && !/영화/.test(t)) return 'animation';
+  if (/영화|movie|film|슈퍼히어로/i.test(t)) return 'movie';
+  if (/드라마|예능|시리즈|ott|tv/i.test(t)) return 'ott';
+  if (/캐릭터|character|완구|토이|굿즈/i.test(t)) return 'character';
+  if (/인플루언서|유튜버|크리에이터|influencer/i.test(t)) return 'influencer';
+  return 'other';
+}
+function ipbHolder(t) {
+  const orgs = entities().filter(e => e.type !== 'IP·유명인'), parts = [t, ...String(t || '').split(/[\/,·()]/)].map(x => x.trim()).filter(x => x.length >= 2);
+  for (const x of parts) {
+    const n = normCo(x), e = orgs.find(o => [o.name, o.en, ...(o.aliases || [])].some(v => v && normCo(v) === n));
+    if (e) return e;
+  }
+  return null;
+}
+function ipbHave() {
+  const s = new Set();
+  entities().filter(e => e.type === 'IP·유명인').forEach(e => [e.name, e.en, ...(e.aliases || [])].forEach(v => v && s.add(String(v).replace(/\s/g, '').toLowerCase())));
+  return s;
+}
+function ipbItems() {
+  const have = ipbHave(), v = (r, k) => ipb.map[k] === '' || ipb.map[k] === undefined ? '' : String(r[ipb.map[k]] ?? '').trim();
+  return ipb.rows.map(r => {
+    const name = v(r, 'name'), en = v(r, 'en'), ht = v(r, 'holder'), h = ht ? ipbHolder(ht) : null, ktext = v(r, 'kind');
+    const facts = ipb.extra.filter(x => x.on && String(r[x.i] ?? '').trim()).map(x => `${x.label || ipb.head[x.i]}: ${String(r[x.i]).trim()}`);
+    if (ht) facts.unshift(`권리자: ${ht}`);
+    if (ktext) facts.unshift(`종류: ${ktext}`);
+    return {name, en, kind: ipbKind(ktext), holderText: ht, holder: h, rel: v(r, 'rel'), facts,
+      dup: [name, en].some(x => x && have.has(x.replace(/\s/g, '').toLowerCase()))};
+  }).filter(x => x.name);
+}
+function ipbRead(rows) {
+  const hi = Math.max(0, rows.findIndex(r => r.filter(c => String(c).trim()).length >= 2));
+  ipb.head = rows[hi].map(c => String(c).trim());
+  ipb.rows = rows.slice(hi + 1).filter(r => r.some(c => String(c).trim()));
+  ipb.map = {};
+  ipb.head.forEach((h, i) => { for (const [k, re] of Object.entries(IPB_COLS)) if (ipb.map[k] === undefined && !Object.values(ipb.map).includes(i) && re.test(h)) ipb.map[k] = i; });
+  const used = new Set(Object.values(ipb.map));
+  ipb.extra = ipb.head.map((h, i) => ({i, label: h, on: !IPB_SKIP.test(h)})).filter(x => !used.has(x.i));
+}
+function ipBulkModal() {
+  Object.assign(ipb, {file: '', head: [], rows: [], map: {}, extra: [], agent: ''});
+  modal(`<form id="ipb-form" class="rm-modal ipb"><h2>IP 목록 올리기</h2>
+    <p>IP 목록이 담긴 엑셀·CSV 파일을 올리면 칸을 자동으로 맞춰 이그드라실 IP로 등록합니다. 파일의 칸 이름이 달라도 아래에서 어느 칸을 쓸지 고를 수 있고, 이미 등록된 IP는 건너뜁니다.</p>
+    <label>파일 (xlsx · xls · csv)<input type="file" id="ipb-file" accept=".xls,.xlsx,.csv"></label>
+    <div id="ipb-body"></div><div id="ipb-prog-wrap"></div><div id="ipb-error" style="color:#ba775e;margin-top:8px;font-size:12px" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="submit" id="ipb-go" disabled>등록</button></div></form>`);
+  const body = $('#ipb-body'), err = $('#ipb-error'), goBtn = $('#ipb-go');
+  const colSel = k => `<label class="ipb-map"><span>${IPB_LABEL[k]}${k === 'name' ? ' <em>필수</em>' : ''}</span><select class="table-select" data-ipb-map="${k}"><option value="">${k === 'name' ? '칸을 골라 주세요' : '쓰지 않음'}</option>${ipb.head.map((h, i) => `<option value="${i}" ${ipb.map[k] === i ? 'selected' : ''}>${esc(h || `${i + 1}번째 칸`)}</option>`).join('')}</select></label>`;
+  const sample = i => esc(String(ipb.rows.find(r => String(r[i] ?? '').trim())?.[i] ?? '').slice(0, 60));
+  const draw = () => {
+    const items = ipbItems(), n = items.filter(x => !x.dup).length, agent = ipb.agent ? byId(ipb.agent) : null, cn = agent ? contactsOf(agent).length : 0;
+    body.innerHTML = `<p class="rm-sum">${esc(ipb.file)} · ${ipb.rows.length}줄 · 등록할 IP <b>${n}개</b>${items.length - n ? ` · 이미 있음 ${items.length - n}개` : ''}</p>
+      <h3 class="ipb-h">칸 맞추기</h3><div class="ipb-maps">${Object.keys(IPB_LABEL).map(colSel).join('')}</div>
+      ${ipb.extra.length ? `<details class="ipb-extra" open><summary>나머지 칸 중 ${ipb.extra.filter(x => x.on).length}개를 IP 정보에 메모로 남깁니다</summary><ul>${ipb.extra.map((x, j) => `<li><label><input type="checkbox" data-ipb-x="${j}" ${x.on ? 'checked' : ''}> <input type="text" class="ipb-lbl" data-ipb-l="${j}" value="${esc(x.label)}" aria-label="${esc(ipb.head[x.i])} 칸 이름"></label><small>${sample(x.i)}</small></li>`).join('')}</ul></details>` : ''}
+      <h3 class="ipb-h">IP사</h3><label class="ipb-map"><span>담당 회사</span><select class="table-select" id="ipb-agent"><option value="">연결하지 않음</option>${companyOptions(ipb.agent, [ipb.file])}</select></label>
+      <p class="ipb-note">${agent ? `모든 IP가 「${esc(agent.name)}」 아래로 들어가 그 회사 담당자${cn ? ` ${cn}명` : ''}과 함께 묶입니다.` : '우리가 상대하는 회사(예: CJ ENM)를 고르면 IP가 그 회사 아래로 들어가 그 회사 담당자와 함께 묶입니다.'}</p>
+      <h3 class="ipb-h">미리 보기</h3><div class="table-wrap ipb-prev"><table class="et"><thead><tr><th>IP 이름</th><th>종류</th><th>권리사</th><th></th></tr></thead><tbody>${items.slice(0, 300).map(x => `<tr${x.dup ? ' class="ipb-dup"' : ''}><td><b>${esc(x.name)}</b>${x.en ? `<small>${esc(x.en)}</small>` : ''}</td><td>${esc(IPK[x.kind])}</td><td>${x.holder ? `<span class="pill good">${esc(x.holder.name)}</span>` : esc(x.holderText || '—')}</td><td>${x.dup ? '<span class="pill muted">이미 있음</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+      ${items.some(x => x.holderText && !x.holder) ? '<p class="ipb-note">초록색 권리사는 이그드라실에 등록된 회사와 연결됩니다. 나머지는 IP 정보에 「권리자」로 적어 둡니다.</p>' : ''}`;
+    goBtn.disabled = !n;
+    goBtn.textContent = n ? `IP ${n}개 등록` : '등록';
+    $$('[data-ipb-map]').forEach(sl => sl.onchange = () => {
+      ipb.map[sl.dataset.ipbMap] = sl.value === '' ? '' : Number(sl.value);
+      const used = new Set(Object.values(ipb.map).filter(x => x !== ''));
+      ipb.extra = ipb.head.map((h, j) => ipb.extra.find(x => x.i === j) || {i: j, label: h, on: !IPB_SKIP.test(h)}).filter(x => !used.has(x.i));
+      draw();
+    });
+    $$('[data-ipb-x]').forEach(c => c.onchange = () => { ipb.extra[Number(c.dataset.ipbX)].on = c.checked; draw(); });
+    $$('[data-ipb-l]').forEach(t => t.onchange = () => { ipb.extra[Number(t.dataset.ipbL)].label = t.value.trim(); });
+    $('#ipb-agent').onchange = ev => { ipb.agent = ev.target.value; draw(); };
+    err.textContent = ipb.map.name === undefined || ipb.map.name === '' ? 'IP 이름이 들어 있는 칸을 골라 주세요.' : '';
+  };
+  $('#ipb-file').onchange = async ev => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    err.textContent = '';
+    body.innerHTML = '<p class="rm-sum">파일을 읽는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>';
+    try {
+      await loadXlsx();
+      const wb = XLSX.read(await f.arrayBuffer(), {type: 'array'}), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ''});
+      if (!rows.length) { body.innerHTML = ''; err.textContent = '파일에 내용이 없습니다.'; return; }
+      ipb.file = f.name;
+      ipbRead(rows);
+      const hint = nameHits([f.name], entities().filter(e => e.type !== 'IP·유명인' && e.type !== '거래처 담당자'));
+      if (hint.length === 1) ipb.agent = hint[0].id;
+      draw();
+    } catch (e) { body.innerHTML = ''; err.textContent = '파일을 읽지 못했습니다: ' + (e?.message || ''); }
+  };
+  $('#ipb-form').onsubmit = async ev => {
+    ev.preventDefault();
+    const todo = ipbItems().filter(x => !x.dup);
+    if (!todo.length) return;
+    goBtn.disabled = true;
+    $$('#ipb-form input, #ipb-form select').forEach(x => { x.disabled = true; });
+    $('#ipb-prog-wrap').innerHTML = '<div class="ref-prog rm-prog"><span class="row"><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></span><b>0%</b></span><small></small></div>';
+    const w = $('#ipb-prog-wrap'), prog = d => { const pc = Math.round(d / todo.length * 100); w.querySelector('i').style.width = pc + '%'; w.querySelector('b').textContent = pc + '%'; w.querySelector('small').textContent = `${d} / ${todo.length}개 등록 중`; };
+    let done = 0, made = 0, linked = 0;
+    const skipped = [];
+    prog(0);
+    for (let i = 0; i < todo.length; i += 20) {
+      const part = todo.slice(i, i + 20).map(x => ({name: x.name, en: x.en, kind: x.kind, holder: x.holder ? x.holder.name : '', rel: x.rel, facts: x.facts}));
+      const { data, error } = await SB.rpc('pt_ip_bulk', {p_rows: part, p_agent: ipb.agent || null, p_source: ipb.file});
+      if (error) { err.textContent = `${done}개까지 등록한 뒤 멈췄습니다: ${error.message}`; break; }
+      made += data.made; linked += data.holder_linked; skipped.push(...(data.skipped || [])); done += part.length; prog(done);
+    }
+    await load();
+    $('#modal').dataset.dirty = '';
+    if (done === todo.length) { $('#modal').close(); go('entities'); filter = 'IP·유명인'; render(); }
+    toast(`IP ${made}개를 등록했습니다.${linked ? ` 권리사 ${linked}건을 연결했습니다.` : ''}${skipped.length ? ` 이미 있는 ${skipped.length}개는 건너뛰었습니다.` : ''}`);
+  };
+}
 function bindSrc() {
   $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
   if (src.tab === 'chart') return bindChart();
@@ -3956,6 +4080,7 @@ function bindContent() {
   if (page === 'graph') graphMount();
   if (page === 'manual') manualMount();
   $('#remember-btn')?.addEventListener('click', () => { cu.tab = 'remember'; cu.step = 'pick'; go('cards'); });
+  $('#ipbulk-btn')?.addEventListener('click', ipBulkModal);
   $('#cards-btn')?.addEventListener('click', () => { cu.tab = 'photo'; go('cards'); });
   $$('[data-page]').forEach(b => b.onclick = ev => { ev.preventDefault(); go(b.dataset.page); });
   $$('[data-state]').forEach(b => b.onclick = () => { entState = b.dataset.state; render(); });
