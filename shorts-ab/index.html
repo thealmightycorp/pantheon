@@ -59,6 +59,7 @@ section{margin-top:64px}
 /* 결론 */
 .verdict{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:28px;margin-top:28px}
 .verdict-lead{margin:0 0 10px;font-size:16px;color:var(--ink-2)}
+.verdict-more{margin:12px 0 0;font-size:16px;color:var(--ink-2)}
 .verdict-h{font-size:22px;font-weight:800;line-height:1.45;letter-spacing:-.015em;margin:0}
 .verdict-h em{font-style:normal;color:var(--win)}
 .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
@@ -104,6 +105,17 @@ pre{white-space:pre-wrap;word-break:keep-all;font-family:inherit;font-size:15px;
 .common{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 24px 20px}
 
 /* 결과 */
+.seg{display:inline-flex;gap:4px;background:var(--sunken);padding:4px;border-radius:999px;margin:4px 0 12px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--ink-2);font-weight:700;font-size:15px;padding:8px 18px;border-radius:999px;cursor:pointer;min-height:40px}
+.seg button[aria-selected=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.sum{width:100%;border-collapse:collapse;font-size:15px;margin-top:20px}
+.sum th,.sum td{padding:10px 8px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap}
+.sum th:first-child,.sum td:first-child{text-align:left}
+.sum thead th{font-size:13px;color:var(--ink-3);font-weight:700}
+.sum .sub{display:block;font-size:13px;color:var(--ink-4)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.note-panel{margin-top:16px}
+.note-panel h3{margin-bottom:6px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 24px}
 .tabs button{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-weight:700;font-size:15px;padding:10px 18px;border-radius:999px;cursor:pointer;min-height:44px}
 .tabs button[aria-selected=true]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
@@ -199,7 +211,7 @@ function 로그인화면(말) {
   };
 }
 async function 시작() {
-  if (로컬) { D = await (await fetch("data.json")).json(); 그리기(); return; }
+  if (로컬) { D = await (await fetch("data-v2.json")).json(); 그리기(); return; }
   const 오류 = new URLSearchParams(location.hash.slice(1)).get("error_description") || new URLSearchParams(location.search).get("error_description");
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return 로그인화면(오류 ? "슬랙 로그인이 취소되었거나 실패했습니다." : "");
@@ -215,7 +227,7 @@ async function 시작() {
   if (!됨) { await SB.auth.signOut({ scope: "local" }); return 로그인화면("헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요."); }
   if (location.hash.includes("access_token")) try { history.replaceState(null, "", location.pathname); } catch {}
   앱().innerHTML = `<p class="loading">기록을 불러오는 중…</p>`;
-  const { data: 파일, error } = await SB.storage.from(함).download("data.json");
+  const { data: 파일, error } = await SB.storage.from(함).download("data-v2.json");
   if (error) { 앱().innerHTML = `<p class="loading err">기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</p>`; return; }
   D = JSON.parse(await 파일.text());
   const 경로들 = D.원본.flatMap((x) => [...x.A.편, ...x.B.편]).flatMap((c) => [c.영상, c.표지]);
@@ -238,6 +250,10 @@ function 짝짓기(A, B) {
   return 줄.sort((x, y) => (x[0] ?? x[1]).시작 - (y[0] ?? y[1]).시작);
 }
 
+let 고른팀 = null, 고른원본 = 0;
+const 팀순서 = ["사운드스루", "맛출장", "골포스트"];
+const 짧은이름 = (x) => x.제목.replace(/^사운드스루 인터뷰 /, "").replace(/^\[맛출장\]/, "").replace(/_720$/, "").replace(/^골포스트 인터뷰 /, "").replace(/_raw$/, "");
+const 실제길이 = (c) => c.길이초 ?? (c.끝 - c.시작);
 function 쪽(c, k) {
   if (!c) return `<div class="side empty">프롬프트 ${k}에는 이 구간을 사용한 숏폼이 없습니다</div>`;
   return `<div class="side">
@@ -245,7 +261,7 @@ function 쪽(c, k) {
     <div>
       <div class="who"><span class="ab ${k.toLowerCase()}">${k}</span>프롬프트 ${k}${c.채널 ? `<span class="chip">${esc(채널[c.채널] ?? c.채널)}용</span>` : ""}</div>
       <div class="title">${c.제목.map(esc).join("<br>")}</div>
-      <div class="when">원본 ${분초(c.시작)}~${분초(c.끝)} 구간 · 숏폼 길이 약 ${Math.round(c.끝 - c.시작)}초</div>
+      <div class="when">${c.이어붙임 ? `원본 ${분초(c.시작)}~${분초(c.끝)} 사이의 여러 구간을 이어 붙임` : `원본 ${분초(c.시작)}~${분초(c.끝)} 구간`} · 숏폼 길이 약 ${Math.round(실제길이(c))}초</div>
       <div class="lbl">선정 사유</div><div class="txt">${esc(c.이유)}</div>
       ${c.채널규칙 ? `<div class="lbl">적용한 채널 규칙</div><div class="txt">${esc(c.채널규칙)}</div>` : ""}
       ${c.참여 ? `<div class="lbl">반응 유도 요소</div><div class="txt">${esc(c.참여)}</div>` : ""}
@@ -254,26 +270,43 @@ function 쪽(c, k) {
     </div></div>`;
 }
 
-let 고른원본 = 0;
 function 그리기() {
   const 원본 = D.원본;
-  const 합 = (k) => 원본.reduce((t, x) => ({ 초: t.초 + x[k].합.초, 토큰: t.토큰 + x[k].합.입력 + x[k].합.출력, 원: t.원 + x[k].합.원, 편: t.편 + x[k].합.편수 }), { 초: 0, 토큰: 0, 원: 0, 편: 0 });
-  const A = 합("A"), B = 합("B");
-  const 쌍 = 원본.flatMap((x) => 짝짓기(x.A.편, x.B.편));
-  const 같은 = 쌍.filter(([a, b, r]) => a && b && r >= 0.6).length, 전체쌍 = 쌍.length;
+  const 팀들 = 팀순서.filter((t) => 원본.some((x) => x.팀 === t));
+  if (!고른팀) 고른팀 = 팀들[0];
+  const 합 = (목록, k) => 목록.reduce((t, x) => ({ 초: t.초 + x[k].합.초, 토큰: t.토큰 + x[k].합.입력 + x[k].합.출력, 원: t.원 + x[k].합.원, 편: t.편 + x[k].합.편수 }), { 초: 0, 토큰: 0, 원: 0, 편: 0 });
+  const 일치 = (목록) => { const 쌍 = 목록.flatMap((x) => 짝짓기(x.A.편, x.B.편)).filter(([a, b]) => a && b); return { 같은: 쌍.filter(([, , r]) => r >= 0.6).length, 쌍: 쌍.length }; };
+  const A = 합(원본, "A"), B = 합(원본, "B"), 전체일치 = 일치(원본);
+  const 일치쌍 = 원본.flatMap((x) => 짝짓기(x.A.편, x.B.편)).filter(([a, b, r]) => a && b && r >= 0.6);
+  const 제목다름 = 일치쌍.filter(([a, b]) => a.제목.join() !== b.제목.join()).length;
+  const 평균길이 = (k) => { const 목 = 원본.flatMap((x) => x[k].편); return 목.length ? Math.round(목.reduce((t, c) => t + 실제길이(c), 0) / 목.length) : 0; };
   const 영상분 = Math.round(원본.reduce((t, x) => t + x.길이, 0) / 60);
   const 빠른 = B.초 <= A.초 ? "B" : "A", 싼 = B.원 <= A.원 ? "B" : "A";
   const 시간차 = 퍼센트(Math.min(A.초, B.초), Math.max(A.초, B.초)), 비용차 = 퍼센트(Math.min(A.원, B.원), Math.max(A.원, B.원));
+  const 편당 = (s) => ({ 초: s.편 ? s.초 / s.편 : 0, 원: s.편 ? s.원 / s.편 : 0 });
   const 만든때 = new Date(D.만든때).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const 팀요약 = 팀들.map((t) => { const 목록 = 원본.filter((x) => x.팀 === t); return { 팀: t, 원본수: 목록.length, 분: Math.round(목록.reduce((a, x) => a + x.길이, 0) / 60), A: 합(목록, "A"), B: 합(목록, "B"), 일치: 일치(목록), 빈: 목록.filter((x) => !x.A.편.length && !x.B.편.length).length }; });
 
   const 막대 = (제목, 단위설명, 값, 표시) => {
-    const 최대 = Math.max(...원본.flatMap((x) => [값(x.A.합), 값(x.B.합)]));
+    const 최대 = Math.max(1, ...팀요약.flatMap((t) => [값(t.A), 값(t.B)]));
     return `<div class="metric"><h3>${제목}<small>${단위설명}</small></h3><div class="src-bars">
-      ${원본.map((x) => `<div><div class="src-name">${esc(x.제목.replace(/^사운드스루 인터뷰 /, ""))} <span class="meta">· ${esc(x.팀)} · 원본 ${Math.round(x.길이 / 60)}분</span></div>
-        ${["A", "B"].map((k) => `<div class="bar"><span class="ab ${k.toLowerCase()}">${k}</span><div class="track" role="img" aria-label="프롬프트 ${k} ${표시(값(x[k].합))}"><div class="fill ${k.toLowerCase()}" style="width:${(값(x[k].합) / 최대 * 100).toFixed(1)}%"></div></div><span class="val">${표시(값(x[k].합))}</span></div>`).join("")}
+      ${팀요약.map((t) => `<div><div class="src-name">${esc(t.팀)} <span class="meta">· 원본 ${t.원본수}건 · A ${t.A.편}편 · B ${t.B.편}편</span></div>
+        ${["A", "B"].map((k) => `<div class="bar"><span class="ab ${k.toLowerCase()}">${k}</span><div class="track" role="img" aria-label="${esc(t.팀)} 프롬프트 ${k} ${표시(값(t[k]))}"><div class="fill ${k.toLowerCase()}" style="width:${(값(t[k]) / 최대 * 100).toFixed(1)}%"></div></div><span class="val">${표시(값(t[k]))}</span></div>`).join("")}
       </div>`).join("")}</div>
-      <div class="total">합계 · A <b>${표시(값({ 초: A.초, 입력: A.토큰, 출력: 0, 원: A.원 }))}</b> · B <b>${표시(값({ 초: B.초, 입력: B.토큰, 출력: 0, 원: B.원 }))}</b></div></div>`;
+      <div class="total">전체 합계 · A <b>${표시(값(A))}</b> · B <b>${표시(값(B))}</b></div></div>`;
   };
+  const 원본표 = `<table class="sum"><thead><tr><th>원본</th><th>길이</th><th>숏폼 A·B</th><th>편집 A·B</th><th>토큰 A·B</th><th>사용료 A·B</th></tr></thead><tbody>
+    ${팀들.map((t) => 원본.filter((x) => x.팀 === t).map((x) => `<tr><td><b>${esc(짧은이름(x))}</b><span class="sub">${esc(t)}</span></td><td>${걸림(x.길이)}</td><td>${x.A.합.편수}편 · ${x.B.합.편수}편</td><td>${걸림(x.A.합.초)} · ${걸림(x.B.합.초)}</td><td>${수(x.A.합.입력 + x.A.합.출력)} · ${수(x.B.합.입력 + x.B.합.출력)}</td><td>${수(x.A.합.원)}원 · ${수(x.B.합.원)}원</td></tr>`).join("")).join("")}
+  </tbody></table>`;
+
+  const 팀원본 = 원본.filter((x) => x.팀 === 고른팀);
+  if (고른원본 >= 팀원본.length) 고른원본 = 0;
+  const 지금 = 팀원본[고른원본];
+  const 장면 = !지금.A.편.length && !지금.B.편.length
+    ? `<div class="panel">이 원본은 ${지금.A.받아쓴줄 === 0 ? "음성 인식 결과가 나오지 않아" : "음성 인식 결과에 알아들을 수 없는 문장이 많아"} 두 프롬프트 모두 숏폼을 만들지 않았습니다. 공통 지시에 「음성 인식이 무너진 구간은 고르지 않는다」가 들어 있어 의도한 결과입니다.</div>`
+    : 짝짓기(지금.A.편, 지금.B.편).map(([a, b, r], i) => `<article class="scene">
+        <div class="scene-h"><h3>숏폼 ${i + 1}</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B 구간 일치</span>` : `<span class="diff">A·B 구간 일부 일치</span>`) : `<span class="diff">한쪽에서만 제작</span>`}</div>
+        <div class="scene-b">${쪽(a, "A")}${쪽(b, "B")}</div></article>`).join("");
 
   앱().innerHTML = `
   <header class="top"><div class="top-in"><b>숏폼 A·B 시연</b><nav aria-label="바로 가기">
@@ -281,19 +314,22 @@ function 그리기() {
   <main class="wrap">
     <div class="eyebrow">THE ALMIGHTY · AX팀 · 숏폼 자동 편집</div>
     <h1>숏폼 자동 편집 프롬프트 A·B 비교 결과</h1>
-    <p class="sub">11월 10일 회의에서 대표님께서 지시하신 대로, 프롬프트(AI에 주는 편집 지시문)를 달리했을 때 숏폼 결과물과 소요 시간, 비용이 어떻게 달라지는지 비교하였습니다. 같은 롱폼 원본을 프롬프트 A와 B로 각각 자동 편집하였으며, 자막 글꼴과 로고 등 디자인은 두 프롬프트에 동일하게 적용됩니다.</p>
+    <p class="sub">11월 10일 회의에서 대표님께서 지시하신 대로, 프롬프트(AI에 주는 편집 지시문)를 달리했을 때 숏폼 결과물과 소요 시간, 비용이 어떻게 달라지는지 비교하였습니다. ${팀들.join(", ")}의 롱폼 원본을 프롬프트 A와 B로 각각 자동 편집하였으며, 화면 틀(배경·자막 글꼴·로고)은 팀별 채널 쇼츠 형식을 따르고 두 프롬프트에 동일하게 적용됩니다.</p>
     <div class="meta">조회 시각 ${만든때} · 작성 AX팀 김현우 · 시간과 토큰은 자동 편집 프로그램이 작업 중 기록한 실측값이며, 사용료는 토큰 수로 계산한 값입니다</div>
 
     <div class="verdict" id="결론">
       <p class="verdict-lead">프롬프트 A는 숏폼마다 게시할 채널을 정해 그 채널의 규칙에 맞추도록, 프롬프트 B는 채널 구분 없이 시청자가 끝까지 보고 반응하도록 편집하라고 지시하였습니다.</p>
-      <p class="verdict-h">두 프롬프트는 각각 숏폼 ${전체쌍}편(원본마다 3편)을 만들었고, <em>그중 ${같은}편은 원본의 같은 구간을 사용하였으며</em> 나머지 ${전체쌍 - 같은}편은 구간이 일부만 겹쳤습니다. 두 결과물은 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 차이가 났습니다.
-        소요 시간과 비용은 ${빠른 === 싼 ? `프롬프트 ${빠른}가 다소 적었으나` : "두 프롬프트가 비슷하며"} 원본 1건당 차이는 수십 초, 수십 원 수준입니다.</p>
+      <p class="verdict-h">두 프롬프트는 <em>원본에서 같은 구간을 고른 경우가 많았고</em>(짝지은 ${전체일치.쌍}쌍 중 ${전체일치.같은}쌍), <em>차이는 주로 제목에서 났습니다</em>(같은 구간 ${전체일치.같은}쌍 중 ${제목다름}쌍의 제목이 다름). 숏폼 길이와 1편당 편집 시간·사용료는 거의 같았습니다.</p>
+      <p class="verdict-more">${팀들.length}개 팀의 원본 ${원본.length}건으로 프롬프트 A는 ${A.편}편, B는 ${B.편}편을 만들었습니다.${A.편 > B.편 ? ` A는 원본마다 최대 3편을 만들고, B는 원본 길이에 따라 편수를 정하도록(15분 미만은 2편) 되어 있어 B가 ${A.편 - B.편}편 적습니다.` : ""} 숏폼 1편당 평균 길이는 A ${평균길이("A")}초, B ${평균길이("B")}초입니다.</p>
       <div class="facts">
-        <div class="fact"><div class="k">구간 일치</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">프롬프트별 6편(원본 2건 × 3편) 기준입니다. 두 프롬프트가 사용한 구간이 60% 이상 겹치면 일치로 보았습니다.</div></div>
-        <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧았습니다<span class="win">${빠른}</span></div></div>
-        <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적었으며, 숏폼 1편당 평균 사용료는 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원입니다<span class="win">${싼}</span></div></div>
+        <div class="fact"><div class="k">구간 일치</div><div class="v">${전체일치.쌍}쌍 중 ${전체일치.같은}쌍</div><div class="d">A·B가 사용한 구간이 60% 이상 겹치면 일치로 보았습니다.</div></div>
+        <div class="fact"><div class="k">1편당 평균 편집 시간</div><div class="v">A ${Math.round(편당(A).초)}초 · B ${Math.round(편당(B).초)}초</div><div class="d">합계는 A ${걸림(A.초)}, B ${걸림(B.초)}입니다. 합계 차이는 만든 편수 차이에서 나옵니다.</div></div>
+        <div class="fact"><div class="k">1편당 평균 API 사용료</div><div class="v">A ${Math.round(편당(A).원)}원 · B ${Math.round(편당(B).원)}원</div><div class="d">합계는 A ${수(A.원)}원, B ${수(B.원)}원입니다.</div></div>
       </div>
-      <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b>(A ${A.편}편 · B ${B.편}편)</span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span><span>채널 <b>${[...new Set(원본.map((x) => x.팀))].join(" · ")}</b></span></div>
+      <div class="scroll"><table class="sum team-sum"><thead><tr><th>팀</th><th>원본</th><th>숏폼 A·B</th><th>구간 일치</th><th>편집 시간 A·B</th><th>사용료 A·B</th></tr></thead><tbody>
+        ${팀요약.map((t) => `<tr><td><b>${esc(t.팀)}</b></td><td>${t.원본수}건 · ${t.분}분</td><td>${t.A.편}편 · ${t.B.편}편</td><td>${t.일치.쌍}쌍 중 ${t.일치.같은}쌍</td><td>${걸림(t.A.초)} · ${걸림(t.B.초)}</td><td>${수(t.A.원)}원 · ${수(t.B.원)}원</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b></span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span></div>
     </div>
 
     <section id="프롬프트">
@@ -306,42 +342,44 @@ function 그리기() {
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.A.머리)}\n\n${esc(D.프롬프트.A.길이)}</pre></details></div>
         <div class="prompt b"><h3><span class="ab b">B</span>시청 유지·반응 유도형</h3>
           <div class="one">채널을 나누지 않고, 시청자가 영상을 끝까지 보고 댓글·저장·공유로 반응하도록 편집하라고 지시하였습니다. AI는 아래 기준으로 작업합니다.</div>
-          <ul><li>도입 1~3초 안에 시청자의 관심을 끄는 장면으로 시작합니다.</li><li>끝까지 시청하도록 늘어지는 부분은 덜어 냅니다.</li><li>마지막은 댓글을 유도하는 질문이나 반전, 여운이 남는 말로 마무리합니다.</li></ul>
+          <ul><li>도입 1~3초 안에 시청자의 관심을 끄는 장면으로 시작합니다.</li><li>끝까지 시청하도록 늘어지는 부분은 덜어 냅니다.</li><li>마지막은 댓글을 유도하는 질문이나 반전, 여운이 남는 말로 마무리합니다.</li><li>원본 길이에 따라 1~3편을 만듭니다(4분 미만 1편, 15분 미만 2편, 그 이상 3편).</li></ul>
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.B.머리)}\n\n${esc(D.프롬프트.B.길이)}</pre></details></div>
       </div>
-      <div class="common"><details><summary>공통 지시 원문 보기</summary><pre>${esc(D.프롬프트.공통)}</pre></details></div>
+      ${D.프롬프트.골포스트 && 팀들.includes("골포스트") ? `<div class="panel note-panel"><h3>골포스트 편집 기준</h3><p class="txt">골포스트는 11월 6일 김성효 팀장 피드백을 반영한 편집 기준 위에 A·B 지시를 더했습니다. 한 구간을 그대로 자르지 않고 필요한 문장만 골라 이어 붙이며, 핵심 한마디를 영상 맨 앞에 먼저 보여 줍니다. 통역이 같은 내용을 반복하는 문장과 인터뷰어의 맞장구는 빼고, 질문은 꼭 필요할 때 한 문장만 넣습니다. 자막은 한국어와 영어를 함께 넣고 질문은 「Q.」로 표시합니다.</p></div>` : ""}
+      <div class="common"><details><summary>공통 지시 원문 보기(사운드스루·맛출장)</summary><pre>${esc(D.프롬프트.공통)}</pre></details>${D.프롬프트.골포스트 ? `<details><summary>공통 지시 원문 보기(골포스트)</summary><pre>${esc(D.프롬프트.골포스트)}</pre></details>` : ""}</div>
     </section>
 
     <section id="숫자">
-      <h2>원본별 소요 시간·토큰·비용</h2>
-      <p class="sub">막대가 짧을수록 시간과 비용이 적게 든 것이며, 수치는 막대 오른쪽에 적었습니다.</p>
+      <h2>팀별 소요 시간·토큰·비용</h2>
+      <p class="sub">막대가 짧을수록 시간과 비용이 적게 든 것이며, 수치는 막대 오른쪽에 적었습니다. 합계는 만든 편수에 따라 달라지므로, 같은 팀 안에서도 편수(A·B 옆 숫자)를 함께 보아 주세요.</p>
       <div class="metrics">
         ${막대("편집 소요 시간", "음성 받아쓰기·구간 선정·편집 포함", (s) => s.초, 걸림)}
-        ${막대("토큰", "Claude 입력·출력 합계", (s) => s.입력 + s.출력, 수)}
+        ${막대("토큰", "Claude 입력·출력 합계", (s) => s.토큰, 수)}
         ${막대("API 사용료", "원화 환산(1달러=1,450원)", (s) => s.원, (v) => `${수(v)}원`)}
       </div>
+      <div class="common"><details><summary>원본별 수치 보기</summary><div class="scroll">${원본표}</div></details></div>
     </section>
 
     <section id="결과">
       <h2>결과 영상</h2>
-      <p class="sub">원본을 선택하면 해당 원본으로 만든 A·B 숏폼을 볼 수 있으며, 같은 구간을 사용한 A·B 숏폼은 한 줄에 나란히 배치하였습니다.</p>
-      <div class="tabs" role="tablist" aria-label="원본 선택">${원본.map((x, i) => `<button role="tab" aria-selected="${i === 고른원본}" data-i="${i}">${esc(x.제목.replace(/^사운드스루 인터뷰 /, ""))}<small>${esc(x.팀)} · ${Math.round(x.길이 / 60)}분</small></button>`).join("")}</div>
-      <div id="장면들">${짝짓기(원본[고른원본].A.편, 원본[고른원본].B.편).map(([a, b, r], i) => `<article class="scene">
-        <div class="scene-h"><h3>숏폼 ${i + 1}</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B 구간 일치</span>` : `<span class="diff">A·B 구간 일부 일치</span>`) : `<span class="diff">한쪽에서만 제작</span>`}</div>
-        <div class="scene-b">${쪽(a, "A")}${쪽(b, "B")}</div></article>`).join("")}</div>
+      <p class="sub">팀과 원본을 선택하면 해당 원본으로 만든 A·B 숏폼을 볼 수 있으며, 같은 구간을 사용한 A·B 숏폼은 한 줄에 나란히 배치하였습니다.</p>
+      <div class="seg" role="tablist" aria-label="팀 선택">${팀들.map((t) => `<button role="tab" aria-selected="${t === 고른팀}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="tabs" role="tablist" aria-label="원본 선택">${팀원본.map((x, i) => `<button role="tab" aria-selected="${i === 고른원본}" data-i="${i}">${esc(짧은이름(x))}<small>${Math.round(x.길이 / 60)}분 · ${x.A.합.편수 + x.B.합.편수}편</small></button>`).join("")}</div>
+      <div id="장면들">${장면}</div>
     </section>
 
     <section id="방법">
       <div class="two">
         <div class="panel"><h2>측정 기준</h2><ul>
           <li><b>편집 소요 시간</b> — 음성 받아쓰기(사무실 서버 PC 그래픽카드), 구간 선정(Claude), 세로 화면 편집과 자막 작업 시간을 합산하였습니다. 받아쓰기와 구간 선정은 원본 1건당 한 번 실행되므로 제작 편수로 나누어 각 편에 배분하였습니다. 구글 드라이브에서 원본을 내려받는 시간과 작업 대기 시간은 제외하였습니다.</li>
-          <li><b>토큰</b> — Claude가 응답과 함께 알려 주는 입력·출력 토큰 수를 합산하였습니다.</li>
+          <li><b>토큰</b> — Claude가 응답과 함께 알려 주는 입력·출력 토큰 수를 합산하였습니다. 골포스트는 한국어·영어 자막 작성, 맛출장은 제목 강조 낱말 선정에 드는 토큰도 포함됩니다.</li>
           <li><b>API 사용료</b> — 토큰 수에 단가(Claude Opus 5.5 기준 100만 토큰당 입력 4달러, 출력 20달러)를 곱해 산출하였으며, 1달러를 1,450원으로 환산하였습니다. 받아쓰기는 자체 PC에서 처리하므로 별도 비용이 발생하지 않습니다.</li>
         </ul></div>
         <div class="panel"><h2>미확인 사항</h2><ul>
           <li>SNS 반응(조회수·저장·댓글)에 따른 A·B 비교는 하지 못했습니다. 11월 11일 이승윤 인터뷰 A·B 1편씩을 테스트 계정에 올렸으나, 출연자가 연예인인 점을 고려해 당일 내렸습니다. 초상권과 소속사 협의가 확인되기 전까지 외부 게시는 보류합니다.</li>
-          <li>제목과 캡션에 쓰인 곡명, 해시태그(예: 공원 A의 「#이리저리」)는 원자료와 대조하지 않았습니다.</li>
-          <li>골포스트와 맛출장 원본은 11월 13일까지 받을 예정이며, 접수되는 대로 이 페이지에 팀별로 추가하겠습니다.</li>
+          <li>제목과 캡션에 쓰인 곡명, 가게 이름, 해시태그는 원자료와 대조하지 않았습니다.</li>
+          <li>맛출장과 골포스트는 이전에 받아 둔 원본으로 진행하였습니다. 회의에서 요청하신 길이별(5분~2시간) 원본은 11월 13일까지 받을 예정입니다.</li>
+          ${팀요약.some((t) => t.빈) ? `<li>골포스트 원본 중 ${팀요약.find((t) => t.팀 === "골포스트")?.빈 ?? 0}건은 음성 인식 결과가 없거나 알아들을 수 없는 문장이 많아 숏폼을 만들지 않았습니다.</li>` : ""}
           <li>이 페이지의 영상은 용량 제한으로 다시 압축하여 실제 결과물보다 화질이 낮습니다.</li>
         </ul></div>
       </div>
@@ -350,9 +388,12 @@ function 그리기() {
     <footer><span>THE ALMIGHTY · AX팀 — 더올마이티 임직원 전용 내부 보고 자료입니다. 영상의 다운로드와 외부 공유를 삼가 주세요.</span>${로컬 ? "" : `<a href="#" id="logout">로그아웃</a>`}</footer>
   </main>`;
 
-  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { 고른원본 = Number(b.dataset.i); const y = scrollY; 그리기(); scrollTo(0, y); }));
+  const 다시 = () => { const y = scrollY; 그리기(); scrollTo(0, y); };
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => { 고른팀 = b.dataset.t; 고른원본 = 0; 다시(); }));
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { 고른원본 = Number(b.dataset.i); 다시(); }));
   document.getElementById("logout")?.addEventListener("click", async (e) => { e.preventDefault(); await SB.auth.signOut({ scope: "local" }); location.reload(); });
 }
+
 시작();
 </script>
 </body>
