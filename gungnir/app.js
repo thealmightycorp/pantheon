@@ -3184,6 +3184,7 @@ async function openProposal(id, keep) {
   else if (p.status === 'waiting' && p.stage >= 7 && d.images) action = imagesPanel(p);
   else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>궁니르 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
+  if (p.status !== 'working' && d.build) action = shortPanel(p) + action;
   const dlTip = '<p class="muted-box dl-tip">PPTX 파일은 <b>키노트</b>에서 바로 열립니다. <b>Figma</b>는 Figma Slides 파일 목록의 「가져오기」에서 PPTX를 올리면 편집할 수 있습니다. Figma에 Pretendard 글꼴이 없으면 기본 글꼴로 바뀝니다.</p>';
   const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
@@ -3330,6 +3331,17 @@ async function openProposal(id, keep) {
     ev.target.disabled = true;
     const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'draft', instruction: t, version: d.build?.version, by: myName || ''}];
     go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `수정 버전을 요청했습니다 · ${t.slice(0, 120)}`, '수정 버전을 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
+  });
+  $('#short-go')?.addEventListener('click', async ev => {
+    const filled = $$('[data-short-n]').map(t => ({n: Number(t.dataset.shortN), v: t.value.trim()})).filter(x => x.v);
+    if (!filled.length) { $('[data-short-n]')?.focus(); return toast('보강할 내용을 한 페이지 이상 입력해 주세요.'); }
+    if (!(await confirmBox({title: `${filled.length}페이지를 채워 v${d.build.version + 1}을 생성할까요?`,
+        body: '입력한 페이지만 채우고 나머지 페이지와 이미지는 유지합니다. 필요한 이미지만 새로 수급합니다.', ok: `v${d.build.version + 1} 생성`}))) return;
+    ev.target.disabled = true;
+    const sl = d.build.deck.slides, t = '아래 「추후 업데이트 예정」 페이지를 담당자가 준 보강 자료로 채워 주세요. 자료에 있는 사실만 쓰고, 채운 페이지는 short 를 지웁니다.\n' +
+      filled.map(x => `- ${x.n}페이지(${sl[x.n - 1]?.eyebrow || sl[x.n - 1]?.layout || ''} · 필요한 내용: ${shortNeed(sl[x.n - 1] || {})}): ${x.v}`).join('\n');
+    const log = [...(d.revise_log || []), {at: new Date().toISOString(), stage: 'draft', instruction: t, version: d.build?.version, by: myName || '', kind: 'short'}];
+    go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `내용 보강을 요청했습니다 · ${filled.map(x => x.n + '페이지').join('·')}`, '입력한 내용으로 페이지를 채워 다음 버전을 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   // 중간 과정에서도 원고 수정 요청 (10-30 대표님 「완성 혹은 중간 과정에 프롬프트로 넣으면 변경」)
   $('#mid-go')?.addEventListener('click', async ev => {
@@ -3903,6 +3915,17 @@ function ipBulkModal() {
     if (done === todo.length) { $('#modal').close(); go('entities'); filter = 'IP·유명인'; render(); }
     toast(`IP ${made}개를 등록했습니다.${linked ? ` 권리사 ${linked}건을 연결했습니다.` : ''}${skipped.length ? ` 이미 있는 ${skipped.length}개는 건너뛰었습니다.` : ''}`);
   };
+}
+// 내용 보강 요청 (11-11 대표님 「내용 부족할 땐 보강해 달라고 요청 · 바로 못 하면 그 페이지는 흰 상자에 추후 업데이트 예정」)
+// 원고에서 채울 자료가 없던 페이지(short · 예전 원고는 제목 「내용 부족」)는 제안서에 「추후 업데이트 예정」 상자로 나가고, 여기서 자료를 받아 그 페이지만 채운다
+const shortSlides = d => (d.build?.deck?.slides || []).map((s, i) => ({n: i + 1, s})).filter(({s}) => String(s.short || '').trim() || /내용 부족/.test([].concat(s.title || []).join(' ')));
+const shortNeed = s => String(s.short || s.note || '').replace(/\s*\*\s*이해를 돕기.*$/, '').replace(/\s*—\s*내부 자료로 보강 필요\s*$/, '').trim();
+function shortPanel(p) {
+  const list = shortSlides(p.data || {});
+  if (!list.length) return '';
+  return `<div class="detail-block pv-decide pv-short"><h3>내용 보강 필요 · ${list.length}페이지</h3><p>채울 자료가 없어 아래 페이지는 제안서에 「추후 업데이트 예정」으로 표시됩니다. 내용을 입력하면 그 페이지만 채워 다음 버전을 생성하고, 비워 둔 페이지는 그대로 둡니다.</p>
+    <ul class="pv-short-list">${list.map(({n, s}) => `<li><b>${n}페이지${s.eyebrow ? ' · ' + esc(s.eyebrow) : ''}</b><small>필요한 내용: ${esc(shortNeed(s) || '페이지 내용')}</small><textarea rows="2" maxlength="1500" data-short-n="${n}" placeholder="예: 2025 HOBBY 박스 3종 발매, 쿠팡·29CM 판매, 초도 물량 완판"></textarea></li>`).join('')}</ul>
+    <div class="drawer-actions"><button class="button primary" id="short-go">입력한 내용으로 v${(p.data.build.version || 1) + 1} 생성</button></div></div>`;
 }
 function bindSrc() {
   $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
