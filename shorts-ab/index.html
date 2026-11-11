@@ -58,6 +58,7 @@ section{margin-top:64px}
 
 /* 결론 */
 .verdict{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:28px;margin-top:28px}
+.verdict-lead{margin:0 0 10px;font-size:16px;color:var(--ink-2)}
 .verdict-h{font-size:22px;font-weight:800;line-height:1.45;letter-spacing:-.015em;margin:0}
 .verdict-h em{font-style:normal;color:var(--win)}
 .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
@@ -274,7 +275,7 @@ function 그리기() {
 
   앱().innerHTML = `
   <header class="top"><div class="top-in"><b>숏폼 A·B 시연</b><nav aria-label="바로 가기">
-    <a href="#결론">요약</a><a href="#숫자">시간·비용</a><a href="#프롬프트">프롬프트</a><a href="#결과">결과 영상</a><a href="#방법">측정 기준</a></nav></div></header>
+    <a href="#결론">요약</a><a href="#프롬프트">프롬프트</a><a href="#숫자">시간·비용</a><a href="#결과">결과 영상</a><a href="#방법">측정 기준</a></nav></div></header>
   <main class="wrap">
     <div class="eyebrow">THE ALMIGHTY · AX팀 · 숏폼 자동 편집</div>
     <h1>숏폼 자동 편집 프롬프트 A·B 비교 결과</h1>
@@ -282,25 +283,16 @@ function 그리기() {
     <div class="meta">조회 시각 ${만든때} · 작성 AX팀 김현우 · 시간과 토큰은 자동 편집 프로그램이 작업 중 기록한 실측값이며, 사용료는 토큰 수로 계산한 값입니다</div>
 
     <div class="verdict" id="결론">
-      <p class="verdict-h">프롬프트 A와 B는 원본마다 숏폼을 3편씩 만들었는데, <em>${전체쌍}편 중 ${같은}편은 원본에서 같은 부분을 잘라 썼습니다.</em> 결과물의 차이는 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 나타났습니다.
+      <p class="verdict-lead">프롬프트 A는 숏폼마다 게시할 채널을 정해 그 채널의 규칙에 맞추도록, 프롬프트 B는 채널 구분 없이 시청자가 끝까지 보고 반응하도록 편집하라고 지시하였습니다.</p>
+      <p class="verdict-h">그 결과 A와 B는 각각 숏폼 ${전체쌍}편(원본마다 3편)을 만들었으며, <em>이 가운데 ${같은}편은 두 프롬프트가 원본의 같은 부분을 잘라 썼습니다.</em> 결과물의 차이는 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 나타났습니다.
         소요 시간과 비용은 ${빠른 === 싼 ? `프롬프트 ${빠른}가 다소 적었으나` : "두 프롬프트가 비슷하며"} 원본 1건당 차이는 수십 초, 수십 원 수준입니다.</p>
       <div class="facts">
-        <div class="fact"><div class="k">A와 B가 같은 부분을 고른 숏폼</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">원본 2건에서 3편씩 만든 6편 기준이며, 두 프롬프트가 고른 구간이 60% 이상 겹치면 같은 부분으로 셌습니다</div></div>
+        <div class="fact"><div class="k">A와 B가 같은 부분을 고른 숏폼</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">프롬프트별로 만든 6편(원본 2건 × 3편) 기준이며, 두 프롬프트가 고른 구간이 60% 이상 겹치면 같은 부분으로 셌습니다</div></div>
         <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧음<span class="win">${빠른}</span></div></div>
         <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적음 · 숏폼 1편당 평균 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원<span class="win">${싼}</span></div></div>
       </div>
       <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b>(A ${A.편}편 · B ${B.편}편)</span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span><span>대상 <b>${[...new Set(원본.map((x) => x.팀))].join(" · ")}</b></span></div>
     </div>
-
-    <section id="숫자">
-      <h2>원본별 소요 시간·토큰·비용</h2>
-      <p class="sub">막대가 짧을수록 적게 소요된 쪽이며, 수치는 막대 오른쪽에 표기하였습니다.</p>
-      <div class="metrics">
-        ${막대("편집 소요 시간", "음성 받아쓰기·구간 선정·편집 포함", (s) => s.초, 걸림)}
-        ${막대("토큰", "Claude 입력·출력 합계", (s) => s.입력 + s.출력, 수)}
-        ${막대("API 사용료", "원화 환산(1달러=1,450원)", (s) => s.원, (v) => `${수(v)}원`)}
-      </div>
-    </section>
 
     <section id="프롬프트">
       <h2>프롬프트별 지시 내용</h2>
@@ -316,6 +308,16 @@ function 그리기() {
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.B.머리)}\n\n${esc(D.프롬프트.B.길이)}</pre></details></div>
       </div>
       <div class="common"><details><summary>공통 지시 원문 보기</summary><pre>${esc(D.프롬프트.공통)}</pre></details></div>
+    </section>
+
+    <section id="숫자">
+      <h2>원본별 소요 시간·토큰·비용</h2>
+      <p class="sub">막대가 짧을수록 적게 소요된 쪽이며, 수치는 막대 오른쪽에 표기하였습니다.</p>
+      <div class="metrics">
+        ${막대("편집 소요 시간", "음성 받아쓰기·구간 선정·편집 포함", (s) => s.초, 걸림)}
+        ${막대("토큰", "Claude 입력·출력 합계", (s) => s.입력 + s.출력, 수)}
+        ${막대("API 사용료", "원화 환산(1달러=1,450원)", (s) => s.원, (v) => `${수(v)}원`)}
+      </div>
     </section>
 
     <section id="결과">
