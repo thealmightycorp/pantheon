@@ -299,7 +299,8 @@ function 그리기() {
     ${팀들.map((t) => 원본.filter((x) => x.팀 === t).map((x) => `<tr><td><b>${esc(짧은이름(x))}</b><span class="sub">${esc(t)}</span></td><td>${걸림(x.길이)}</td><td>${x.A.합.편수}편 · ${x.B.합.편수}편</td><td>${걸림(x.A.합.초)} · ${걸림(x.B.합.초)}</td><td>${수(x.A.합.입력 + x.A.합.출력)} · ${수(x.B.합.입력 + x.B.합.출력)}</td><td>${수(x.A.합.원)}원 · ${수(x.B.합.원)}원</td></tr>`).join("")).join("")}
   </tbody></table>`;
 
-  const 팀원본 = 원본.filter((x) => x.팀 === 고른팀);
+  const 빈것 = (x) => !x.A.편.length && !x.B.편.length;
+  const 팀원본 = 원본.filter((x) => x.팀 === 고른팀).sort((a, b) => 빈것(a) - 빈것(b));   // 숏폼이 없는 원본은 뒤로
   if (고른원본 >= 팀원본.length) 고른원본 = 0;
   const 지금 = 팀원본[고른원본];
   const 장면 = !지금.A.편.length && !지금.B.편.length
