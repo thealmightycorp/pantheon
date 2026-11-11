@@ -225,7 +225,7 @@ function render() {
   const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾습니다. 연락처는 직접 올린 분과 승인권자가 보고, 다른 분은 열람 요청으로 볼 수 있습니다.'], cards:['명함 올리기','받은 명함을 여러 장 한 번에 올리고, 한 장씩 보며 어디서 만났는지 메모를 남깁니다.'], chart:['소싱 · IP 차트','인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. IP 차트는 하루 4회 갱신됩니다.'], graph:['관계 그래프','회사·IP·담당자 간 연결 관계를 그래프로 확인합니다. 항목을 클릭하면 연결된 대상이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 이전되었습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 궁니르 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 결과가 하나이면 Enter 키로 상세 화면을 바로 열 수 있습니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
   $('#page-title').innerHTML = title[0] + '<span class="title-dot">.</span>';
-  document.title = title[0] + ' · ' + BRAND;
+  baseTitle = title[0] + ' · ' + BRAND; tabTitle();
   $('#page-subtitle').textContent = title[1];
   $('#export-btn').innerHTML = icon('download') + '내보내기';
   $('#add-btn').innerHTML = icon('plus') + (page === 'contacts' ? '연락처 등록' : page === 'studio' ? (studio.tab === 'refs' ? '레퍼런스 등록' : '새 프로젝트') : '엔티티 등록');
@@ -255,7 +255,10 @@ let routed = false, ignoreHash = false, lastFocus = null;
 function setRoute(id) { if (page === 'graph') return;   // 그래프의 주소는 「기준 점」이 차지 (11-03) — 그래프 안 상세는 주소를 바꾸지 않음
   const h = '#' + (page === 'search' ? 'entities' : page) + '/' + id; if (location.hash === h) return; try { if (location.hash.includes('/')) history.replaceState(null, '', h); else { history.pushState(null, '', h); routed = true; } } catch {} }
 async function openRoute(pg, id) { if (pg === 'graph' && APP === 'ygg') return graphGo(id); if (byId(id)) return openDetail(id); if (pg === 'studio' && APP === 'gungnir') { if (!studio.list) await loadStudio(); return openProposal(id); } if (pg === 'chart') return openIp(id); }
-function hideDrawer() { $('#drawer').hidden = true; $('#overlay').hidden = true; activeDetail = null; ipc.open = null; document.body.style.overflow = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); lastFocus = null; }
+// 브라우저 탭 제목 — 프로젝트를 열어 두면 탭에 프로젝트 이름 (11-11 이하은 매니저 「창을 여러 개 띄워 두면 이름이 똑같아 구분이 안 됨」)
+let baseTitle = document.title;
+function tabTitle() { let p = null; try { const id = activeDetail?.startsWith?.('p:') ? activeDetail.slice(2) : ''; p = id && studio.list?.find(x => x.id === id); } catch {} document.title = p ? `${pTitle(p)} · ${p.recipient ? p.recipient + ' · ' : ''}궁니르` : baseTitle; }
+function hideDrawer() { $('#drawer').hidden = true; $('#overlay').hidden = true; activeDetail = null; tabTitle(); ipc.open = null; document.body.style.overflow = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); lastFocus = null; }
 function closeDrawer() {
   if ($('#drawer').hidden) return;
   if (page === 'graph') return hideDrawer();
@@ -3164,7 +3167,7 @@ async function loadLogos() {
 }
 async function openProposal(id, keep) {
   const p = studio.list?.find(x => x.id === id); if (!p) return;
-  activeDetail = 'p:' + id; propShown = `${p.status}|${p.stage}`;
+  activeDetail = 'p:' + id; propShown = `${p.status}|${p.stage}`; tabTitle();
   if (!keep) setRoute(id);
   // 진행 단계는 맨 위 가로 막대로 (10-30 · 대표님 설계) — 사람이 결정하는 단계는 점으로 표시
   const stages = STAGES.map((s, i) => { const n = i + 1, skip = p.mode === 'single' && n === 3, cls = skip ? 'skip' : n < p.stage || p.status === 'done' ? 'done' : n === p.stage ? 'now' : ''; return `<li class="${cls}" title="${esc(s)}${GATES[n] && !skip ? ' · 결정: ' + esc(GATES[n]) : ''}${skip ? ' · 단독 제안은 생략' : ''}"><span>${n}</span><b>${esc(s)}</b>${GATES[n] && !skip ? '<i class="gate" aria-label="결정 단계"></i>' : ''}</li>`; }).join('');
