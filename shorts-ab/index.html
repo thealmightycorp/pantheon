@@ -66,6 +66,8 @@ section{margin-top:64px}
 .fact .v{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:4px;line-height:1.2}
 .fact .d{font-size:14px;color:var(--ink-2);margin-top:6px}
 .win{display:inline-block;font-size:13px;font-weight:700;color:var(--win);background:var(--win-soft);padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.judge{margin:16px 0 0;padding:14px 16px;background:var(--bg);border-left:4px solid var(--ink-3);border-radius:6px;font-size:16px;color:var(--ink-2)}
+.judge b{display:block;font-size:13px;color:var(--ink-3);margin-bottom:2px}
 .scope{margin-top:20px;font-size:14px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:6px 18px}
 .scope b{color:var(--ink)}
 
@@ -240,7 +242,7 @@ function 쪽(c, k) {
     <div>
       <div class="who"><span class="ab ${k.toLowerCase()}">${k}</span>프롬프트 ${k}${c.채널 ? `<span class="chip">${esc(채널[c.채널] ?? c.채널)}용</span>` : ""}</div>
       <div class="title">${c.제목.map(esc).join("<br>")}</div>
-      <div class="when">원본 ${분초(c.시작)}~${분초(c.끝)} 구간 · 숏폼 길이 ${Math.round(c.끝 - c.시작)}초</div>
+      <div class="when">원본 ${분초(c.시작)}~${분초(c.끝)} 구간 · 숏폼 길이 약 ${Math.round(c.끝 - c.시작)}초</div>
       <div class="lbl">선정 사유</div><div class="txt">${esc(c.이유)}</div>
       ${c.채널규칙 ? `<div class="lbl">적용한 채널 규칙</div><div class="txt">${esc(c.채널규칙)}</div>` : ""}
       ${c.참여 ? `<div class="lbl">반응 유도 요소</div><div class="txt">${esc(c.참여)}</div>` : ""}
@@ -276,14 +278,15 @@ function 그리기() {
   <main class="wrap">
     <div class="eyebrow">THE ALMIGHTY · AX팀 · 숏폼 자동 편집</div>
     <h1>숏폼 자동 편집 프롬프트 A·B 비교 결과</h1>
-    <p class="sub">같은 롱폼 원본을 프롬프트 A와 B로 각각 자동 편집하여 결과물과 소요 시간, 비용을 비교하였습니다. 자막 글꼴과 로고 등 디자인은 두 프롬프트에 동일하게 적용됩니다.</p>
-    <div class="meta">조회 시각 ${만든때} · 작성 AX팀 김현우 · 모든 수치는 자동 편집 프로그램이 작업 중 기록한 실측값입니다</div>
+    <p class="sub">11월 10일 회의에서 대표님께서 지시하신 대로, 프롬프트(AI에 주는 편집 지시문)를 달리했을 때 숏폼 결과물과 소요 시간, 비용이 어떻게 달라지는지 비교하였습니다. 같은 롱폼 원본을 프롬프트 A와 B로 각각 자동 편집하였으며, 자막 글꼴과 로고 등 디자인은 두 프롬프트에 동일하게 적용됩니다.</p>
+    <div class="meta">조회 시각 ${만든때} · 작성 AX팀 김현우 · 시간과 토큰은 자동 편집 프로그램이 작업 중 기록한 실측값이며, 사용료는 토큰 수로 계산한 값입니다</div>
 
     <div class="verdict" id="결론">
-      <p class="verdict-h">두 프롬프트가 선택한 장면은 <em>${전체쌍}쌍 중 ${같은}쌍이 같았으며</em>, 차이는 주로 <em>제목과 캡션의 문체</em>에서 나타났습니다.
+      <p class="verdict-h">원본별로 두 프롬프트가 만든 숏폼을 장면끼리 짝지으면 <em>${전체쌍}쌍 중 ${같은}쌍이 같은 장면</em>이었으며, 차이는 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 나타났습니다.
         소요 시간과 비용은 ${빠른 === 싼 ? `프롬프트 ${빠른}가 다소 적었으나` : "두 프롬프트가 비슷하며"} 원본 1건당 차이는 수십 초, 수십 원 수준입니다.</p>
+      <p class="judge"><b>AX팀 판단</b> 장면을 고르는 능력은 두 프롬프트가 비슷하므로, 어느 쪽을 쓸지는 비용이 아니라 운영 방식으로 정하면 됩니다. 채널마다 다른 숏폼을 올린다면 A, 한 편을 여러 채널에 함께 올린다면 B가 맞습니다. 실제 반응(조회수·댓글)으로 우열을 가리는 비교는 아직 하지 못했습니다.</p>
       <div class="facts">
-        <div class="fact"><div class="k">동일 장면 선택</div><div class="v">${같은} / ${전체쌍}</div><div class="d">두 결과물의 구간이 60% 이상 겹치면 동일 장면으로 집계하였습니다</div></div>
+        <div class="fact"><div class="k">동일 장면 선택</div><div class="v">${같은} / ${전체쌍}</div><div class="d">원본 2건 × 3장면 기준이며, A·B 구간이 60% 이상 겹치면 같은 장면으로 보았습니다</div></div>
         <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧음<span class="win">${빠른}</span></div></div>
         <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적음 · 숏폼 1편당 평균 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원<span class="win">${싼}</span></div></div>
       </div>
@@ -302,14 +305,14 @@ function 그리기() {
 
     <section id="프롬프트">
       <h2>프롬프트별 지시 내용</h2>
-      <p class="sub">도입 3초 안에 궁금증을 유발할 것, 문장 중간에서 자르지 않을 것, 제목은 한 줄 14자 이내로 쓸 것 등 기본 지시는 같으며 아래 내용만 다르게 주었습니다.</p>
+      <p class="sub">도입 3초 안에 궁금증을 유발할 것, 문장 중간에서 자르지 않을 것, 제목은 두 줄로 줄마다 14자 이내로 쓸 것 등 기본 지시는 같으며, 아래 내용만 다르게 주었습니다.</p>
       <div class="prompts">
         <div class="prompt a"><h3><span class="ab a">A</span>채널 규칙 적용형</h3>
-          <div class="one">숏폼마다 게시할 채널을 먼저 정하고, 해당 채널의 규칙에 맞춰 편집하도록 지시하였습니다.</div>
-          <ul><li>유튜브 쇼츠, 인스타그램 릴스, 틱톡의 권장 길이와 화면에서 가려지는 영역, 추천 기준을 먼저 정리합니다.</li><li>숏폼 1편마다 채널을 하나씩 배정합니다.</li><li>길이와 제목, 해시태그는 배정된 채널의 관행을 따릅니다.</li></ul>
+          <div class="one">숏폼마다 게시할 채널을 먼저 정하고, 해당 채널의 규칙에 맞춰 편집하도록 지시하였습니다. AI는 아래 순서로 작업합니다.</div>
+          <ul><li>유튜브 쇼츠, 인스타그램 릴스, 틱톡의 권장 길이와 화면에서 가려지는 영역, 추천 기준을 먼저 정리합니다.</li><li>채널마다 1편씩, 최대 3편을 만듭니다.</li><li>길이와 제목, 해시태그는 해당 채널의 관행을 따릅니다.</li></ul>
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.A.머리)}\n\n${esc(D.프롬프트.A.길이)}</pre></details></div>
         <div class="prompt b"><h3><span class="ab b">B</span>시청 유지·반응 유도형</h3>
-          <div class="one">채널 구분 없이, 시청자가 영상을 끝까지 보고 댓글·저장·공유로 반응하도록 편집하게 지시하였습니다.</div>
+          <div class="one">채널을 나누지 않고, 시청자가 영상을 끝까지 보고 댓글·저장·공유로 반응하도록 편집하라고 지시하였습니다. AI는 아래 기준으로 작업합니다.</div>
           <ul><li>도입 1~3초 안에 시청자의 관심을 끄는 장면으로 시작합니다.</li><li>끝까지 시청하도록 늘어지는 부분은 덜어 냅니다.</li><li>마지막은 댓글을 유도하는 질문이나 반전, 여운이 남는 말로 마무리합니다.</li></ul>
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.B.머리)}\n\n${esc(D.프롬프트.B.길이)}</pre></details></div>
       </div>
@@ -330,10 +333,10 @@ function 그리기() {
         <div class="panel"><h2>측정 기준</h2><ul>
           <li><b>편집 소요 시간</b> — 음성 받아쓰기(사무실 서버 PC 그래픽카드), 구간 선정(Claude), 세로 화면 편집과 자막 작업 시간을 합산하였습니다. 받아쓰기와 구간 선정은 원본 1건당 한 번 실행되므로 제작 편수로 나누어 각 편에 배분하였습니다. 구글 드라이브에서 원본을 내려받는 시간과 작업 대기 시간은 제외하였습니다.</li>
           <li><b>토큰</b> — Claude가 응답과 함께 알려 주는 입력·출력 토큰 수를 합산하였습니다.</li>
-          <li><b>API 사용료</b> — 토큰 수에 단가(${esc(원본[0]?.A.편[0]?.모델 ?? "")} 기준 100만 토큰당 입력 4달러, 출력 20달러)를 곱해 산출하였으며, 1달러를 1,450원으로 환산하였습니다. 받아쓰기는 자체 PC에서 처리하므로 별도 비용이 발생하지 않습니다.</li>
+          <li><b>API 사용료</b> — 토큰 수에 단가(Claude Opus 5.5 기준 100만 토큰당 입력 4달러, 출력 20달러)를 곱해 산출하였으며, 1달러를 1,450원으로 환산하였습니다. 받아쓰기는 자체 PC에서 처리하므로 별도 비용이 발생하지 않습니다.</li>
         </ul></div>
         <div class="panel"><h2>미확인 사항</h2><ul>
-          <li>SNS 반응(조회수·저장·댓글)에 따른 A·B 비교는 진행하지 않았습니다. 출연자가 연예인인 만큼 초상권과 소속사 협의가 확인되기 전까지 외부 게시를 보류하였습니다.</li>
+          <li>SNS 반응(조회수·저장·댓글)에 따른 A·B 비교는 하지 못했습니다. 11월 11일 이승윤 인터뷰 A·B 1편씩을 테스트 계정에 올렸으나, 출연자가 연예인인 점을 고려해 당일 내렸습니다. 초상권과 소속사 협의가 확인되기 전까지 외부 게시는 보류합니다.</li>
           <li>제목과 캡션에 쓰인 곡명, 해시태그(예: 공원 A의 「#이리저리」)는 원자료와 대조하지 않았습니다.</li>
           <li>골포스트와 맛출장 원본은 11월 13일까지 받을 예정이며, 접수되는 대로 이 페이지에 팀별로 추가하겠습니다.</li>
           <li>이 페이지의 영상은 용량 제한으로 다시 압축하여 실제 결과물보다 화질이 낮습니다.</li>
