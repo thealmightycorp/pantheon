@@ -288,8 +288,8 @@ function 그리기() {
         소요 시간과 비용은 ${빠른 === 싼 ? `프롬프트 ${빠른}가 다소 적었으나` : "두 프롬프트가 비슷하며"} 원본 1건당 차이는 수십 초, 수십 원 수준입니다.</p>
       <div class="facts">
         <div class="fact"><div class="k">A와 B가 같은 부분을 고른 숏폼</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">프롬프트별로 만든 6편(원본 2건 × 3편) 기준이며, 두 프롬프트가 고른 구간이 60% 이상 겹치면 같은 부분으로 셌습니다</div></div>
-        <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧음<span class="win">${빠른}</span></div></div>
-        <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적음 · 숏폼 1편당 평균 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원<span class="win">${싼}</span></div></div>
+        <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧았습니다<span class="win">${빠른}</span></div></div>
+        <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적었으며, 숏폼 1편당 평균 사용료는 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원입니다<span class="win">${싼}</span></div></div>
       </div>
       <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b>(A ${A.편}편 · B ${B.편}편)</span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span><span>대상 <b>${[...new Set(원본.map((x) => x.팀))].join(" · ")}</b></span></div>
     </div>
@@ -325,7 +325,7 @@ function 그리기() {
       <p class="sub">원본을 선택하면 그 원본으로 만든 A·B 숏폼을 볼 수 있습니다. 원본의 같은 부분을 고른 A·B 숏폼끼리 한 줄에 놓았습니다.</p>
       <div class="tabs" role="tablist" aria-label="원본 선택">${원본.map((x, i) => `<button role="tab" aria-selected="${i === 고른원본}" data-i="${i}">${esc(x.제목.replace(/^사운드스루 인터뷰 /, ""))}<small>${esc(x.팀)} · ${Math.round(x.길이 / 60)}분</small></button>`).join("")}</div>
       <div id="장면들">${짝짓기(원본[고른원본].A.편, 원본[고른원본].B.편).map(([a, b, r], i) => `<article class="scene">
-        <div class="scene-h"><h3>${i + 1}번째 숏폼</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B가 같은 부분을 고름</span>` : `<span class="diff">고른 부분이 일부만 겹침</span>`) : `<span class="diff">한쪽만 선택</span>`}</div>
+        <div class="scene-h"><h3>${i + 1}번째 숏폼</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B 같은 구간</span>` : `<span class="diff">A·B 구간 일부 일치</span>`) : `<span class="diff">한쪽에서만 제작</span>`}</div>
         <div class="scene-b">${쪽(a, "A")}${쪽(b, "B")}</div></article>`).join("")}</div>
     </section>
 
