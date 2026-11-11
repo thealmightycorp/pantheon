@@ -237,7 +237,7 @@ function 짝짓기(A, B) {
 }
 
 function 쪽(c, k) {
-  if (!c) return `<div class="side empty">프롬프트 ${k}는 원본의 이 부분을 선택하지 않았습니다</div>`;
+  if (!c) return `<div class="side empty">프롬프트 ${k}에는 이 구간을 사용한 숏폼이 없습니다</div>`;
   return `<div class="side">
     <video src="${esc(경로(c.영상))}" poster="${esc(경로(c.표지))}" controls preload="none" playsinline controlslist="nodownload" aria-label="프롬프트 ${k} 결과 영상"></video>
     <div>
@@ -284,14 +284,14 @@ function 그리기() {
 
     <div class="verdict" id="결론">
       <p class="verdict-lead">프롬프트 A는 숏폼마다 게시할 채널을 정해 그 채널의 규칙에 맞추도록, 프롬프트 B는 채널 구분 없이 시청자가 끝까지 보고 반응하도록 편집하라고 지시하였습니다.</p>
-      <p class="verdict-h">그 결과 A와 B는 각각 숏폼 ${전체쌍}편(원본마다 3편)을 만들었으며, <em>이 가운데 ${같은}편은 두 프롬프트가 원본의 같은 부분을 잘라 썼습니다.</em> 결과물의 차이는 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 나타났습니다.
+      <p class="verdict-h">두 프롬프트는 각각 숏폼 ${전체쌍}편(원본마다 3편)을 만들었고, <em>그중 ${같은}편은 원본의 같은 구간을 사용하였으며</em> 나머지 ${전체쌍 - 같은}편은 구간이 일부만 겹쳤습니다. 두 결과물은 주로 <em>제목과 캡션의 문체, 숏폼 길이</em>에서 차이가 났습니다.
         소요 시간과 비용은 ${빠른 === 싼 ? `프롬프트 ${빠른}가 다소 적었으나` : "두 프롬프트가 비슷하며"} 원본 1건당 차이는 수십 초, 수십 원 수준입니다.</p>
       <div class="facts">
-        <div class="fact"><div class="k">A와 B가 같은 부분을 고른 숏폼</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">프롬프트별로 만든 6편(원본 2건 × 3편) 기준이며, 두 프롬프트가 고른 구간이 60% 이상 겹치면 같은 부분으로 셌습니다</div></div>
+        <div class="fact"><div class="k">구간 일치</div><div class="v">${전체쌍}편 중 ${같은}편</div><div class="d">프롬프트별 6편(원본 2건 × 3편) 기준입니다. 두 프롬프트가 사용한 구간이 60% 이상 겹치면 일치로 보았습니다.</div></div>
         <div class="fact"><div class="k">편집 소요 시간(합계)</div><div class="v">A ${걸림(A.초)} · B ${걸림(B.초)}</div><div class="d">프롬프트 ${빠른}가 ${시간차}% 짧았습니다<span class="win">${빠른}</span></div></div>
         <div class="fact"><div class="k">API 사용료(합계)</div><div class="v">A ${수(A.원)}원 · B ${수(B.원)}원</div><div class="d">프롬프트 ${싼}가 ${비용차}% 적었으며, 숏폼 1편당 평균 사용료는 약 ${Math.round((A.원 + B.원) / (A.편 + B.편))}원입니다<span class="win">${싼}</span></div></div>
       </div>
-      <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b>(A ${A.편}편 · B ${B.편}편)</span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span><span>대상 <b>${[...new Set(원본.map((x) => x.팀))].join(" · ")}</b></span></div>
+      <div class="scope"><span>원본 <b>${원본.length}건</b>(총 ${영상분}분)</span><span>제작 숏폼 <b>${A.편 + B.편}편</b>(A ${A.편}편 · B ${B.편}편)</span><span>토큰 합계 <b>${수(A.토큰 + B.토큰)}</b></span><span>채널 <b>${[...new Set(원본.map((x) => x.팀))].join(" · ")}</b></span></div>
     </div>
 
     <section id="프롬프트">
@@ -312,7 +312,7 @@ function 그리기() {
 
     <section id="숫자">
       <h2>원본별 소요 시간·토큰·비용</h2>
-      <p class="sub">막대가 짧을수록 적게 소요된 쪽이며, 수치는 막대 오른쪽에 표기하였습니다.</p>
+      <p class="sub">막대가 짧을수록 시간과 비용이 적게 든 것이며, 수치는 막대 오른쪽에 적었습니다.</p>
       <div class="metrics">
         ${막대("편집 소요 시간", "음성 받아쓰기·구간 선정·편집 포함", (s) => s.초, 걸림)}
         ${막대("토큰", "Claude 입력·출력 합계", (s) => s.입력 + s.출력, 수)}
@@ -322,10 +322,10 @@ function 그리기() {
 
     <section id="결과">
       <h2>결과 영상</h2>
-      <p class="sub">원본을 선택하면 그 원본으로 만든 A·B 숏폼을 볼 수 있습니다. 원본의 같은 부분을 고른 A·B 숏폼끼리 한 줄에 놓았습니다.</p>
+      <p class="sub">원본을 선택하면 해당 원본으로 만든 A·B 숏폼을 볼 수 있으며, 같은 구간을 사용한 A·B 숏폼은 한 줄에 나란히 배치하였습니다.</p>
       <div class="tabs" role="tablist" aria-label="원본 선택">${원본.map((x, i) => `<button role="tab" aria-selected="${i === 고른원본}" data-i="${i}">${esc(x.제목.replace(/^사운드스루 인터뷰 /, ""))}<small>${esc(x.팀)} · ${Math.round(x.길이 / 60)}분</small></button>`).join("")}</div>
       <div id="장면들">${짝짓기(원본[고른원본].A.편, 원본[고른원본].B.편).map(([a, b, r], i) => `<article class="scene">
-        <div class="scene-h"><h3>${i + 1}번째 숏폼</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B 같은 구간</span>` : `<span class="diff">A·B 구간 일부 일치</span>`) : `<span class="diff">한쪽에서만 제작</span>`}</div>
+        <div class="scene-h"><h3>숏폼 ${i + 1}</h3><span class="tag">원본 ${분초((a ?? b).시작)}~${분초((a ?? b).끝)}</span>${a && b ? (r >= 0.6 ? `<span class="same">A·B 구간 일치</span>` : `<span class="diff">A·B 구간 일부 일치</span>`) : `<span class="diff">한쪽에서만 제작</span>`}</div>
         <div class="scene-b">${쪽(a, "A")}${쪽(b, "B")}</div></article>`).join("")}</div>
     </section>
 
