@@ -1484,9 +1484,11 @@ function asksPanel() {
 }
 /* 이그드라실 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
-  const [{ data, error }, a] = await Promise.all([SB.from('pt_bot').select('*').maybeSingle(), SB.from('pt_aside_worker').select('*').maybeSingle()]);
+  const [{ data, error }, a, lim] = await Promise.all([SB.from('pt_bot').select('*').maybeSingle(), SB.from('pt_aside_worker').select('*').maybeSingle(),
+    SB.from('pt_studio_setting').select('*').maybeSingle()]);
   admin.bot = error ? {err: error.message} : (data || {});
   admin.aside = a.error ? {err: a.error.message} : (a.data || {});
+  admin.limits = lim.error ? null : lim.data;
   if (page === 'admin' && admin.tab === 'bot') render();
   return admin.bot;
 }
@@ -1500,7 +1502,15 @@ function botPanel() {
   const stateText = !b.beat_at ? '기록 없음' : !alive ? '응답 없음' : b.connected ? '정상' : '슬랙 연결 끊김';
   return `<div class="quality-grid"><div class="stat ${alive && b.connected ? 'highlight' : ''}"><div class="stat-label">상태</div><div class="stat-value">${stateText}</div><div class="stat-bottom">${age === null ? '—' : '마지막 응답 ' + agoText(age)}</div></div><div class="stat"><div class="stat-label">시작 시각</div><div class="stat-value" style="font-size:17px">${b.started_at ? esc(kst(b.started_at)) : '—'}</div><div class="stat-bottom">${b.model ? '답변 모델 ' + esc(b.model) : ''}</div></div><div class="stat"><div class="stat-label">웹 요청 처리</div><div class="stat-value">${Number(b.handled || 0)}<small>건</small></div><div class="stat-bottom">시작 이후</div></div></div>
   <section class="panel"><div class="panel-head"><div><div class="panel-title">이그드라실 봇 <small>슬랙 질문 · 웹 질문 · 명함 인식</small></div><p class="panel-caption">답변이 오지 않거나 상태가 「응답 없음」이면 재시작해 주세요. 재시작하는 약 20초 동안은 답변이 중단됩니다.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button" id="bot-reload">${icon('clock')} 새로고침</button><button class="button primary" id="bot-restart">재시작</button></div></div>
-  <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>${asidePanel()}`;
+  <div id="bot-msg" class="panel-caption" style="padding:0 23px 18px" role="status">${b.last_error ? '최근 오류: ' + esc(b.last_error) : ''}</div></section>${asidePanel()}${limitsPanel()}`;
+}
+// 궁니르 AI 이미지 자동 승인 금액 (11-13 홍석진 대표님 개선안 1) — 이 금액 이하 견적은 승인 없이 바로 생성
+function limitsPanel() {
+  const L = admin.limits; if (!L) return '';
+  return `<section class="panel"><div class="panel-head"><div><div class="panel-title">궁니르 AI 이미지 자동 승인</div>
+    <p class="panel-caption">AI 이미지 견적이 1회 금액 이하면 승인 없이 바로 생성합니다. 그날 자동 승인 합계가 하루 금액을 넘으면 그날은 담당자 승인을 받습니다.</p></div></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:0 23px 18px"><label>1회 금액(달러)<input type="number" id="lim-auto" min="0" max="100" step="0.5" value="${Number(L.auto_usd)}"></label><label>하루 금액(달러)<input type="number" id="lim-day" min="0" max="1000" step="1" value="${Number(L.day_usd)}"></label><button class="button primary" id="lim-save">저장</button></div>
+    ${L.updated_by ? `<div class="panel-caption" style="padding:0 23px 18px">마지막 변경 ${esc(L.updated_by)} · ${esc(kst(L.updated_at))}</div>` : ''}</section>`;
 }
 // Aside (서버 PC 의 SNS·이미지 검색) — 원격 일시 정지·다시 시작 (11-04 김현우 「aside 원격으로 켜고 끄는 기능」)
 function asidePanel() {
@@ -1636,6 +1646,14 @@ function bindAdmin() {
     setAsidePaused(true);
   });
   $('#aside-resume')?.addEventListener('click', () => setAsidePaused(false));
+  $('#lim-save')?.addEventListener('click', async ev => {
+    const a = Number($('#lim-auto').value), dd = Number($('#lim-day').value);
+    ev.target.disabled = true;
+    const { error } = await SB.rpc('pt_studio_set_limits', {p_auto: a, p_day: dd});
+    ev.target.disabled = false;
+    if (error) return toast('저장하지 못했습니다: ' + error.message);
+    await loadBot(); toast(`자동 승인 금액을 1회 $${a} · 하루 $${dd}로 저장했습니다.`);
+  });
   $('#bot-restart')?.addEventListener('click', () => {
     modal(`<h2>이그드라실 봇 재시작</h2><p>이그드라실 봇을 재시작합니다. 약 20초 동안 슬랙·웹 질문 답변이 중단됩니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="button" id="restart-go">재시작</button></div>`);
     $('#restart-go').onclick = () => { $('#modal').close(); restartBot(); };
@@ -2455,6 +2473,18 @@ function socialBlock(S) {
   const locked = (S.locked || []).length ? `<p><b>가입이 필요해 확인하지 못한 채널</b></p><ul class="facts">${S.locked.map(l => `<li>${esc(l.site)} · ${esc(l.need || '')} ${l.url ? srcLinks([l.url]) : ''}</li>`).join('')}</ul>` : '';
   return `<div class="detail-block"><h3>팬·SNS</h3>${ips}${caps}${locked}</div>`;
 }
+// 11-13 대표님 개선안 4 — 팬·SNS 조사는 켠 프로젝트만. 끈 프로젝트도 나중에 추가, 결과가 오면 컨셉을 다시 생성할 수 있다
+function socialFold(p, fold) {
+  const d = p.data || {}, S = d.social || {};
+  const job = studio.jobs.find(j => j.proposal_id === p.id && j.kind === 'aside' && j.input?.task === 'social' && ['wait', 'work'].includes(j.status));
+  if (S.ips) {
+    const re = p.stage === 5 && p.status === 'waiting' && d.concepts ? '<div class="drawer-actions"><button class="button" id="soc-reconcept">팬·SNS 결과로 컨셉 다시 생성</button></div>' : '';
+    return fold('팬·SNS', `채널 ${S.ips.reduce((a, x) => a + x.channels.length, 0)}개`, socialBlock(S) + re);
+  }
+  if (job && (p.stage >= 5 || p.status !== 'working')) return fold('팬·SNS', '조사 중', jobsProg([job]));
+  if ((S.off || S.failed) && p.stage >= 5) return fold('팬·SNS', S.off ? '조사하지 않음' : '조사하지 못함', `<div class="detail-block"><p>팬·SNS 조사를 추가하면 인스타그램·틱톡·X·팬 커뮤니티 반응을 「자료」에 추가합니다. 약 40분 걸립니다.</p><div class="drawer-actions"><button class="button" id="soc-add">팬·SNS 조사 추가</button></div></div>`);
+  return '';
+}
 function researchBlock(R) {
   const fact = f => `<li>${esc(f.text)} ${f.url ? `<a class="src" href="${esc(f.url)}" target="_blank" rel="noopener">${esc(host(f.url))}${f.as_of ? ' · ' + esc(f.as_of) : ''}</a>` : ''}</li>`;
   return `<div class="detail-block"><h3>리서치</h3>${(R.ips || []).map(x => `<details class="research"><summary><b>${esc(x.name)}</b> <small>출처가 확인된 사실 ${x.facts.length}개</small></summary><p>${esc(x.summary || '')}</p>${x.fandom ? `<p><b>팬덤</b> ${esc(x.fandom)}</p>` : ''}${x.world ? `<p><b>세계관·정서</b> ${esc(x.world)}</p>` : ''}<ul class="facts">${x.facts.map(fact).join('')}</ul>${(x.collabs || []).length ? `<p><b>지난 협업</b></p><ul class="facts">${x.collabs.map(fact).join('')}</ul>` : ''}${(x.hooks || []).length ? `<p><b>도입부 활용 장면</b></p><ul class="facts">${x.hooks.map(h => fact({...h, text: h.text + (h.note ? ` (${h.note})` : '')})).join('')}</ul>` : ''}${(x.risks || []).length ? `<p><b>유의 사항</b> ${x.risks.map(esc).join(' · ')}</p>` : ''}</details>`).join('')}${(R.common_ground || []).length ? `<p><b>공통점</b></p><ul class="facts">${R.common_ground.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}</div>`;
@@ -2469,17 +2499,21 @@ function imagesPanel(p) {
   const n = st => keys.filter(k => S[k].status === st).length;
   const E = p.data.images.ai_estimate, nW = keys.filter(k => S[k].widen && S[k].status === 'found').length, nAi = n('ai') + nW;
   const aiWhat = [n('ai') ? `AI 이미지 ${n('ai')}장` : '', nW ? `세로 사진 좌우 확장 ${nW}장` : ''].filter(Boolean).join(' + ');
-  const ai = nAi ? (E && E.count === nAi ? `<div class="ai-box"><b>${aiWhat} · 예상 약 $${E.usd}</b><small>힉스필드 ${esc((E.model || '').replace('higgsfield-ai/', ''))} · 실패하거나 부적절 판정된 이미지는 청구되지 않습니다</small><div class="drawer-actions"><button class="button primary" id="ai-go" data-usd="${E.usd}">승인 후 생성</button><button class="text-btn" id="ai-est">견적 다시 받기</button></div></div>` : `<div class="ai-box"><b>${aiWhat}</b><small>생성 전에 힉스필드 견적을 먼저 받습니다(비용 없음)</small><div class="drawer-actions"><button class="button" id="ai-est">견적 받기</button></div></div>`) : '';
+  // 11-13 대표님 개선안 1 — 견적 받기 없이, 금액이 적힌 버튼 하나로 승인 (정한 금액 이하는 봇이 자동 승인해 이 카드가 뜨지 않음)
+  const has = E && E.count === nAi;
   // 대표님 설계(10-30 김현우): 결정 카드에는 숫자·확인할 곳·버튼만 — 이미지는 「이미지 수정」에서 실제 페이지를 보며 누른다
   const qa = qaOf(p.data), flags = qa?.flags || [], final = p.stage >= 8 || !nAi;
+  // 11-13 대표님 개선안 3 — 주 버튼은 상황에 맞는 하나만: AI 승인 대기 > 미확보 > 검수 확인 > 완료
+  const mode = nAi ? 'ai' : n('missing') ? 'miss' : flags.length ? 'qa' : 'done', pri = m => mode === m ? ' primary' : '';
+  const ai = nAi ? `<div class="ai-box"><b>${aiWhat}${has ? ` · 약 $${E.usd}` : ''}</b><small>${has && E.need_ok ? esc(E.need_ok) + ' 승인이 필요합니다 · ' : ''}실패하거나 부적절 판정된 이미지는 청구되지 않습니다</small><div class="drawer-actions"><button class="button${pri('ai')}" id="ai-go" data-usd="${has ? E.usd : ''}">${aiWhat} 만들기${has ? ` · 약 $${E.usd}` : ''}</button></div></div>` : '';
   const stat = (label, v, cls, go) => `<button class="pv-stat${cls ? ' ' + cls : ''}" type="button" data-review="${go || 1}"><b>${v}</b><span>${label}</span></button>`;
   const firstMiss = keys.find(k => S[k].status === 'missing'), firstAi = keys.find(k => S[k].status === 'ai');
   return `<div class="detail-block pv-decide"><h3>지금 할 일 · ${final ? '최종 확인' : '이미지 수급·AI 이미지 승인'}</h3>
   <div class="pv-stats">${stat('확보', n('found') + n('uploaded') + n('generated'), 'good')}${stat('미확보', n('missing'), n('missing') ? 'bad' : '', firstMiss && S[firstMiss].slide)}${stat('AI 생성 대기', n('ai'), n('ai') ? 'wait' : '', firstAi && S[firstAi].slide)}${qa ? stat('검수 확인 필요 항목', flags.length, flags.length ? 'bad' : 'good', flags[0]?.slide) : ''}</div>
-  ${n('missing') ? `<div class="ai-box"><b>미확보 이미지 ${n('missing')}개</b><small>Aside가 공식 이미지·로고·캡처를 한 번에 찾아 해당 페이지에 넣습니다</small><div class="drawer-actions"><button class="button" id="img-aside-all">${n('missing')}개 한 번에 Aside로 찾기</button></div></div>` : ''}
-  ${ai}${qaBlock(p)}
-  <div class="pv-main-act"><button class="button primary" data-review="${flags[0]?.slide || 1}">${icon('image')} 제안서 화면에서 이미지 확인·수정</button><small>페이지에서 이미지를 클릭하면 교체·위치 조정·다시 생성할 수 있습니다</small></div>
-  <div class="drawer-actions pv-final"><button class="button" id="img-rerender">변경 사항 반영</button><button class="button primary" id="img-done">이 버전으로 완료</button></div></div>`;
+  ${ai}${n('missing') ? `<div class="ai-box"><b>미확보 이미지 ${n('missing')}개</b><small>공식 이미지·로고·캡처를 한 번에 찾아 해당 페이지에 넣습니다</small><div class="drawer-actions"><button class="button${pri('miss')}" id="img-aside-all">${n('missing')}개 한 번에 찾기</button></div></div>` : ''}
+  ${qaBlock(p)}
+  <div class="pv-main-act"><button class="button${pri('qa')}" data-review="${flags[0]?.slide || 1}">${icon('image')} 제안서 화면에서 ${mode === 'qa' ? '' : '이미지 '}확인·수정</button><small>페이지에서 이미지를 클릭하면 교체·위치 조정·다시 생성할 수 있습니다</small></div>
+  <div class="drawer-actions pv-final"><button class="button" id="img-rerender">변경 사항 반영</button><button class="button${pri('done')}" id="img-done">이 버전으로 완료</button></div></div>`;
 }
 // 이미지 설명에 섞여 온 내부 파일 경로(proposals/…/cap_03.jpg)는 화면에 보이지 않게 (10-30)
 const whatText = t => String(t || '').replace(/\s*\(?(?:proposals|social)\/[^\s)]*\)?/g, '').trim();
@@ -2505,7 +2539,7 @@ const regenBox = s => { const ai = AI_KINDS.includes(s.kind) && !s.widened;
   <label>개선할 점<input id="rg-why" maxlength="200" placeholder="예: 얼굴이 너무 크게 나옴 · 배경이 너무 밝음"></label>
   ${ai ? `<label>생성 프롬프트 (영문)<textarea id="rg-prompt" rows="5">${esc(s.prompt || '')}</textarea></label>`
        : `<label>좌우 확장 추가 지시(영문 권장)<textarea id="rg-prompt" rows="3" placeholder="예: extend as a dark concert stage with purple haze">${esc(s.widen_extra || '')}</textarea></label>`}
-  <button class="button" type="button" id="rg-go">${ai ? '이 프롬프트로 다시 생성' : '이 지시로 다시 확장'}</button><small>견적 확인 후 승인하면 생성합니다. 수정한 내용은 다음 제안서 원고에도 반영됩니다.</small></details>`; };
+  <button class="button" type="button" id="rg-go">${ai ? '이 프롬프트로 다시 생성' : '이 지시로 다시 확장'}</button><small>수정한 내용은 다음 제안서 원고에도 반영됩니다.</small></details>`; };
 function imgViewer(el) {
   const src = el.dataset.src, key = el.dataset.key;
   const p = studio.list?.find(x => activeDetail === 'p:' + x.id), d = p?.data || {}, s = key && d.images?.slots?.[key];
@@ -2558,9 +2592,9 @@ function imgViewer(el) {
     const { error } = await SB.from('pt_proposal').update({data: {...fresh, images: {...fresh.images, slots}}, status: 'working'}).eq('id', p.id);
     if (error) { ev.target.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
     await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {estimate_only: true}});
-    await proposalEvent(p.id, `${s.slide}페이지 이미지 좌우 확장을 요청했습니다 · 견적을 받습니다`);
+    await proposalEvent(p.id, `${s.slide}페이지 이미지 좌우 확장을 요청했습니다`);
     $('#modal').close(); studio.list = null; await loadStudio(); openProposal(p.id, true);
-    toast('좌우 확장 견적을 받습니다. 견적이 나오면 승인해 주세요.');
+    toast('좌우 확장을 요청했습니다. 금액이 크면 승인 버튼이 표시됩니다.');
   });
   $('#rg-go')?.addEventListener('click', async ev => {
     const why = $('#rg-why').value.trim(), txt = $('#rg-prompt').value.trim(), ai = AI_KINDS.includes(s.kind) && !s.widened;
@@ -2578,7 +2612,7 @@ function imgViewer(el) {
     await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {estimate_only: true}});
     await proposalEvent(p.id, `${s.slide}페이지 이미지 재생성을 요청했습니다${why ? ' · ' + why : ''}`);
     $('#modal').close(); studio.list = null; await loadStudio(); openProposal(p.id, true);
-    toast('견적을 받습니다. 견적이 나오면 승인해 주세요.');
+    toast('생성을 요청했습니다. 금액이 크면 승인 버튼이 표시됩니다.');
   });
   $('#imgv-save').onclick = async () => {
     $('#imgv-save').disabled = true;
@@ -2631,7 +2665,10 @@ const qaBlock = p => { const d = p.data || {}, qa = qaOf(d), busy = studio.jobs.
   return `<div class="qa-box"><b>자동 검수 · 확인 필요 항목 ${qa.flags.length}곳</b><small>클릭하면 해당 페이지로 이동해 바로 수정할 수 있습니다</small>${qa.flags.map(f => `<button class="qa-flag" data-review="${f.slide}"><span>${f.slide}페이지</span><b>${esc(QA_KO[f.type] || '확인')}</b> ${esc(f.detail)}</button>`).join('')}</div>`; };
 // 검수 표시 중 사람이 「이대로 사용」한 이미지는 뺀다 — 같은 이미지(path)인 동안은 다음 검수에서 다시 걸려도 숨김 (10-30 · 대표님 설계 「그대로 사용」)
 const qaOf = d => { if (!(d.qa && d.build && d.qa.version === d.build.version)) return null; const ok = d.qa_ok || {}, S = d.images?.slots || {};
-  return {...d.qa, flags: (d.qa.flags || []).filter(f => !(f.key && ok[f.key] && ok[f.key] === S[f.key]?.path) && !(f.key && f.path && S[f.key]?.path && f.path !== S[f.key].path))}; };
+  // 11-13 대표님 개선안 2 — 아직 만들지 않은 이미지(AI 생성 대기·미확보) 칸의 지적은 이미 저장된 검수 결과에서도 숨긴다. 빈 개수는 위쪽 숫자로만
+  const pend = s => s && (s.status === 'ai' || s.status === 'missing'), pendPage = new Set(Object.values(S).filter(pend).map(s => s.slide));
+  return {...d.qa, flags: (d.qa.flags || []).filter(f => !(f.key && ok[f.key] && ok[f.key] === S[f.key]?.path) && !(f.key && f.path && S[f.key]?.path && f.path !== S[f.key].path)
+    && !(f.key && pend(S[f.key])) && !(!f.key && f.type === 'empty' && pendPage.has(f.slide)))}; };
 // 페이지별 검토에서 바로 만들어 넣기 (10-29 김현우) — 단추에 금액을 보이고 누르면 그 자리 하나만 승인해 힉스필드로 만든다
 const needPx = (d, k) => { const b = d.build?.boxes?.[k]; return b ? Math.round(b.w / 914400 * 150) : 0; };
 const lowRes = (w, h, need, ar) => need && w && h && (ar && w / h > ar ? h * ar : w) < need * 0.6;
@@ -2669,6 +2706,14 @@ const logoRefs = (d, key) => { const S = d.images?.slots || {}, s = S[key] || {}
   const L = Object.values(S).filter(v => v.kind === 'logo' && v.path && !v.ref_only && !/ALMIGHTY|올마이티|[·×,&+/]|나란히|함께|와 |과 |및 /i.test(v.what || ''));
   const P = studio.list?.find(x => x.data === d) || {};
   return [...new Set([P.ip_a_name, P.ip_b_name].filter(Boolean).map(n => L.filter(v => (v.what || '').replace(/ /g, '').includes(n.replace(/ /g, ''))).sort((a, b) => (a.what || '').length - (b.what || '').length)[0]?.what).filter(Boolean))]; };
+// 11-13 대표님 개선안 1 — 정한 자동 승인 금액(1회·하루) 안이면 확인 창 없이 바로
+async function autoRoom(usd) {
+  try {
+    const [s, t] = await Promise.all([SB.from('pt_studio_setting').select('auto_usd,day_usd').maybeSingle(), SB.rpc('pt_studio_auto_today')]);
+    if (s.error || t.error || !s.data) return false;
+    return usd <= +s.data.auto_usd && (+t.data || 0) + usd <= +s.data.day_usd;
+  } catch { return false; }
+}
 async function quickMake(p, key, mode, prompt, why) {
   const fresh = studio.list?.find(x => x.id === p.id)?.data || p.data, cur = fresh.images.slots[key];
   const ref = mode === 'ai' && (refOf(fresh, key) || logoRefs(fresh, key).length), usd = mode === 'ai' && !ref ? 0.02 : 0.1;
@@ -2677,7 +2722,8 @@ async function quickMake(p, key, mode, prompt, why) {
              : mode === 'widen' ? '이미지 외곽을 확장해 잘림 없이 전체가 표시되도록 합니다.'
              : mode === 'fit' ? '인물 얼굴과 핵심 요소가 모두 보이도록 영역 비율에 맞춰 다시 구성하고, 부족한 부분은 힉스필드로 자연스럽게 보완합니다. 자르기만으로 맞출 수 있으면 비용이 발생하지 않습니다.'
              : ref ? `메인 이미지(${esc(fresh.images.slots[ref]?.slide)}페이지 「${esc(whatText(fresh.images.slots[ref]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다.` : 'AI 이미지를 새로 생성합니다.';
-  if (!(await confirmBox({title: `${cur.slide}페이지 이미지를 새로 생성할까요?`,
+  const auto = await autoRoom(usd);
+  if (!auto && !(await confirmBox({title: `${cur.slide}페이지 이미지를 새로 생성할까요?`,
       body: `${what}<br>새 이미지는 바로 적용되지 않으며, 미리보기로 먼저 확인할 수 있습니다. 확인 후 확정해 주세요.<br><b>비용 약 ${cost}</b>가 회사 힉스필드 잔액에서 차감됩니다.`,
       ok: `${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : '새로 생성'} · 약 ${cost}`}))) return false;
   const prev = [...(cur.prev_paths || []), cur.path].filter(Boolean);
@@ -2692,8 +2738,8 @@ async function quickMake(p, key, mode, prompt, why) {
   const data = {...fresh, images: {...fresh.images, slots: {...fresh.images.slots, [key]: next}}, prompt_log: [...(fresh.prompt_log || []), ...log]};
   const { error } = await SB.from('pt_proposal').update({data, status: 'working'}).eq('id', p.id);
   if (error) { toast('저장하지 못했습니다: ' + error.message); return false; }
-  await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {approved_usd: usd, keys: [key], preview: true}});
-  await proposalEvent(p.id, `${cur.slide}페이지 ${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '이미지 확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : (ref ? 'AI 이미지 생성(메인 이미지 참고)' : 'AI 이미지 생성')}를 승인했습니다 (예상 $${mode === 'ai' && !ref ? '0.01' : '0.08'})${why ? ' · ' + why : ''}`);
+  await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'generate', input: {approved_usd: usd, keys: [key], preview: true, ...(auto ? {auto: true} : {})}});
+  await proposalEvent(p.id, `${cur.slide}페이지 ${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '이미지 확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : (ref ? 'AI 이미지 생성(메인 이미지 참고)' : 'AI 이미지 생성')}를 ${auto ? '자동 승인' : '승인'}했습니다 (예상 $${mode === 'ai' && !ref ? '0.01' : '0.08'})${why ? ' · ' + why : ''}`);
   studio.list = null; await loadStudio();
   toast('생성을 시작했습니다. 완료되면 「이 이미지로 미리보기」에서 제안서 적용 모습을 확인한 뒤 확정해 주세요.');
   return true;
@@ -3189,14 +3235,14 @@ async function openProposal(id, keep) {
   else if (p.status === 'waiting' && p.stage >= 7 && d.images) action = imagesPanel(p);
   else if (p.status === 'waiting') action = `<div class="detail-block"><h3>결정 · ${esc(GATES[p.stage] || '확인')}</h3><p>이그드라실 봇이 준비한 결과를 확인하고 결정해 주세요.</p></div>`;
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
-  if (p.status !== 'working' && d.build) action = shortPanel(p) + action;
+  if (p.status !== 'working' && d.build) action = action + shortPanel(p);          // 11-13 대표님 개선안 3 — 지금 할 일이 먼저, 내용 보강은 그 아래
   const dlTip = '<p class="muted-box dl-tip">PPTX 파일은 <b>키노트</b>에서 바로 열립니다. <b>Figma</b>는 Figma Slides 파일 목록의 「가져오기」에서 PPTX를 올리면 편집할 수 있습니다. Figma에 Pretendard 글꼴이 없으면 기본 글꼴로 바뀝니다.</p>';
   const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="1" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
     d.research && fold('리서치', (d.research.ips || []).map(x => x.name).join(' · '), researchBlock(d.research)),
-    d.social?.ips && fold('팬·SNS', `채널 ${d.social.ips.reduce((a, x) => a + x.channels.length, 0)}개`, socialBlock(d.social))].filter(Boolean).join('');
+    socialFold(p, fold)].filter(Boolean).join('');
   showDrawer(`${pAvatar(p)}<h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
@@ -3317,12 +3363,26 @@ async function openProposal(id, keep) {
     ev.target.disabled = true;
     go({status: 'working'}, {kind: 'aside', input: {slots, ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}}, `미확보 이미지 ${miss.length}개를 한 번에 Aside에 요청했습니다`, 'Aside에 요청했습니다. 찾으면 제안서에 자동 반영됩니다.');
   });
-  $('#ai-est')?.addEventListener('click', ev => { ev.target.disabled = true; go({status: 'working'}, {kind: 'generate', input: {estimate_only: true}}, 'AI 이미지 견적을 요청했습니다'); });
-  $('#ai-go')?.addEventListener('click', async ev => {
-    const usd = +ev.target.dataset.usd, n = d.images.ai_estimate.count;
-    if (!(await confirmBox({title: `이미지 ${n}장을 생성할까요?`, body: `<b>예상 비용 약 $${usd}</b>가 회사 힉스필드 잔액에서 차감됩니다. 실패하거나 부적절 판정된 이미지는 청구되지 않습니다. 생성된 이미지는 해당 페이지에만 반영됩니다.`, ok: `${n}장 생성 · 약 $${usd}`}))) return;
+  // 11-13 대표님 개선안 1 — 금액이 적힌 버튼 하나로 승인(확인 창 없음). 견적이 없으면 봇이 견적을 내고 정한 금액 이하면 바로 생성
+  $('#ai-go')?.addEventListener('click', ev => {
+    const usd = +ev.target.dataset.usd || 0, n = d.images.ai_estimate?.count;
     ev.target.disabled = true;
-    go({status: 'working'}, {kind: 'generate', input: {approved_usd: usd}}, `AI 이미지 ${n}장 생성을 승인했습니다 (예상 $${usd})`, '승인했습니다. 이그드라실 봇이 생성을 시작합니다.');
+    if (usd) go({status: 'working'}, {kind: 'generate', input: {approved_usd: usd}}, `AI 이미지 ${n}장 생성을 승인했습니다 (예상 $${usd})`, '생성을 시작합니다. 진행률은 화면에서 확인할 수 있습니다.');
+    else go({status: 'working'}, {kind: 'generate', input: {}}, 'AI 이미지 생성을 요청했습니다', '견적을 확인해 바로 생성합니다. 금액이 크면 승인 버튼이 다시 표시됩니다.');
+  });
+  // 11-13 대표님 개선안 4 — 팬·SNS 조사를 나중에 추가 · 결과로 컨셉 다시 생성
+  $('#soc-add')?.addEventListener('click', async ev => {
+    ev.target.disabled = true;
+    const ips = [p.ip_a_name, ...(p.mode === 'collab' && p.ip_b_name ? [p.ip_b_name] : [])];
+    const { error } = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'aside', input: {task: 'social', late: true, ips, recipient: p.recipient || ''}});
+    if (error) { ev.target.disabled = false; return toast('요청하지 못했습니다: ' + error.message); }
+    await proposalEvent(p.id, '팬·SNS 조사를 추가로 요청했습니다');
+    studio.list = null; await loadStudio(); openProposal(p.id, true); toast('팬·SNS 조사를 시작합니다. 결과는 「자료」에 추가됩니다.');
+  });
+  $('#soc-reconcept')?.addEventListener('click', ev => {
+    ev.target.disabled = true;
+    go({stage: 5, status: 'working'}, {kind: 'concepts', input: {instruction: '팬·SNS 조사 결과(팬이 좋아하는 것·싫어하는 것·팬이 쓰는 말·지난 협업 반응)를 적극 반영해 컨셉을 다시 설계해 주세요.'}},
+       '팬·SNS 결과로 컨셉 다시 생성을 요청했습니다', '컨셉을 다시 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   $$('#drawer [data-aside]').forEach(b => b.onclick = () => {
     const k = b.dataset.aside, sl = d.images.slots[k];
@@ -3362,8 +3422,9 @@ async function openProposal(id, keep) {
     if (!(await confirmBox({title: '변경 사항을 제안서 전체에 반영할까요?', body: '교체한 이미지와 위치 조정 내용을 적용해 제안서 전체를 다시 생성하고, 자동 검수도 다시 진행합니다. 진행 중에는 수정할 수 없습니다.', ok: '전체에 반영'}))) return;
     ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {}}, '변경 사항 반영을 요청했습니다'); });
   $('#img-done')?.addEventListener('click', async ev => {
+    const empty = Object.values(liveSlots(d)).filter(s => s.status === 'missing' || s.status === 'ai').length;     // 11-13 대표님 개선안 3
     if (!(await confirmBox({title: `v${d.build.version}으로 제안서를 완료할까요?`,
-        body: `완료하면 상태가 「완료」로 변경되고 이미지 수정 단계가 종료됩니다.${patched ? ` 수정한 ${patched}개 페이지를 전체 파일에 반영한 뒤 완료합니다.` : ''} 이후 수정이 필요하면 「수정 버전 생성」으로 다음 버전을 생성합니다.`,
+        body: `${empty ? `<b>비어 있는 이미지가 ${empty}개 남아 있습니다.</b> ` : ''}완료하면 상태가 「완료」로 변경되고 이미지 수정 단계가 종료됩니다.${patched ? ` 수정한 ${patched}개 페이지를 전체 파일에 반영한 뒤 완료합니다.` : ''} 이후 수정이 필요하면 「수정 버전 생성」으로 다음 버전을 생성합니다.`,
         ok: `v${d.build.version}으로 완료`}))) return;
     ev.target.disabled = true;
     // 완료한 버전에 남은 AI 이미지·좌우 넓힌 이미지 = 사람이 통과시킨 것 → good_images (10-29 · 다음 원고가 이 수준을 따르게)
@@ -3440,13 +3501,29 @@ function studioProjectModal(p) {
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
   ${p ? '' : `<div class="field"><span class="flabel">공개 범위</span><div class="seg-pick"><label><input type="radio" name="sp-vis" value="team" checked> 궁니르 전체 <small>모든 궁니르 사용자</small></label><label><input type="radio" name="sp-vis" value="private"> 나만 보기 <small>시험용 · 나중에 공유 가능</small></label></div></div>
   <label hidden>진행 범위<select id="sp-stop"><option value="">끝까지 진행 (결정 단계에서만 확인)</option><option value="research">리서치까지만</option><option value="draft">원고 초안까지 (이미지 수급 전)</option></select></label>
-  <label>컨셉 후보 수<select id="sp-cc"><option value="">5~7개 (기본)</option><option value="10">10개</option></select></label>`}
+  <label>컨셉 후보 수<select id="sp-cc"><option value="">5~7개 (기본)</option><option value="10">10개</option></select></label>
+  <label class="check"><input type="checkbox" id="sp-social"> 팬·SNS 조사 포함 (약 40분 더 걸림)</label>`}
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
   $('#sp-color').oninput = () => { $('input[name=sp-acc][value=pick]').checked = true; };
   const note = (inp, out) => { const e = entityByName($(inp).value); $(out).innerHTML = $(inp).value.trim() ? (e ? `<b>등록된 연락처 있음</b> · 이그드라실 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 이그드라실 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
   if (!lockIp) ['#sp-a', '#sp-b'].forEach((s, i) => { $(s).oninput = () => note(s, i ? '#sp-b-note' : '#sp-a-note'); note(s, i ? '#sp-b-note' : '#sp-a-note'); });
+  // 11-13 대표님 개선안 4 — 아이돌·가수 IP 는 팬·SNS 조사를 기본으로 켠다(궁니르 K-POP 분류). 사람이 직접 바꾸면 그대로 둔다
+  if (!p) {
+    let touched = false, seq = 0, tmr = 0;
+    $('#sp-social').onchange = () => { touched = true; };
+    const kp = async () => {
+      const n = $('#sp-a').value.trim(), my = ++seq;
+      if (touched) return;
+      if (!n) { $('#sp-social').checked = false; return; }
+      const e = entityByName(n);
+      let on = /아이돌|가수|걸그룹|보이그룹|k-?pop/i.test([e?.agency, e?.role, e?.rel].filter(Boolean).join(' '));
+      if (!on) { const { data } = await SB.rpc('pt_ip_is_kpop', {p_name: e?.name || n}); on = !!data; }
+      if (my === seq && !touched) $('#sp-social').checked = on;
+    };
+    $('#sp-a').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(kp, 350); });
+  }
   $('#sp-form').onsubmit = async ev => {
     ev.preventDefault();
     const a = $('#sp-a').value.trim(), mode = $('input[name=sp-mode]:checked').value, b = mode === 'collab' ? $('#sp-b').value.trim() : '';
@@ -3455,7 +3532,7 @@ function studioProjectModal(p) {
     const btn = $('#sp-form [type=submit]'); btn.disabled = true;
     const cur = p ? (await SB.from('pt_proposal').select('data').eq('id', p.id).single()).data?.data || p.data : {};   // 봇이 그사이 쓴 data 를 덮지 않게 최신본에 강조색만 얹음
     const row = {...(lockIp ? {} : {mode, ip_a_name: ea?.name || a, ip_a_id: ea?.id || null, ip_b_name: eb?.name || b, ip_b_id: eb?.id || null}), recipient: $('#sp-to').value.trim(), ref_id: $('input[name="sp-ref"]:checked')?.value || null, note: $('#sp-note').value.trim(), data: {...(cur || {}), accent: $('input[name=sp-acc]:checked').value === 'pick' ? $('#sp-color').value.toUpperCase() : ''}};
-    if (!p) { row.visibility = $('input[name=sp-vis]:checked')?.value || 'team'; row.data = {...row.data, stop_at: $('#sp-stop')?.value || '', concept_count: Number($('#sp-cc')?.value) || 0}; }   // 11-04 기획팀 회의
+    if (!p) { row.visibility = $('input[name=sp-vis]:checked')?.value || 'team'; row.data = {...row.data, stop_at: $('#sp-stop')?.value || '', concept_count: Number($('#sp-cc')?.value) || 0, social_on: !!$('#sp-social')?.checked}; }   // 11-04 기획팀 회의
     const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: 2, status: 'waiting'}).select().single();
     const { data, error } = await q;
     if (error) { btn.disabled = false; $('#sp-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
