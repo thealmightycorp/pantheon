@@ -296,6 +296,15 @@ td.wrap-cell{white-space:normal;min-width:180px;line-height:1.5}
 .seg-pick label small{color:var(--ink-muted);font-size:var(--text-meta);margin-left:auto}
 .seg-pick input{width:auto!important;margin:0!important;display:inline!important;accent-color:#285541}
 .seg-pick label:has(input:checked){border-color:#285541;background:#edf4ef}
+/* 진행 방식 (11-13 궁니르 개선안 6) */
+.flow-preset{grid-template-columns:repeat(3,1fr)}.flow-preset label{flex-direction:column;align-items:flex-start!important;gap:2px!important}.flow-preset label small{margin-left:0!important}
+.fl-steps{margin-top:10px;border:1px solid #dde4d9;border-radius:7px;padding:4px 12px}.fl-steps summary{cursor:pointer;font-size:13px;font-weight:600;color:#283a2f;padding:8px 0}
+.fl-row{border-top:1px solid #eef2ec;padding:10px 0}.fl-head{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}.fl-head b{font-size:13px;color:#283a2f}
+.fl-head select{margin:0!important}.fl-extra{margin:8px 0 0 106px;display:grid;gap:6px}.fl-extra input,.fl-extra textarea,.fl-extra select{margin:0!important}
+.fl-opts{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}.fl-opts label.check{margin:0!important;font-size:13px}.fl-opts label.check small{color:var(--ink-muted);font-size:var(--text-meta)}
+.fl-sub{font-size:var(--text-meta);color:var(--ink-muted)}.fl-cap{display:flex!important;align-items:center;gap:6px;margin:0!important;font-size:13px}.fl-cap input{width:110px!important;display:inline-block!important}
+.fl-preset-name{font-weight:600;margin:0 0 6px}
+@media (max-width:640px){.flow-preset{grid-template-columns:1fr}.fl-head{grid-template-columns:1fr}.fl-extra{margin-left:0}}
 .kid-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .kid-row{display:flex;align-items:center;gap:10px;border:1px solid #dde4d9;border-radius:7px;padding:7px 8px;background:#fff}
 .kid-row.new{border-style:dashed;border-color:#82bca4}

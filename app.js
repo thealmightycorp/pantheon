@@ -2487,7 +2487,7 @@ function socialFold(p, fold) {
 }
 function researchBlock(R) {
   const fact = f => `<li>${esc(f.text)} ${f.url ? `<a class="src" href="${esc(f.url)}" target="_blank" rel="noopener">${esc(host(f.url))}${f.as_of ? ' · ' + esc(f.as_of) : ''}</a>` : ''}</li>`;
-  return `<div class="detail-block"><h3>리서치</h3>${(R.ips || []).map(x => `<details class="research"><summary><b>${esc(x.name)}</b> <small>출처가 확인된 사실 ${x.facts.length}개</small></summary><p>${esc(x.summary || '')}</p>${x.fandom ? `<p><b>팬덤</b> ${esc(x.fandom)}</p>` : ''}${x.world ? `<p><b>세계관·정서</b> ${esc(x.world)}</p>` : ''}<ul class="facts">${x.facts.map(fact).join('')}</ul>${(x.collabs || []).length ? `<p><b>지난 협업</b></p><ul class="facts">${x.collabs.map(fact).join('')}</ul>` : ''}${(x.hooks || []).length ? `<p><b>도입부 활용 장면</b></p><ul class="facts">${x.hooks.map(h => fact({...h, text: h.text + (h.note ? ` (${h.note})` : '')})).join('')}</ul>` : ''}${(x.risks || []).length ? `<p><b>유의 사항</b> ${x.risks.map(esc).join(' · ')}</p>` : ''}</details>`).join('')}${(R.common_ground || []).length ? `<p><b>공통점</b></p><ul class="facts">${R.common_ground.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}</div>`;
+  return `<div class="detail-block"><h3>리서치</h3>${(R.ips || []).map(x => `<details class="research"><summary><b>${esc(x.name)}</b> <small>출처가 확인된 사실 ${x.facts.length}개</small></summary><p>${esc(x.summary || '')}</p>${x.fandom ? `<p><b>팬덤</b> ${esc(x.fandom)}</p>` : ''}${x.world ? `<p><b>세계관·정서</b> ${esc(x.world)}</p>` : ''}<ul class="facts">${x.facts.map(fact).join('')}</ul>${(x.collabs || []).length ? `<p><b>지난 협업</b></p><ul class="facts">${x.collabs.map(fact).join('')}</ul>` : ''}${(x.hooks || []).length ? `<p><b>도입부 활용 장면</b></p><ul class="facts">${x.hooks.map(h => fact({...h, text: h.text + (h.note ? ` (${h.note})` : '')})).join('')}</ul>` : ''}${(x.risks || []).length ? `<p><b>유의 사항</b> ${x.risks.map(esc).join(' · ')}</p>` : ''}</details>`).join('')}${(R.common_ground || []).length ? `<p><b>공통점</b></p><ul class="facts">${R.common_ground.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}${R.recipient?.facts?.length ? `<details class="research"><summary><b>수신사 · ${esc(R.recipient.name || '')}</b> <small>${R.recipient.facts.length}개</small></summary><ul class="facts">${R.recipient.facts.map(fact).join('')}</ul></details>` : ''}${(R.market || []).length ? `<details class="research"><summary><b>시장·매출 수치</b> <small>${R.market.length}개</small></summary><ul class="facts">${R.market.map(fact).join('')}</ul></details>` : ''}</div>`;
 }
 
 // 지금 원고에 쓰인 이미지만 — 새 디자인 적용·수정 버전에서 빠진 이미지는 숫자·목록에 넣지 않는다 (10-30 에스파 SIGNAL 21개)
@@ -2707,7 +2707,8 @@ const logoRefs = (d, key) => { const S = d.images?.slots || {}, s = S[key] || {}
   const P = studio.list?.find(x => x.data === d) || {};
   return [...new Set([P.ip_a_name, P.ip_b_name].filter(Boolean).map(n => L.filter(v => (v.what || '').replace(/ /g, '').includes(n.replace(/ /g, ''))).sort((a, b) => (a.what || '').length - (b.what || '').length)[0]?.what).filter(Boolean))]; };
 // 11-13 대표님 개선안 1 — 정한 자동 승인 금액(1회·하루) 안이면 확인 창 없이 바로
-async function autoRoom(usd) {
+async function autoRoom(usd, p) {
+  if (p && flowSteps(p).image === 'review') return false;          // 진행 설정 「이미지: 내가 검토」 (11-13)
   try {
     const [s, t] = await Promise.all([SB.from('pt_studio_setting').select('auto_usd,day_usd').maybeSingle(), SB.rpc('pt_studio_auto_today')]);
     if (s.error || t.error || !s.data) return false;
@@ -2722,7 +2723,7 @@ async function quickMake(p, key, mode, prompt, why) {
              : mode === 'widen' ? '이미지 외곽을 확장해 잘림 없이 전체가 표시되도록 합니다.'
              : mode === 'fit' ? '인물 얼굴과 핵심 요소가 모두 보이도록 영역 비율에 맞춰 다시 구성하고, 부족한 부분은 힉스필드로 자연스럽게 보완합니다. 자르기만으로 맞출 수 있으면 비용이 발생하지 않습니다.'
              : ref ? `메인 이미지(${esc(fresh.images.slots[ref]?.slide)}페이지 「${esc(whatText(fresh.images.slots[ref]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다.` : 'AI 이미지를 새로 생성합니다.';
-  const auto = await autoRoom(usd);
+  const auto = await autoRoom(usd, p);
   if (!auto && !(await confirmBox({title: `${cur.slide}페이지 이미지를 새로 생성할까요?`,
       body: `${what}<br>새 이미지는 바로 적용되지 않으며, 미리보기로 먼저 확인할 수 있습니다. 확인 후 확정해 주세요.<br><b>비용 약 ${cost}</b>가 회사 힉스필드 잔액에서 차감됩니다.`,
       ok: `${mode === 'upscale' ? '고해상도 보정' : mode === 'widen' ? '확장' : mode === 'fit' ? '영역에 맞춘 이미지 생성' : '새로 생성'} · 약 ${cost}`}))) return false;
@@ -3228,7 +3229,7 @@ async function openProposal(id, keep) {
   else if (p.status === 'working' && p.stage >= 7 && job && !['image_plan', 'finalize', 'generate', 'aside', 'qa'].includes(job.kind)) action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3><p>이 단계는 준비 중입니다. 완성되면 여기서 이어서 진행됩니다.</p></div>`;
   else if (p.status === 'working') { const live = liveJobs(id); action = `<div class="detail-block"><h3>진행 중 · ${esc(STAGES[p.stage - 1])}</h3>${jobsProg(live.length ? live : [job])}<p class="muted-box">화면을 벗어나거나 새로고침해도 작업은 계속 진행됩니다.</p><div class="drawer-actions"><button class="button danger" id="job-cancel">작업 취소</button></div></div>`; }
   else if (p.status === 'waiting' && resumeOf(p)) { const r = resumeOf(p); action = `<div class="detail-block pv-decide"><h3>작업을 취소했습니다 · ${esc(STAGES[r.stage - 1])}</h3><p>${esc(d.cancel_req?.by || '담당자')}님이 「${esc(STAGES[r.stage - 1])}」 작업을 취소했습니다. 이어서 진행하려면 다시 시작해 주세요. 이미 생성된 결과는 그대로 유지됩니다.</p><div class="drawer-actions"><button class="button primary" id="job-resume">${esc(STAGES[r.stage - 1])} 다시 시작</button></div></div>`; }
-  else if (p.status === 'waiting' && d.paused?.next) action = `<div class="detail-block pv-decide"><h3>설정한 진행 범위에서 멈췄습니다 · ${esc(STAGES[(d.paused.stage || p.stage) - 1])}</h3><p>${d.paused.next === 'concepts' ? '리서치가 끝났습니다. 자료를 확인한 뒤 컨셉 설계를 이어서 진행해 주세요.' : '제안서 초안이 생성되었습니다. 초안을 확인한 뒤 이미지 수급을 이어서 진행해 주세요.'}</p><div class="drawer-actions"><button class="button primary" id="pause-go">${d.paused.next === 'concepts' ? '컨셉 설계 이어서 진행' : '이미지 수급 이어서 진행'}</button></div></div>`;
+  else if (p.status === 'waiting' && d.paused?.next) action = `<div class="detail-block pv-decide"><h3>결정 · ${d.paused.next === 'concepts' ? '리서치 결과 확인' : '제안서 초안 확인'}</h3><p>${d.paused.next === 'concepts' ? '리서치가 끝났습니다. 자료를 확인한 뒤 컨셉 설계를 이어서 진행해 주세요.' : '제안서 초안이 생성되었습니다. 초안을 확인한 뒤 이미지 수급을 이어서 진행해 주세요.'}</p><div class="drawer-actions"><button class="button primary" id="pause-go">${d.paused.next === 'concepts' ? '컨셉 설계 이어서 진행' : '이미지 수급 이어서 진행'}</button></div></div>`;
   else if (p.status === 'failed') action = `<div class="detail-block"><h3>작업 실패</h3><p>${esc(d.error || '이그드라실 봇이 작업을 완료하지 못했습니다.')}</p><div class="drawer-actions"><button class="button primary" id="job-retry">다시 시도</button></div></div>`;
   else if (p.status === 'waiting' && p.stage === 3 && d.partners) action = partnersPanel(p);
   else if (p.status === 'waiting' && p.stage === 5 && d.concepts) action = conceptsPanel(p);
@@ -3242,11 +3243,12 @@ async function openProposal(id, keep) {
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
     d.research && fold('리서치', (d.research.ips || []).map(x => x.name).join(' · '), researchBlock(d.research)),
-    socialFold(p, fold)].filter(Boolean).join('');
+    socialFold(p, fold), autoFold(p, fold)].filter(Boolean).join('');
   showDrawer(`${pAvatar(p)}<h2>${esc(pTitle(p))}</h2><span class="detail-sub">${p.mode === 'single' ? '단독 제안' : '콜라보 제안'} · ${esc(p.recipient || '수신사 미정')}${propSub(p) ? ' · ' + esc(propSub(p)) : ''}</span>${d.concepts ? `<div class="drawer-actions"><button class="button" id="prop-more">${icon('plus')} 같은 IP로 다른 컨셉 제안서 생성</button></div>` : ''}
   <ol class="pv-steps" aria-label="진행 단계">${stages}</ol>
   <div class="pv-grid"><div class="pv-col">${action}${done}${refs ? `<div class="detail-block pv-refs"><h3>자료</h3>${refs}</div>` : ''}</div>
   <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${ref ? `${esc(refName(ref))} <button type="button" class="text-btn" data-ref-pdf="${ref.id}">확인하기</button>` : '—'}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
+  ${flowPanel(p)}
   <div class="detail-block"><h3>공개 범위</h3><div class="detail-row"><span>보기</span><b>${p.visibility === 'private' ? `<span class="pill">${visLabel(p)}</span>` : '궁니르 전체'}</b></div>${p.visibility === 'private' && me && p.created_by === me.id ? `<div class="drawer-actions"><button class="button" id="pv-share">궁니르 전체에 공유</button></div>` : ''}${me && (p.created_by === me.id || isAdmin) ? `<div class="drawer-actions"><button class="button danger" id="pv-delete">프로젝트 삭제</button></div>` : ''}</div>
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   loadLogos();
@@ -3269,6 +3271,22 @@ async function openProposal(id, keep) {
   $('#job-resume')?.addEventListener('click', () => { const r = resumeOf(p); if (!r) return; const { cancel_req: _c, ...rest } = d;
     go({stage: r.stage, status: 'working', data: rest}, {kind: r.kind, input: r.input}, `취소했던 작업을 다시 시작했습니다 (${STAGES[r.stage - 1]})`, `${STAGES[r.stage - 1]}을(를) 다시 시작합니다.`); });
   $('#pv-info-edit')?.addEventListener('click', () => studioProjectModal(p));
+  $('#pv-flow-edit')?.addEventListener('click', () => flowEdit(p));
+  // 자동으로 고른 파트너·컨셉 대신 다른 후보로 다시 진행 (11-13 개선안 6) — 그 뒤 단계 결과는 새로 만든다
+  const drop = (o, ks) => Object.fromEntries(Object.entries(o).filter(([k]) => !ks.includes(k)));
+  $$('#drawer [data-repick-partner]').forEach(b => b.onclick = async () => {
+    const c = d.partners.candidates[+b.dataset.repickPartner], e = entityByName(c.ip);
+    if (!(await confirmBox({title: `「${esc(c.ip)}」로 다시 진행할까요?`, body: '파트너 IP를 바꾸고 리서치부터 다시 진행합니다. 지금의 리서치·컨셉·제안서 초안·이미지는 새로 만들어집니다.', ok: '이 후보로 다시 진행'}))) return;
+    b.disabled = true;
+    go({ip_b_name: e?.name || c.ip, ip_b_id: e?.id || null, stage: 4, status: 'working', data: {...drop(d, ['research', 'social', 'concepts', 'concept_selected', 'build', 'images', 'qa', 'paused', 'auto_final', 'error']), partner_selected: c}},
+       {kind: 'research', input: {}}, `파트너 IP를 「${c.ip}」로 바꿔 다시 진행합니다 → 리서치 시작`, `${c.ip}(으)로 다시 진행합니다.`);
+  });
+  $$('#drawer [data-repick-concept]').forEach(b => b.onclick = async () => {
+    const c = d.concepts.candidates[+b.dataset.repickConcept];
+    if (!(await confirmBox({title: `「${esc(c.name)}」 컨셉으로 다시 진행할까요?`, body: '이 컨셉으로 제안서 초안부터 다시 생성합니다. 지금의 초안·이미지는 새로 만들어집니다.', ok: '이 컨셉으로 다시 진행'}))) return;
+    b.disabled = true;
+    go({stage: 6, status: 'working', data: {...drop(d, ['build', 'images', 'qa', 'paused', 'auto_final', 'error']), concept_selected: c}}, {kind: 'build', input: {}}, `컨셉을 「${c.name}」(으)로 바꿔 다시 진행합니다 → 제안서 생성`, '이 컨셉으로 다시 진행합니다.');
+  });
   // 작업 취소 (10-30 김현우) — 8초 안에 「되돌리기」를 누르면 취소하지 않는다. 봇은 apply_at(8초 뒤)이 지나야 멈춘다 → 화면을 나가도 그대로 적용
   $('#job-cancel')?.addEventListener('click', async ev => {
     if (!(await confirmBox({title: '작업을 취소하시겠습니까?', body: '현재 진행 중인 작업을 중단하고 직전 결정 단계로 돌아갑니다. 이미 생성된 결과(원고·이미지)는 그대로 유지됩니다.', ok: '작업 취소', cancel: '계속 진행', danger: true}))) return;
@@ -3490,6 +3508,99 @@ async function openProposal(id, keep) {
   box.innerHTML = data?.length ? `<ol class="owner-hist">${data.slice(0, 6).map(li).join('')}</ol>${data.length > 6 ? `<details class="pv-more"><summary>이전 기록 ${data.length - 6}개</summary><ol class="owner-hist">${data.slice(6).map(li).join('')}</ol></details>` : ''}` : '<p>기록이 없습니다.</p>';
 }
 
+// ── 진행 설정 (11-13 홍석진 대표님 궁니르 개선안 6 「시작할 때 단계마다 자동 / 내가 검토와 리서치 범위를 직접 고르기」) → data.flow
+//    봇은 pipeline.flow_of 로 읽는다. flow 가 없는 예전 프로젝트는 FLOW_LEGACY(지금까지 방식) 그대로
+const FLOW = [
+  ['partner', '파트너 IP', 3, '점수 1위 후보로 진행', '추천 후보 중 직접 선택'],
+  ['research', '리서치', 4, '끝나면 바로 컨셉 설계로', '결과를 확인한 뒤 진행'],
+  ['concept', '컨셉', 5, '자체 점수 1위로 확정', '후보 중 직접 확정'],
+  ['outline', '페이지 구성', 2, '레퍼런스 구성 그대로', '시작 전에 구성 편집'],
+  ['draft', '원고', 6, '바로 이미지 단계로', '초안을 확인한 뒤 진행'],
+  ['image', '이미지', 7, '상한 금액 안에서 자동 생성', '견적을 확인하고 승인'],
+  ['final', '최종 확인', 8, '자동 재생성 2회 후 완료', '직접 확인하고 완료']];
+const FLOW_ALL = v => Object.fromEntries(FLOW.map(([k]) => [k, v]));
+const FLOW_PRESET = {
+  auto: ['전부 자동', '조건만 정하면 끝까지', FLOW_ALL('auto')],
+  core: ['핵심만 검토', '컨셉·최종 확인에서만 멈춤', {...FLOW_ALL('auto'), concept: 'review', final: 'review'}],
+  all: ['전부 검토', '단계마다 직접 진행', FLOW_ALL('review')]};
+const FLOW_LEGACY = {partner: 'review', research: 'auto', concept: 'review', outline: 'review', draft: 'auto', image: 'auto', final: 'review'};
+const RS_SCOPE = [['web', '공개 웹 리서치', '약 3분'], ['collabs', '지난 콜라보·라이선스 사례', ''], ['recipient', '수신사 정보', ''], ['market', '시장·매출 수치', ''], ['social', '팬·SNS 조사', '유튜브·SNS 반응 · 결과는 원고에 반영']];
+const IMG_SRCS = [['archive', '이미지 아카이브'], ['api', '이미지 검색 API'], ['web', '웹 검색'], ['aside', 'Aside']];
+const flowSteps = p => ({...FLOW_LEGACY, ...(p?.data?.flow?.steps || {})});
+const flowDefault = () => ({preset: 'core', steps: {...FLOW_PRESET.core[2]}, partner_field: '', research: {scope: ['web', 'collabs', 'recipient'], period: '', refs: ''},
+  concept_count: 0, draft_len: '', image_cap: '', image_src: IMG_SRCS.map(([k]) => k)});
+// 사람별 마지막 설정 — 내가 만든 가장 최근 프로젝트의 설정(프로젝트마다 다른 후보 분야·참고 자료·팬·SNS 는 빼고)
+function lastFlow() {
+  const mine = (studio.list || []).filter(x => me && x.created_by === me.id && x.data?.flow).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  const f = mine[0]?.data.flow; if (!f) return flowDefault();
+  return {...flowDefault(), ...f, partner_field: '', research: {...flowDefault().research, ...(f.research || {}), scope: (f.research?.scope || []).filter(x => x !== 'social'), refs: ''}};
+}
+const flowPresetOf = steps => Object.keys(FLOW_PRESET).find(k => FLOW.every(([s]) => FLOW_PRESET[k][2][s] === steps[s])) || 'custom';
+// 새 프로젝트·진행 중 변경 창에서 같이 쓰는 입력 칸. lock = 지금 단계(이미 지난 단계는 바꾸지 못함), 0 이면 모두 열림
+function flowForm(f, lock = 0, showPartner = true) {
+  const dis = st => lock && st < lock ? 'disabled' : '', sc = new Set(f.research?.scope || []), src = new Set(f.image_src || []);
+  const extra = {
+    partner: `<input id="fl-field" maxlength="60" value="${esc(f.partner_field || '')}" placeholder="후보 분야 (예: 캐릭터·게임 · 비우면 전체)" aria-label="후보 분야" ${dis(3)}>`,
+    research: `<div class="fl-opts">${RS_SCOPE.map(([k, n, s]) => `<label class="check"><input type="checkbox" data-fl-scope="${k}" ${k === 'social' ? 'id="sp-social"' : ''} ${k === 'web' || sc.has(k) ? 'checked' : ''} ${k === 'web' ? 'disabled' : dis(4)}> ${n}${s ? ` <small>${s}</small>` : ''}</label>`).join('')}<label class="check"><input type="checkbox" id="fl-1y" ${f.research?.period === '1y' ? 'checked' : ''} ${dis(4)}> 최근 1년 자료 위주</label></div><textarea id="fl-refs" rows="2" maxlength="1500" placeholder="꼭 참고할 자료 (링크·메모)" aria-label="꼭 참고할 자료" ${dis(4)}>${esc(f.research?.refs || '')}</textarea>`,
+    concept: `<select id="fl-cc" aria-label="컨셉 후보 수" ${dis(5)}><option value="">후보 5~7개</option><option value="10" ${+f.concept_count === 10 ? 'selected' : ''}>후보 10개</option></select>`,
+    outline: '',
+    draft: `<select id="fl-len" aria-label="분량" ${lock > 2 ? 'disabled' : ''}><option value="">레퍼런스 구성 분량</option><option value="short" ${f.draft_len === 'short' ? 'selected' : ''}>요약 제안 (약 12페이지)</option></select>`,
+    image: `<label class="fl-cap">상한 금액 $<input id="fl-cap" type="number" min="0" step="0.5" value="${esc(f.image_cap ?? '')}" placeholder="기본 한도" aria-label="프로젝트 자동 생성 상한 금액(달러)" ${dis(7)}></label><div class="fl-opts"><span class="fl-sub">찾는 곳</span>${IMG_SRCS.map(([k, n]) => `<label class="check"><input type="checkbox" data-fl-src="${k}" ${src.has(k) ? 'checked' : ''} ${dis(7)}> ${n}</label>`).join('')}</div>`,
+    final: ''};
+  const rows = FLOW.map(([k, n, st, a, r]) => `<div class="fl-row" data-fl-row="${k}" ${k === 'partner' && !showPartner ? 'hidden' : ''}><div class="fl-head"><b>${n}</b><select data-fl-step="${k}" aria-label="${n} 진행 방식" ${k === 'outline' ? (lock > 2 ? 'disabled' : '') : dis(st)}><option value="auto" ${f.steps[k] === 'auto' ? 'selected' : ''}>자동 · ${a}</option><option value="review" ${f.steps[k] === 'review' ? 'selected' : ''}>내가 검토 · ${r}</option></select></div>${extra[k] ? `<div class="fl-extra">${extra[k]}</div>` : ''}</div>`).join('');
+  const pre = flowPresetOf(f.steps);
+  return `<div class="field flow-box"><span class="flabel">진행 방식</span><div class="seg-pick flow-preset">${Object.entries(FLOW_PRESET).map(([k, [n, s]]) => `<label><input type="radio" name="fl-preset" value="${k}" ${pre === k ? 'checked' : ''} ${lock ? 'disabled' : ''}> ${n} <small>${s}</small></label>`).join('')}</div>
+    <details class="fl-steps" ${pre === 'custom' || lock ? 'open' : ''}><summary>단계별 설정${pre === 'custom' ? ' · 직접 설정' : ''}</summary>${rows}</details></div>`;
+}
+function flowBind(root) {
+  const q = s => root.querySelector(s), qa = s => [...root.querySelectorAll(s)];
+  qa('input[name=fl-preset]').forEach(r => r.onchange = () => { const st = FLOW_PRESET[r.value][2]; qa('[data-fl-step]').forEach(x => { if (!x.disabled) x.value = st[x.dataset.flStep]; }); });
+  qa('[data-fl-step]').forEach(x => x.onchange = () => { const cur = Object.fromEntries(qa('[data-fl-step]').map(y => [y.dataset.flStep, y.value])), k = flowPresetOf(cur);
+    qa('input[name=fl-preset]').forEach(r => { r.checked = r.value === k; }); });
+}
+function readFlow(root, base) {
+  const q = s => root.querySelector(s), qa = s => [...root.querySelectorAll(s)];
+  const steps = {...(base?.steps || FLOW_LEGACY)}; qa('[data-fl-step]').forEach(x => { steps[x.dataset.flStep] = x.value; });
+  const cap = q('#fl-cap')?.value.trim();
+  return {...(base || {}), preset: flowPresetOf(steps), steps, partner_field: (q('#fl-field')?.value || '').trim(),
+    research: {scope: qa('[data-fl-scope]').filter(x => x.checked).map(x => x.dataset.flScope), period: q('#fl-1y')?.checked ? '1y' : '', refs: (q('#fl-refs')?.value || '').trim()},
+    concept_count: Number(q('#fl-cc')?.value) || 0, draft_len: q('#fl-len')?.value || '', image_cap: cap === '' || cap == null ? '' : Math.max(0, +cap),
+    image_src: qa('[data-fl-src]').filter(x => x.checked).map(x => x.dataset.flSrc)};
+}
+function flowPanel(p) {
+  const st = flowSteps(p), live = p.status !== 'done' && !p.deleted_at;
+  return `<div class="detail-block"><h3>진행 방식 ${live ? '<button class="text-btn" type="button" id="pv-flow-edit">변경</button>' : ''}</h3>${p.data?.flow ? `<p class="fl-preset-name">${esc(FLOW_PRESET[p.data.flow.preset]?.[0] || '직접 설정')}</p>` : ''}${FLOW.filter(([k]) => k !== 'partner' || p.mode === 'collab').map(([k, n]) => `<div class="detail-row"><span>${n}</span><b>${st[k] === 'auto' ? '<span class="pill good">자동</span>' : '<span class="pill">내가 검토</span>'}</b></div>`).join('')}</div>`;
+}
+function flowEdit(p) {
+  const f = {...flowDefault(), ...(p.data?.flow || {steps: FLOW_LEGACY, research: {scope: ['web', 'collabs', 'recipient'].concat(p.data?.social_on === false ? [] : ['social'])}}), steps: flowSteps(p)};
+  const lock = Math.max(1, p.stage || 1);
+  modal(`<form id="fl-form"><h2>진행 방식 변경</h2><p>아직 지나지 않은 단계만 바꿀 수 있습니다. 지금 결정을 기다리는 단계는 바꿔도 이번 결정에는 적용되지 않고, 다음에 그 단계를 지날 때부터 적용됩니다.</p>${flowForm(f, lock, p.mode === 'collab')}
+    <div id="fl-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">변경 저장</button></div></form>`);
+  flowBind($('#fl-form'));
+  $('#fl-form').onsubmit = async ev => {
+    ev.preventDefault(); const btn = $('#fl-form [type=submit]'); btn.disabled = true;
+    const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+    if (e0) { btn.disabled = false; $('#fl-error').textContent = '불러오지 못했습니다: ' + e0.message; return; }
+    const nf = readFlow($('#fl-form'), f), d = row.data || {};
+    const upd = {...d, flow: nf, concept_count: nf.concept_count || 0, ...(p.stage <= 4 ? {social_on: nf.research.scope.includes('social')} : {})};
+    const { error } = await SB.from('pt_proposal').update({data: upd}).eq('id', p.id);
+    if (error) { btn.disabled = false; $('#fl-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
+    const changed = FLOW.filter(([k]) => flowSteps(p)[k] !== nf.steps[k]).map(([k, n]) => `${n} ${nf.steps[k] === 'auto' ? '자동' : '내가 검토'}`);
+    await proposalEvent(p.id, `진행 방식을 변경했습니다${changed.length ? ' · ' + changed.join(' · ') : ''}`);
+    $('#modal').close(); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('진행 방식을 변경했습니다.');
+  };
+}
+// 자동으로 지나간 단계 — 고른 이유·차점 후보, 다른 후보로 다시 진행 (「자료」)
+function autoFold(p, fold) {
+  const d = p.data || {}, L = d.auto_log || []; if (!L.length) return '';
+  const can = p.status !== 'working';
+  const part = L.find(x => x.step === 'partner'), con = L.find(x => x.step === 'concept');
+  const row = x => `<p><b>${x.step === 'partner' ? '파트너 IP' : '컨셉'} · 「${esc(x.picked)}」</b><br><small>${esc(x.why || '')}${(x.runner || []).length ? ' · 차점: ' + esc(x.runner.join(', ')) : ''}</small></p>`;
+  const pc = part && d.partners?.candidates ? `<details><summary>다른 파트너 후보로 다시 진행</summary><ul class="axes">${d.partners.candidates.map((c, i) => c.ip === part.picked ? '' : `<li>${esc(c.ip)} <small>${esc(c.one_line_concept || '')}</small>${can ? ` <button class="text-btn" type="button" data-repick-partner="${i}">이 후보로 다시 진행</button>` : ''}</li>`).join('')}</ul></details>` : '';
+  const cc = con && d.concepts?.candidates ? `<details><summary>다른 컨셉으로 다시 진행</summary><ul class="axes">${d.concepts.candidates.map((c, i) => c.name === con.picked ? '' : `<li>${esc(c.name)}${c.score != null ? ` <small>${c.score}점</small>` : ''} <small>${esc(c.key_copy || c.summary || '')}</small>${can ? ` <button class="text-btn" type="button" data-repick-concept="${i}">이 컨셉으로 다시 진행</button>` : ''}</li>`).join('')}</ul></details>` : '';
+  return fold('자동 선택 기록', L.map(x => x.step === 'partner' ? '파트너 IP' : '컨셉').join(' · '), `<div class="detail-block">${part ? row(part) + pc : ''}${con ? row(con) + cc : ''}</div>`);
+}
+
 function studioProjectModal(p) {
   const refs = studio.refs || [], def = p?.ref_id || refs.find(r => r.is_default)?.id || refs[0]?.id || '';
   const names = entities().filter(e => !e.hidden).map(e => `<option value="${esc(e.name)}">`).join('');
@@ -3503,12 +3614,12 @@ function studioProjectModal(p) {
   <div class="field"><span class="flabel">강조색</span><div class="accent-pick"><label><input type="radio" name="sp-acc" value="" ${p?.data?.accent ? '' : 'checked'}> 클로드 추천</label><label><input type="radio" name="sp-acc" value="pick" ${p?.data?.accent ? 'checked' : ''}> 직접 선택 <input type="color" id="sp-color" value="${esc(p?.data?.accent || '#E0245E')}"></label></div><small class="atnote">클로드 추천을 선택하면 컨셉과 두 IP의 분위기에 맞춰 이그드라실 봇이 지정합니다. 초안 생성 후에도 변경할 수 있습니다.</small></div>
   <label>메모<input id="sp-note" maxlength="300" value="${esc(p?.note || '')}" placeholder="예: 최초 제안 · 팝업 중심"></label>
   ${p ? '' : `<div class="field"><span class="flabel">공개 범위</span><div class="seg-pick"><label><input type="radio" name="sp-vis" value="team" checked> 궁니르 전체 <small>모든 궁니르 사용자</small></label><label><input type="radio" name="sp-vis" value="private"> 나만 보기 <small>시험용 · 나중에 공유 가능</small></label></div></div>
-  <label hidden>진행 범위<select id="sp-stop"><option value="">끝까지 진행 (결정 단계에서만 확인)</option><option value="research">리서치까지만</option><option value="draft">원고 초안까지 (이미지 수급 전)</option></select></label>
-  <label>컨셉 후보 수<select id="sp-cc"><option value="">5~7개 (기본)</option><option value="10">10개</option></select></label>
-  <label class="check"><input type="checkbox" id="sp-social"> 팬·SNS 조사 포함 (유튜브·SNS 반응)</label>`}
+  ${flowForm(lastFlow(), 0, p?.mode !== 'single')}`}
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
-  const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
+  const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab;
+    const pr = $('[data-fl-row=partner]'); if (pr) pr.hidden = !collab || !!$('#sp-b').value.trim(); };
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
+  if (!p) { flowBind($('#sp-form')); $('#sp-b').addEventListener('input', sync); }
   $('#sp-color').oninput = () => { $('input[name=sp-acc][value=pick]').checked = true; };
   const note = (inp, out) => { const e = entityByName($(inp).value); $(out).innerHTML = $(inp).value.trim() ? (e ? `<b>등록된 연락처 있음</b> · 이그드라실 엔티티 「${esc(e.name)}」(${esc(e.type)})와 연결됩니다${contactsOf(e).length ? ` · 등록된 담당자 ${contactsOf(e).length}명` : ''}` : '<span class="err">등록된 연락처 없음</span> · 이그드라실 엔티티에 등록되지 않은 IP입니다. 이름 그대로 진행합니다.') : ''; };
   if (!lockIp) ['#sp-a', '#sp-b'].forEach((s, i) => { $(s).oninput = () => note(s, i ? '#sp-b-note' : '#sp-a-note'); note(s, i ? '#sp-b-note' : '#sp-a-note'); });
@@ -3535,11 +3646,22 @@ function studioProjectModal(p) {
     const btn = $('#sp-form [type=submit]'); btn.disabled = true;
     const cur = p ? (await SB.from('pt_proposal').select('data').eq('id', p.id).single()).data?.data || p.data : {};   // 봇이 그사이 쓴 data 를 덮지 않게 최신본에 강조색만 얹음
     const row = {...(lockIp ? {} : {mode, ip_a_name: ea?.name || a, ip_a_id: ea?.id || null, ip_b_name: eb?.name || b, ip_b_id: eb?.id || null}), recipient: $('#sp-to').value.trim(), ref_id: $('input[name="sp-ref"]:checked')?.value || null, note: $('#sp-note').value.trim(), data: {...(cur || {}), accent: $('input[name=sp-acc]:checked').value === 'pick' ? $('#sp-color').value.toUpperCase() : ''}};
-    if (!p) { row.visibility = $('input[name=sp-vis]:checked')?.value || 'team'; row.data = {...row.data, stop_at: $('#sp-stop')?.value || '', concept_count: Number($('#sp-cc')?.value) || 0, social_on: !!$('#sp-social')?.checked}; }   // 11-04 기획팀 회의
-    const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: 2, status: 'waiting'}).select().single();
+    let start = 2, fl = null;
+    if (!p) {
+      fl = readFlow($('#sp-form'));
+      row.visibility = $('input[name=sp-vis]:checked')?.value || 'team';
+      row.data = {...row.data, flow: fl, concept_count: fl.concept_count || 0, social_on: fl.research.scope.includes('social')};
+      // 11-13 개선안 6 — 페이지 구성이 「자동」이면 기본 정보 확정 없이 바로 시작(레퍼런스 구성 그대로, 「요약 제안」이면 요약 구성)
+      if (fl.steps.outline === 'auto') {
+        const tpl = fl.draft_len === 'short' ? 'short' : olDefault({mode, ref_id: row.ref_id, data: row.data}), ol = olFromTpl(tpl);
+        if (ol.length) { row.data = {...row.data, outline: ol, outline_tpl: tpl}; start = mode === 'collab' && !row.ip_b_name ? 3 : 4; }
+      }
+    }
+    const q = p ? SB.from('pt_proposal').update(row).eq('id', p.id).select().single() : SB.from('pt_proposal').insert({...row, stage: start, status: start === 2 ? 'waiting' : 'working'}).select().single();
     const { data, error } = await q;
     if (error) { btn.disabled = false; $('#sp-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
-    await proposalEvent(data.id, p ? '기본 정보를 수정했습니다' : `프로젝트를 생성했습니다 (${mode === 'single' ? '단독' : '콜라보'} 제안)`);
+    if (!p && start > 2) { const j = await SB.from('pt_proposal_job').insert({proposal_id: data.id, kind: JOB_OF[start], input: {}}); if (j.error) await SB.from('pt_proposal').update({stage: 2, status: 'waiting'}).eq('id', data.id); }
+    await proposalEvent(data.id, p ? '기본 정보를 수정했습니다' : `프로젝트를 생성했습니다 (${mode === 'single' ? '단독' : '콜라보'} 제안 · ${FLOW_PRESET[fl.preset]?.[0] || '직접 설정'})${start > 2 ? ` → ${STAGES[start - 1]} 시작` : ''}`);
     $('#modal').close(); studio.list = null; await loadStudio(); openProposal(data.id); toast(p ? '기본 정보를 수정했습니다.' : '프로젝트를 생성했습니다.');
   };
 }
