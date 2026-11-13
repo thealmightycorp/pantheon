@@ -1685,7 +1685,8 @@ function propNo(p) {
 }
 const propSub = p => { const no = propNo(p), c = p.data?.concept_selected?.name; return [no ? `제안서 ${no.n}` : '', c ? `「${c}」` : ''].filter(Boolean).join(' · '); };
 const pTitle = p => p.mode === 'single' ? `${p.ip_a_name} 단독` : `${p.ip_a_name} × ${p.ip_b_name || '파트너 선택 전'}`;
-const pStatus = p => p.status === 'done' ? '완료' : p.status === 'failed' ? '작업 실패' : p.status === 'working' ? `${STAGES[p.stage - 1]} 진행 중` : `${GATES[p.stage] || '확인'} 대기`;
+const gateOf = p => p.data?.paused?.next ? (p.data.paused.next === 'concepts' ? '리서치 결과 확인' : '제안서 초안 확인') : (GATES[p.stage] || '확인');      // 진행 방식 「내가 검토」로 멈춘 단계 (11-13)
+const pStatus = p => p.status === 'done' ? '완료' : p.status === 'failed' ? '작업 실패' : p.status === 'working' ? `${STAGES[p.stage - 1]} 진행 중` : `${gateOf(p)} 대기`;
 const pPill = p => `<span class="pill ${p.status === 'done' ? 'good' : p.status === 'failed' ? 'bad' : p.status === 'waiting' ? 'wait' : ''}">${esc(pStatus(p))}</span>`;
 const contactPoint = e => e ? '등록된 연락처 있음' : '등록된 연락처 없음';
 const ipChips = (host, initial, list) => chipInput(host, initial, {list, find: entityByName, badge: contactPoint,
@@ -1740,7 +1741,7 @@ function pjTable(ps) {
 // 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 대기 기간이 긴 순서, 하루가 넘으면 눈에 띄게
 const waitH = p => (Date.now() - Date.parse(p.updated_at)) / 3600e3;
 const waitAgo = h => h < 1 ? '방금' : h < 24 ? `${Math.floor(h)}시간 경과` : `${Math.floor(h / 24)}일 경과`;
-const todoWhat = p => p.status === 'failed' ? '작업 중단 · 확인 후 재시도 필요' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 재시작 대기` : `${GATES[p.stage] || '확인'} 대기`;
+const todoWhat = p => p.status === 'failed' ? '작업 중단 · 확인 후 재시도 필요' : resumeOf(p) ? `${STAGES[resumeOf(p).stage - 1]} 취소됨 · 재시작 대기` : `${gateOf(p)} 대기`;
 const todoRow = (p, mine) => { const h = waitH(p), hot = h >= 24 || p.status === 'failed'; return `<button class="alert-row todo-row${hot ? ' hot' : ''}" data-proposal="${p.id}"><span class="alert-symbol${p.status === 'failed' ? ' red' : ''}">${icon('warning')}</span><span class="alert-text">${esc(pTitle(p))}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small>${esc(todoWhat(p))}${mine ? '' : ` · ${esc(pjByOf(p))}`}</small></span><span class="todo-age">${hot && p.status !== 'failed' ? '<b>처리 지연</b>' : ''}${esc(waitAgo(h))}</span></button>`; };
 
 // 진행 중인 내 프로젝트 (11-04 김현우 「진행 중 따로 보이게」) — 궁니르 봇이 작업 중인 것, 진행률은 3초마다 pollProjects 가 갱신
