@@ -4010,7 +4010,7 @@ function shortPanel(p) {
   if (!list.length) return '';
   return `<div class="detail-block pv-decide pv-short"><h3>내용 보강 필요 · ${list.length}페이지</h3><p>채울 자료가 없어 아래 페이지는 제안서에 「추후 업데이트 예정」으로 표시됩니다. 내용을 입력하면 그 페이지만 채워 다음 버전을 생성하고, 비워 둔 페이지는 그대로 둡니다.</p>
     <ul class="pv-short-list">${list.map(({n, s}) => `<li><b>${n}페이지${s.eyebrow ? ' · ' + esc(s.eyebrow) : ''}</b><small>필요한 내용: ${esc(shortNeed(s) || '페이지 내용')}</small><textarea rows="2" maxlength="1500" data-short-n="${n}" placeholder="예: 2025 HOBBY 박스 3종 발매, 쿠팡·29CM 판매, 초도 물량 완판"></textarea></li>`).join('')}</ul>
-    <div class="drawer-actions"><button class="button primary" id="short-go">입력한 내용으로 v${(p.data.build.version || 1) + 1} 생성</button></div></div>`;
+    <div class="drawer-actions"><button class="button" id="short-go">입력한 내용으로 v${(p.data.build.version || 1) + 1} 생성</button></div></div>`;
 }
 function bindSrc() {
   $$('[data-src-tab]').forEach(b => b.onclick = () => { src.tab = b.dataset.srcTab; if (b.dataset.cf) src.cf = b.dataset.cf; render(); });
