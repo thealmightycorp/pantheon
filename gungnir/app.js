@@ -1484,7 +1484,7 @@ function asksPanel() {
 }
 /* 궁니르 봇 — 상태 보기 · 다시 시작 (헤임달 「처리 서버 → 다시 시작」과 같은 방식, DB 관리자만) */
 async function loadBot() {
-  const [{ data, error }, a, lim] = await Promise.all([SB.from('pt_bot').select('*').maybeSingle(), SB.from('pt_aside_worker').select('*').maybeSingle(),
+  const [{ data, error }, a, lim] = await Promise.all([SB.from('pt_bot').select('*').maybeSingle(), SB.from('pt_aside_worker').select('*').eq('id', 1).maybeSingle(),          // 11-10 포맷 작업자가 생겨 행이 2개 — 기본 작업자(id 1)만
     SB.from('pt_studio_setting').select('*').maybeSingle()]);
   admin.bot = error ? {err: error.message} : (data || {});
   admin.aside = a.error ? {err: a.error.message} : (a.data || {});
@@ -1509,7 +1509,7 @@ function limitsPanel() {
   const L = admin.limits; if (!L) return '';
   return `<section class="panel"><div class="panel-head"><div><div class="panel-title">궁니르 AI 이미지 자동 승인</div>
     <p class="panel-caption">AI 이미지 견적이 1회 금액 이하면 승인 없이 바로 생성합니다. 그날 자동 승인 합계가 하루 금액을 넘으면 그날은 담당자 승인을 받습니다.</p></div></div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:0 23px 18px"><label>1회 금액(달러)<input type="number" id="lim-auto" min="0" max="100" step="0.5" value="${Number(L.auto_usd)}"></label><label>하루 금액(달러)<input type="number" id="lim-day" min="0" max="1000" step="1" value="${Number(L.day_usd)}"></label><button class="button primary" id="lim-save">저장</button></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:0 23px 18px"><label style="display:grid;gap:6px;font-size:13px">1회 금액(달러)<input type="number" id="lim-auto" min="0" max="100" step="0.5" value="${Number(L.auto_usd)}" style="width:140px"></label><label style="display:grid;gap:6px;font-size:13px">하루 금액(달러)<input type="number" id="lim-day" min="0" max="1000" step="1" value="${Number(L.day_usd)}" style="width:140px"></label><button class="button primary" id="lim-save">저장</button></div>
     ${L.updated_by ? `<div class="panel-caption" style="padding:0 23px 18px">마지막 변경 ${esc(L.updated_by)} · ${esc(kst(L.updated_at))}</div>` : ''}</section>`;
 }
 // Aside (서버 PC 의 SNS·이미지 검색) — 원격 일시 정지·다시 시작 (11-04 김현우 「aside 원격으로 켜고 끄는 기능」)
@@ -2500,7 +2500,7 @@ function imagesPanel(p) {
   const E = p.data.images.ai_estimate, nW = keys.filter(k => S[k].widen && S[k].status === 'found').length, nAi = n('ai') + nW;
   const aiWhat = [n('ai') ? `AI 이미지 ${n('ai')}장` : '', nW ? `세로 사진 좌우 확장 ${nW}장` : ''].filter(Boolean).join(' + ');
   // 11-13 대표님 개선안 1 — 견적 받기 없이, 금액이 적힌 버튼 하나로 승인 (정한 금액 이하는 봇이 자동 승인해 이 카드가 뜨지 않음)
-  const has = E && E.count === nAi;
+  const has = E && (E.count === nAi || E.ai === n('ai'));      // 원고에서 빠진 확장 자리 때문에 장수가 하나 어긋나도 금액은 보이게
   // 대표님 설계(10-30 김현우): 결정 카드에는 숫자·확인할 곳·버튼만 — 이미지는 「이미지 수정」에서 실제 페이지를 보며 누른다
   const qa = qaOf(p.data), flags = qa?.flags || [], final = p.stage >= 8 || !nAi;
   // 11-13 대표님 개선안 3 — 주 버튼은 상황에 맞는 하나만: AI 승인 대기 > 미확보 > 검수 확인 > 완료
