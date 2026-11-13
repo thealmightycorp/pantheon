@@ -2476,13 +2476,13 @@ function socialBlock(S) {
 // 11-13 대표님 개선안 4 — 팬·SNS 조사는 켠 프로젝트만. 끈 프로젝트도 나중에 추가, 결과가 오면 컨셉을 다시 생성할 수 있다
 function socialFold(p, fold) {
   const d = p.data || {}, S = d.social || {};
-  const job = studio.jobs.find(j => j.proposal_id === p.id && j.kind === 'aside' && j.input?.task === 'social' && ['wait', 'work'].includes(j.status));
+  const job = studio.jobs.find(j => ['wait', 'work'].includes(j.status) && ((j.proposal_id === p.id && j.kind === 'aside' && j.input?.task === 'social') || (j.kind === 'page_types' && j.input?.task === 'social_api' && j.input?.pid === p.id)));
   if (S.ips) {
     const re = p.stage === 5 && p.status === 'waiting' && d.concepts ? '<div class="drawer-actions"><button class="button" id="soc-reconcept">팬·SNS 결과로 컨셉 다시 생성</button></div>' : '';
     return fold('팬·SNS', `채널 ${S.ips.reduce((a, x) => a + x.channels.length, 0)}개`, socialBlock(S) + re);
   }
   if (job && (p.stage >= 5 || p.status !== 'working')) return fold('팬·SNS', '조사 중', jobsProg([job]));
-  if ((S.off || S.failed) && p.stage >= 5) return fold('팬·SNS', S.off ? '조사하지 않음' : '조사하지 못함', `<div class="detail-block"><p>팬·SNS 조사를 추가하면 인스타그램·틱톡·X·팬 커뮤니티 반응을 「자료」에 추가합니다. 약 40분 걸립니다.</p><div class="drawer-actions"><button class="button" id="soc-add">팬·SNS 조사 추가</button></div></div>`);
+  if ((S.off || S.failed) && p.stage >= 5) return fold('팬·SNS', S.off ? '조사하지 않음' : '조사하지 못함', `<div class="detail-block"><p>팬·SNS 조사를 추가하면 유튜브 공식 채널·인기 영상 반응과 SNS 게시물 반응을 정리해 「자료」에 추가합니다.</p><div class="drawer-actions"><button class="button" id="soc-add">팬·SNS 조사 추가</button></div></div>`);
   return '';
 }
 function researchBlock(R) {
@@ -3376,8 +3376,8 @@ async function openProposal(id, keep) {
   // 11-13 대표님 개선안 4 — 팬·SNS 조사를 나중에 추가 · 결과로 컨셉 다시 생성
   $('#soc-add')?.addEventListener('click', async ev => {
     ev.target.disabled = true;
-    const ips = [p.ip_a_name, ...(p.mode === 'collab' && p.ip_b_name ? [p.ip_b_name] : [])];
-    const { error } = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'aside', input: {task: 'social', late: true, ips, recipient: p.recipient || ''}});
+    // 11-13 팬·SNS 조사는 API(유튜브·SNS 수집)로 — 제안서 id 는 input.pid
+    const { error } = await SB.from('pt_proposal_job').insert({kind: 'page_types', input: {task: 'social_api', pid: p.id}});
     if (error) { ev.target.disabled = false; return toast('요청하지 못했습니다: ' + error.message); }
     await proposalEvent(p.id, '팬·SNS 조사를 추가로 요청했습니다');
     studio.list = null; await loadStudio(); openProposal(p.id, true); toast('팬·SNS 조사를 시작합니다. 결과는 「자료」에 추가됩니다.');
@@ -3505,7 +3505,7 @@ function studioProjectModal(p) {
   ${p ? '' : `<div class="field"><span class="flabel">공개 범위</span><div class="seg-pick"><label><input type="radio" name="sp-vis" value="team" checked> 궁니르 전체 <small>모든 궁니르 사용자</small></label><label><input type="radio" name="sp-vis" value="private"> 나만 보기 <small>시험용 · 나중에 공유 가능</small></label></div></div>
   <label hidden>진행 범위<select id="sp-stop"><option value="">끝까지 진행 (결정 단계에서만 확인)</option><option value="research">리서치까지만</option><option value="draft">원고 초안까지 (이미지 수급 전)</option></select></label>
   <label>컨셉 후보 수<select id="sp-cc"><option value="">5~7개 (기본)</option><option value="10">10개</option></select></label>
-  <label class="check"><input type="checkbox" id="sp-social"> 팬·SNS 조사 포함 (약 40분 더 걸림)</label>`}
+  <label class="check"><input type="checkbox" id="sp-social"> 팬·SNS 조사 포함 (유튜브·SNS 반응)</label>`}
   <div id="sp-error" style="color:#ba775e;margin-top:14px;font-size:12px" role="alert"></div><div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">${p ? '변경 저장' : '프로젝트 생성'}</button></div></form>`);
   const sync = () => { const collab = $('input[name=sp-mode]:checked').value === 'collab'; $('#sp-b-field').hidden = !collab; };
   $$('input[name=sp-mode]').forEach(r => r.onchange = sync); sync();
