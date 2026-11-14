@@ -3215,6 +3215,61 @@ async function loadLogos() {
   const { data } = await SB.storage.from('pt-studio').createSignedUrls([...new Set(els.map(e => e.dataset.logo))], 3600);
   (data || []).forEach(d => { if (!d.signedUrl) return; logoUrl[d.path] = d.signedUrl; $$(`img[data-logo="${CSS.escape(d.path)}"]`).forEach(e => { e.src = d.signedUrl; }); });
 }
+// 11-14 대표님 「완결은 안 됐지만 더 진행 안 해도 되는 것 바로 완료로 · 잘 나온 것 레퍼런스로 바로 보내기」
+const pvCanEdit = p => !!me && (p.created_by === me.id || isAdmin);
+function pvEnd(p) {
+  const d = p.data || {};
+  if (p.status === 'done') {
+    const r = d.sent_ref && (studio.refs || []).find(x => x.id === d.sent_ref);
+    return `<div class="detail-block"><h3>레퍼런스</h3>${d.sent_ref ? `<div class="detail-row"><span>등록</span><b>${r ? esc(refName(r)) : '레퍼런스로 등록됨'}${r ? ` <button class="text-btn" type="button" data-ref-view="${r.id}">보기</button>` : ''}</b></div>`
+      : `<p>잘 나온 제안서는 레퍼런스로 등록하면 다음 제안서의 문체·디자인·구성에 반영됩니다.</p><div class="drawer-actions"><button class="button" id="pv-to-ref">레퍼런스로 보내기</button></div>`}</div>`;
+  }
+  if ((p.status === 'waiting' || p.status === 'failed') && pvCanEdit(p))
+    return `<div class="detail-block"><h3>바로 완료</h3><p>궁니르 밖에서 마무리했거나 더 진행하지 않아도 되는 프로젝트는 지금 단계에서 완료로 바꿀 수 있습니다.</p><div class="drawer-actions"><button class="button" id="pv-close">바로 완료로 변경</button></div></div>`;
+  return '';
+}
+// 레퍼런스로 보내기 — 궁니르에서 만든 PDF 를 그대로 쓰거나, 밖에서 마무리한 최종 PDF 를 올린다 → pt_proposal_ref + 학습(analyze_reference)
+function pvToRef(p) {
+  const d = p.data || {}, b = d.build || {};
+  let dlg = $('#pv-ref-dlg'); if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'pv-ref-dlg'; dlg.className = 'ask'; document.body.appendChild(dlg); }
+  const opt = (v, t, sub, on) => `<label class="ref-opt"><input type="radio" name="pvr-src" value="${v}"${on ? ' checked' : ''}><span><b>${esc(t)}</b><small class="cell-sub">${esc(sub)}</small></span></label>`;
+  dlg.innerHTML = `<h2>레퍼런스로 보내기</h2><form id="pvr-form" novalidate>
+    <label>제안서 이름<input id="pvr-title" maxlength="120" value="${esc(pTitle(p))}"></label>
+    <div class="field"><span class="flabel">레퍼런스로 쓸 파일</span><div class="ref-pick">${b.pdf ? opt('app', `궁니르에서 만든 PDF · v${b.version}`, `${b.slides || ''}페이지${Object.keys(b.patches || {}).length ? ' · 화면에서만 수정한 페이지는 반영되지 않은 파일' : ''}`, true) : ''}${opt('file', '최종 PDF 직접 올리기', '궁니르 밖에서 마무리한 최종본', !b.pdf)}</div>
+    <input type="file" id="pvr-file" accept="application/pdf,.pdf"${b.pdf ? ' hidden' : ''}></div>
+    <label>중점 학습 사항 (선택)<textarea id="pvr-note" rows="2" maxlength="500" placeholder="예: 상품 구성 페이지 구성, 표지 디자인"></textarea></label>
+    <div class="ref-prog" id="pvr-up" hidden><span class="row"><span class="bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><i style="width:0%"></i></span><b>0%</b></span><small>파일을 올리는 중</small></div>
+    <p class="err" id="pvr-err" role="alert"></p>
+    <div class="modal-actions"><button class="button" type="button" id="pvr-cancel">취소</button><button class="button primary" type="submit">등록하고 학습 시작</button></div></form>`;
+  const src = () => dlg.querySelector('[name=pvr-src]:checked')?.value;
+  dlg.querySelectorAll('[name=pvr-src]').forEach(x => x.onchange = () => { $('#pvr-file').hidden = src() !== 'file'; });
+  $('#pvr-cancel').onclick = () => dlg.close();
+  $('#pvr-form').onsubmit = async ev => {
+    ev.preventDefault();
+    const title = $('#pvr-title').value.trim(), file = $('#pvr-file').files[0], err = $('#pvr-err'), btn = ev.target.querySelector('[type=submit]');
+    if (!title) { err.textContent = '제안서 이름을 입력해 주세요.'; return; }
+    if (src() === 'file' && !file) { err.textContent = '최종 PDF 파일을 선택해 주세요.'; return; }
+    if (src() === 'file' && !/\.pdf$/i.test(file.name)) { err.textContent = 'PDF 파일만 학습할 수 있습니다. PowerPoint·키노트에서 PDF로 저장해 올려 주세요.'; return; }
+    btn.disabled = true; btn.textContent = '등록 중…'; err.textContent = '';
+    const fail = m => { btn.disabled = false; btn.textContent = '등록하고 학습 시작'; $('#pvr-up').hidden = true; err.textContent = m; };
+    const path = `refs/${today()}/${uid()}.pdf`, up = $('#pvr-up'); up.hidden = false;
+    const bar = v => { if (v < 0) { up.querySelector('.bar').classList.add('indet'); up.querySelector('b').textContent = ''; return; } const n = Math.round(v * 100); up.querySelector('i').style.width = n + '%'; up.querySelector('b').textContent = n + '%'; };
+    let size = 0;
+    if (src() === 'file') { const r = await uploadWithProgress('pt-studio', path, file, bar); if (r.error) return fail('파일을 올리지 못했습니다: ' + r.error.message); size = file.size; }
+    else { up.querySelector('small').textContent = '파일을 복사하는 중'; bar(-1); const r = await SB.storage.from('pt-studio').copy(b.pdf, path); if (r.error) return fail('파일을 복사하지 못했습니다: ' + r.error.message); }
+    up.querySelector('small').textContent = '학습을 요청하는 중';
+    const { data: ref, error } = await SB.from('pt_proposal_ref').insert({title, ip_names: p.ip_a_name || '', partner: p.ip_b_name || '', collab_type: '', recipient: p.recipient || '', author: memberName(p.created_by) || myName || '', note: $('#pvr-note').value.trim(), file_path: path, file_size: size, is_default: false}).select().single();
+    if (error) return fail('등록하지 못했습니다: ' + error.message);
+    const jr = await SB.from('pt_proposal_job').insert({ref_id: ref.id, kind: 'analyze_reference', input: {file_path: path}});
+    if (jr.error) return fail('학습을 요청하지 못했습니다: ' + jr.error.message);
+    const { data: row } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+    await SB.from('pt_proposal').update({data: {...(row?.data || d), sent_ref: ref.id}}).eq('id', p.id);
+    await proposalEvent(p.id, `레퍼런스로 등록했습니다 · ${title}${src() === 'file' ? ' (최종 PDF 직접 올림)' : ` (v${b.version} PDF)`}`);
+    dlg.close(); studio.refs = null; studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
+    toast('레퍼런스로 등록했습니다. 학습이 끝나면 레퍼런스 목록에서 고를 수 있습니다.');
+  };
+  dlg.showModal();
+}
 async function openProposal(id, keep) {
   const p = studio.list?.find(x => x.id === id); if (!p) return;
   activeDetail = 'p:' + id; propShown = `${p.status}|${p.stage}`; tabTitle();
@@ -3251,6 +3306,7 @@ async function openProposal(id, keep) {
   <div class="pv-col pv-side"><div class="detail-block"><h3>기본 정보 <button class="text-btn" type="button" id="pv-info-edit">수정</button></h3><div class="detail-row"><span>IP</span><b>${ent(p.ip_a_id, p.ip_a_name)}</b></div>${p.mode === 'collab' ? `<div class="detail-row"><span>파트너 IP</span><b>${p.ip_b_name ? ent(p.ip_b_id, p.ip_b_name) : '이그드라실 봇 추천 후 선택'}</b></div>` : ''}<div class="detail-row"><span>수신사</span><b>${esc(p.recipient || '—')}</b></div><div class="detail-row"><span>기안자</span><b>${esc(memberName(p.created_by) || '이그드라실 봇')} · ${esc(ymd(p.created_at))}</b></div><div class="detail-row"><span>레퍼런스 포맷</span><b>${ref ? `${esc(refName(ref))} <button type="button" class="text-btn" data-ref-pdf="${ref.id}">확인하기</button>` : '—'}</b></div><div class="detail-row"><span>현재 상태</span><b>${pPill(p)}</b></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>
   ${flowPanel(p)}
   <div class="detail-block"><h3>공개 범위</h3><div class="detail-row"><span>보기</span><b>${p.visibility === 'private' ? `<span class="pill">${visLabel(p)}</span>` : '궁니르 전체'}</b></div>${p.visibility === 'private' && me && p.created_by === me.id ? `<div class="drawer-actions"><button class="button" id="pv-share">궁니르 전체에 공유</button></div>` : ''}${me && (p.created_by === me.id || isAdmin) ? `<div class="drawer-actions"><button class="button danger" id="pv-delete">프로젝트 삭제</button></div>` : ''}</div>
+  ${pvEnd(p)}
   <div class="detail-block"><h3>활동 기록</h3><div id="proposal-events"><p>불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div></div></div>`, keep, 'PROPOSAL');
   loadLogos();
   const go = async (row, nextJob, msg, okMsg) => {
@@ -3335,6 +3391,16 @@ async function openProposal(id, keep) {
     const { error } = await SB.from('pt_proposal').update({visibility: 'team'}).eq('id', p.id);
     if (error) { ev.target.disabled = false; return toast('공유하지 못했습니다: ' + error.message); }
     await proposalEvent(p.id, '궁니르 전체에 공유했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('궁니르 전체에 공유했습니다.');
+  });
+  $('#pv-to-ref')?.addEventListener('click', () => pvToRef(p));
+  $$('#drawer .pv-side [data-ref-view]').forEach(b => b.onclick = () => openRef(b.dataset.refView));
+  $('#pv-close')?.addEventListener('click', async ev => {
+    const empty = d.images ? Object.values(liveSlots(d)).filter(s => s.status === 'missing' || s.status === 'ai').length : 0;
+    if (!(await confirmBox({title: '이 프로젝트를 완료로 바꿀까요?', body: `「${esc(STAGES[p.stage - 1])}」 단계에서 진행을 멈추고 상태를 「완료」로 바꿉니다.${empty ? ` 비어 있는 이미지 ${empty}개는 그대로 둡니다.` : ''} 지금까지 만든 자료와 파일은 그대로 남습니다.`, ok: '완료로 변경'}))) return;
+    ev.target.disabled = true;
+    const before = p.status, { paused: _p, ...rest } = d;
+    go({status: 'done', data: {...rest, closed_early: {at: new Date().toISOString(), by: myName || '', stage: p.stage, from: before}}}, null, `「${STAGES[p.stage - 1]}」 단계에서 바로 완료로 변경했습니다`).then(() =>
+      toast('완료로 변경했습니다.', {fn: async () => { await SB.from('pt_proposal').update({status: before, data: d}).eq('id', p.id); await proposalEvent(p.id, '바로 완료를 취소했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('완료를 취소했습니다.'); }}));
   });
   $('#pv-delete')?.addEventListener('click', async ev => {
     if (!(await confirmBox({title: '프로젝트를 삭제할까요?', body: `「${esc(pTitle(p))}」 프로젝트를 목록에서 삭제합니다. 진행 중인 작업은 함께 중단됩니다. 힉스필드·Aside로 확보한 이미지는 이미지 아카이브에 보관되어 다른 제안서에서 다시 쓸 수 있습니다.`, ok: '삭제', danger: true}))) return;
