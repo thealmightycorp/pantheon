@@ -3398,7 +3398,9 @@ async function openProposal(id, keep) {
     const empty = d.images ? Object.values(liveSlots(d)).filter(s => s.status === 'missing' || s.status === 'ai').length : 0;
     if (!(await confirmBox({title: '이 프로젝트를 완료로 바꿀까요?', body: `「${esc(STAGES[p.stage - 1])}」 단계에서 진행을 멈추고 상태를 「완료」로 바꿉니다.${empty ? ` 비어 있는 이미지 ${empty}개는 그대로 둡니다.` : ''} 지금까지 만든 자료와 파일은 그대로 남습니다.`, ok: '완료로 변경'}))) return;
     ev.target.disabled = true;
-    const before = p.status, { paused: _p, ...rest } = d;
+    const before = p.status, { paused: _p, ...rest } = d, ce = {at: new Date().toISOString(), by: myName || '', stage: p.stage, from: before};
+    // 화면에서만 갈아 끼운 페이지가 있으면 전체 파일에 반영한 뒤 완료 (11-14 — 완료 뒤 PDF 가 지금까지 만든 그대로 보이게)
+    if (patched) return go({status: 'working', data: {...rest, closed_early: ce}}, {kind: 'finalize', input: {keep_status: 'done'}}, `수정한 ${patched}개 페이지를 전체 파일에 반영한 뒤 「${STAGES[p.stage - 1]}」 단계에서 바로 완료합니다`, '수정한 페이지를 전체 파일에 반영한 뒤 완료합니다.');
     go({status: 'done', data: {...rest, closed_early: {at: new Date().toISOString(), by: myName || '', stage: p.stage, from: before}}}, null, `「${STAGES[p.stage - 1]}」 단계에서 바로 완료로 변경했습니다`).then(() =>
       toast('완료로 변경했습니다.', {fn: async () => { await SB.from('pt_proposal').update({status: before, data: d}).eq('id', p.id); await proposalEvent(p.id, '바로 완료를 취소했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('완료를 취소했습니다.'); }}));
   });
@@ -3418,7 +3420,8 @@ async function openProposal(id, keep) {
   $$('#drawer [data-file]').forEach(b => b.onclick = async () => {
     if (patched) {          // 페이지만 갈아 끼운 상태 — 파일을 받을 때 전체에 한 번 반영
       b.disabled = true;
-      return go({status: 'working'}, {kind: 'finalize', input: {}}, `수정한 ${patched}개 페이지를 전체 파일에 반영합니다`, `수정한 ${patched}개 페이지를 전체 파일에 반영하는 중입니다. 완료 후 다시 클릭해 다운로드해 주세요.`);
+      // 11-14 대표님 — 반영이 끝나면 원래 상태(완료·대기)로 돌아간다(봇 keep_status). 이미지 단계로 돌아가거나 새로 만들지 않음
+      return go({status: 'working'}, {kind: 'finalize', input: {keep_status: p.status}}, `수정한 ${patched}개 페이지를 전체 파일에 반영합니다`, `수정한 ${patched}개 페이지를 전체 파일에 반영하는 중입니다. 끝나면 지금까지 만든 내용 그대로 PDF를 열 수 있습니다.`);
     }
     // 11-13 대표님 「완성 전 PDF 를 받으면 파일명이 v2 로만 뜬다」 — 내려받기는 「IP × IP 제안서_수신사_v2.pdf」
     const ext = b.dataset.dl === 'pdf' ? 'pdf' : 'pptx', fname = `${pTitle(p)} 제안서${p.recipient ? '_' + p.recipient : ''}_v${d.build.version}.${ext}`.replace(/[\\/:*?"<>|]+/g, ' ');
