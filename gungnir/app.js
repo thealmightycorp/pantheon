@@ -3237,7 +3237,7 @@ function pvToRef(p) {
     <label>제안서 이름<input id="pvr-title" maxlength="120" value="${esc(pTitle(p))}"></label>
     <div class="field"><span class="flabel">레퍼런스로 쓸 파일</span><div class="ref-pick">${b.pdf ? opt('app', `궁니르에서 만든 PDF · v${b.version}`, `${b.slides || ''}페이지${Object.keys(b.patches || {}).length ? ' · 화면에서만 수정한 페이지는 반영되지 않은 파일' : ''}`, true) : ''}${opt('file', '최종 PDF 직접 올리기', '궁니르 밖에서 마무리한 최종본', !b.pdf)}</div>
     <input type="file" id="pvr-file" accept="application/pdf,.pdf"${b.pdf ? ' hidden' : ''}></div>
-    <label>중점 학습 사항 (선택)<textarea id="pvr-note" rows="2" maxlength="500" placeholder="예: 상품 구성 페이지 구성, 표지 디자인"></textarea></label>
+    <label>중점 학습 사항 (선택)<textarea id="pvr-note" rows="2" style="display:block;width:100%;margin-top:6px;box-sizing:border-box" maxlength="500" placeholder="예: 상품 구성 페이지 구성, 표지 디자인"></textarea></label>
     <div class="ref-prog" id="pvr-up" hidden><span class="row"><span class="bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><i style="width:0%"></i></span><b>0%</b></span><small>파일을 올리는 중</small></div>
     <p class="err" id="pvr-err" role="alert"></p>
     <div class="modal-actions"><button class="button" type="button" id="pvr-cancel">취소</button><button class="button primary" type="submit">등록하고 학습 시작</button></div></form>`;
