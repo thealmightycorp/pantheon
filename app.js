@@ -34,8 +34,8 @@ icons.manual = '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4
 icons.graph = '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7.2 15.6 7.6 M7 8.4l1.4 7.2 M16.6 10.2l-5.8 6.2"/>';
 const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[n]||icons.entities}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TYPES = ['회사','브랜드','IP·유명인','기관','미디어·매체','미디어·OTT','판매 채널'];
-const COLOR = {'회사':'gray','브랜드':'','기관':'purple','IP·유명인':'yellow','미디어·매체':'purple','미디어·OTT':'purple','판매 채널':'gray','거래처 담당자':''};
+const TYPES = ['회사','브랜드','IP·유명인','기관','미디어·매체','미디어·OTT','판매 채널','원작 콘텐츠','공간','프로젝트'];
+const COLOR = {'회사':'gray','브랜드':'','기관':'purple','IP·유명인':'yellow','미디어·매체':'purple','미디어·OTT':'purple','판매 채널':'gray','원작 콘텐츠':'yellow','공간':'gray','프로젝트':'purple','거래처 담당자':''};
 const PUBLIC_MAIL = new Set(['gmail.com','naver.com','daum.net','hanmail.net','kakao.com','nate.com','outlook.com','hotmail.com','icloud.com','yahoo.com']);
 const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const kst = iso => { try { return new Date(iso).toLocaleString('ko-KR', {timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false}) + ' KST'; } catch { return iso || ''; } };
@@ -350,8 +350,9 @@ async function loadRel() {
   const [d, s, ev, rq] = await Promise.all([SB.from('pt_directory').select('*'), SB.from('pt_rel_state').select('*'),
     SB.from('pt_rel_event').select('*').order('occurred_on', {ascending: false}).order('id', {ascending: false}).limit(3000),
     SB.from('pt_review_queue').select('*').eq('status', 'pending').order('created_at', {ascending: false}).limit(500)]);
-  const [wk, rl] = await Promise.all([SB.from('pt_wiki_page').select('*'), SB.from('pt_relation').select('*').limit(5000)]);
+  const [wk, rl, rt] = await Promise.all([SB.from('pt_wiki_page').select('*'), SB.from('pt_relation').select('*').limit(5000), SB.from('pt_relation_type').select('*').eq('active', true).order('sort')]);
   rel.wiki = Object.fromEntries((wk.data || []).map(x => [x.entity_id, x])); rel.relations = rl.data || [];
+  rel.types = rt.data || []; for (const t of rel.types) VERB[t.code] = t.name;
   rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
   rel.events = ev.data || []; rel.review = rq.data || [];
 }
@@ -887,8 +888,8 @@ async function manAsk() {
 /* ---------- 관계 그래프 (11-02 홍석진 대표님 「관계 그래프 뷰 PRD E-07」) ----------
    엔티티·담당자를 점, 관계를 선으로. 새 표 없이 화면이 이미 읽은 데이터(pt_entity·pt_relation·pt_directory)로 그린다 → 각 표의 권한(RLS)이 그대로.
    전화·메일·주소는 그래프에 넣지 않는다. 설정은 이 브라우저에만 저장 */
-const G_TYPES = ['회사', '브랜드', '기관', 'IP·유명인', '미디어·매체', '미디어·OTT', '판매 채널', '거래처 담당자'];
-const G_COLOR = {'회사': '#2f6f5e', '브랜드': '#3b7fc4', '기관': '#7b5ea7', 'IP·유명인': '#d08a1f', '미디어·매체': '#c2577a', '미디어·OTT': '#2a9d8f', '판매 채널': '#8c6d4a', '거래처 담당자': '#98a19e'};
+const G_TYPES = ['회사', '브랜드', '기관', 'IP·유명인', '미디어·매체', '미디어·OTT', '판매 채널', '원작 콘텐츠', '공간', '프로젝트', '거래처 담당자'];
+const G_COLOR = {'회사': '#2f6f5e', '브랜드': '#3b7fc4', '기관': '#7b5ea7', 'IP·유명인': '#d08a1f', '미디어·매체': '#c2577a', '미디어·OTT': '#2a9d8f', '판매 채널': '#8c6d4a', '원작 콘텐츠': '#b5654a', '공간': '#5f7f3a', '프로젝트': '#4a5fb5', '거래처 담당자': '#98a19e'};
 const G_EDGE = {rel: '엔티티 관계', work: '재직', past: '전 소속', parent: '소속 회사'};
 const G_EDGE_COLOR = {rel: '#5c6b66', work: '#9fb3aa', past: '#b9a98f', parent: '#c9d2ce'};
 const G_KEY = 'pantheon.graph.settings.v1';
@@ -1235,7 +1236,41 @@ async function ask() {
 
 /* ---------- 지식 관리 (11-01 · Phase 3 · sql/019) — 위키 · 연결 관계 · 출처 붙은 답 · 지식 점검 ----------
    위키 수정은 확인 대기(wiki)를 거쳐 관계 담당자가 반영 — 반영할 수 있는 사람이 쓰면 바로 반영(되돌리기 8초) · 봇 초안(distill)도 같은 카드 */
-const VERB = {collaborates: '협업', licenses: '라이선스 제공', launches: '출시', exhibits: '전시', sells: '판매', produces: '제작', distributes: '유통', invests: '투자', represents: '대리·매니지먼트', owns: '보유'};
+const VERB = {collaborates: '콜라보', licenses: '라이선스', launches: '출시', exhibits: '전시', sells: '판매', produces: '제작', distributes: '유통', invests: '투자', represents: '국내 에이전트·매니지먼트', owns: '권리 보유',
+  endorses: '광고모델·앰배서더', based_on: '원작·파생', shareholder_of: '주주', held_at: '공연·팝업 장소', worked_with_us: '우리와 거래', participant_in: '프로젝트 참여'};
+// 11-16 관계 고도화 1단계(sql/037) — 관계 = 주장 + 근거 여러 개 · 믿을 만한 정도 자동 계산
+const relType = code => (rel.types || []).find(t => t.code === code) || {code, name: VERB[code] || code, reverse_name: '', attribute_schema: []};
+const TRUST = {high: ['높음', 'good'], medium: ['보통', 'muted'], low: ['낮음', 'faint'], disputed: ['다툼', 'warn']};
+const trustPill = r => { const t = TRUST[r.trust_level] || TRUST.low; return `<span class="pill ${t[1]}" title="믿을 만한 정도">${t[0]}</span>`; };
+const EVK = {gungnir_proposal: '궁니르 제안서', gungnir_deal: '궁니르 딜', heimdall_meeting: '헤임달 미팅', business_card: '명함', dart: '공시', web: '웹 기사', manual: '직접 입력', fact_check: '사실 확인'};
+const evAgo = d => { const n = dayN(d); return n == null ? '' : n <= 0 ? '오늘' : n < 31 ? `${n}일 전` : n < 365 ? `${Math.floor(n / 30)}개월 전` : `${Math.floor(n / 365)}년 전`; };
+function attrText(r) {
+  const sc = relType(r.verb).attribute_schema || [], a = r.attrs || {};
+  return sc.map(f => { const v = a[f.key]; if (v == null || v === '' || (Array.isArray(v) && !v.length)) return ''; return `${f.label} ${f.type === 'bool' ? (v ? '예' : '아니요') : Array.isArray(v) ? v.join('·') : v}`; }).filter(Boolean).join(' · ');
+}
+function attrFields(code, vals = {}) {
+  const sc = relType(code).attribute_schema || [];
+  return sc.map(f => {
+    const v = vals[f.key], id = 'ra-' + f.key;
+    if (f.type === 'select') return `<label>${esc(f.label)}<select id="${id}"><option value="">선택 안 함</option>${f.options.map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`;
+    if (f.type === 'multi') return `<fieldset class="ra-multi"><legend>${esc(f.label)}</legend>${f.options.map(o => `<label class="ra-chk"><input type="checkbox" name="${id}" value="${esc(o)}" ${(v || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</fieldset>`;
+    if (f.type === 'bool') return `<label class="ra-chk"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
+    return `<label>${esc(f.label)}<input id="${id}" type="${f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}" ${f.type === 'number' ? 'step="any"' : 'maxlength="200"'} value="${esc(v ?? '')}"></label>`;
+  }).join('');
+}
+function readAttrs(code) {
+  const out = {};
+  for (const f of relType(code).attribute_schema || []) {
+    const id = 'ra-' + f.key;
+    if (f.type === 'multi') { const v = $$(`[name="${id}"]:checked`).map(x => x.value); if (v.length) out[f.key] = v; }
+    else if (f.type === 'bool') { if ($('#' + id)?.checked) out[f.key] = true; }
+    else { const v = $('#' + id)?.value.trim(); if (v) out[f.key] = f.type === 'number' ? Number(v) : v; }
+  }
+  return out;
+}
+const HEIMDALL_URL = 'https://route82.github.io/heimdall/';
+const evLink = x => x.source_url ? x.source_url : x.source_kind === 'heimdall_meeting' && x.source_ref ? HEIMDALL_URL + '#m/' + x.source_ref : x.source_kind === 'gungnir_proposal' && x.source_ref ? GUNGNIR_URL + '#studio/' + x.source_ref : '';
+const evCache = {};
 const wikiOf = id => rel.wiki?.[id];
 const relsOf = id => (rel.relations || []).filter(r => r.subject_id === id || r.object_id === id);
 const canWiki = e => !!e && canRel(e);
@@ -1264,10 +1299,66 @@ function wikiBlock(e) {
     ${w ? `<div class="kn-md">${mdHtml(w.md)}</div>${srcList(w.sources)}` : '<p>등록된 위키가 없습니다. 이 거래처와의 협업 이력과 참고 사항을 정리해 두면 질문 답변의 근거로 활용됩니다.</p>'}</div>`;
 }
 function relationsBlock(e) {
-  const rs = relsOf(e.id), who = id => id === e.id ? `<b>${esc(e.name)}</b>` : `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
+  const rs = relsOf(e.id), who = id => `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
+  const groups = {};
+  for (const r of rs) { const t = relType(r.verb), out = r.subject_id === e.id, key = r.verb + (out ? '>' : '<'); (groups[key] ||= {name: out ? t.name : (t.reverse_name || t.name), sort: t.sort ?? 999, list: []}).list.push(r); }
+  const disputed = rs.filter(r => r.trust_level === 'disputed' && !r.valid_to).length;
+  const row = r => { const other = r.subject_id === e.id ? r.object_id : r.subject_id, at = attrText(r), per = [r.valid_from, r.valid_to].filter(Boolean).join(' ~ ');
+    return `<li data-rel="${r.id}"><div class="kr-main"><span class="kr-who">${who(other)}</span>${trustPill(r)}${r.valid_to ? '<span class="pill muted">종료</span>' : ''}
+      <small>${[at, per, r.last_evidence_at ? `마지막 근거 ${evAgo(r.last_evidence_at)}` : '', `근거 ${r.evidence_count || 0}건`].filter(Boolean).map(esc).join(' · ')}</small>
+      <button type="button" class="text-btn kr-toggle" data-kr-ev="${r.id}" aria-expanded="false">근거 보기</button></div><div class="kr-ev" id="kr-ev-${r.id}" hidden></div></li>`; };
   return `<div class="detail-block"><div class="rl-head"><h3>연결 관계 <small>${rs.length}건</small></h3><button class="button" type="button" id="kr-add">${icon('plus')} 관계 추가</button></div>
-    ${rs.length ? `<ul class="kn-rel">${rs.map(r => `<li><span>${who(r.subject_id)} <em>${esc(VERB[r.verb] || r.verb)}</em> ${who(r.object_id)}</span><small>${esc([[r.valid_from, r.valid_to].filter(Boolean).join(' ~ '), r.note].filter(Boolean).join(' · '))}</small>${safeUrl(r.source_url) ? `<a href="${esc(r.source_url)}" target="_blank" rel="noopener">출처</a>` : '<span class="pill warn">출처 없음</span>'}${r.created_by === me?.id || isAdmin ? `<button type="button" class="text-btn" data-kr-del="${r.id}">삭제</button>` : ''}</li>`).join('')}</ul>`
-      : '<p>회사·브랜드·IP 사이의 협업·라이선스·매니지먼트·보유 관계를 기록합니다.</p>'}</div>`;
+    ${disputed ? `<p class="rl-note"><span class="pill warn">다툼</span> 반대 근거가 붙은 관계 ${disputed}건이 있습니다. 근거를 보고 사실을 확인하거나 끝난 관계로 처리해 주세요.</p>` : ''}
+    ${rs.length ? Object.values(groups).sort((a, b) => a.sort - b.sort).map(g => `<div class="kr-group"><h4>${esc(g.name)} <small>${g.list.length}</small></h4><ul class="kn-rel">${g.list.map(row).join('')}</ul></div>`).join('')
+      : '<p>회사·브랜드·IP 사이의 권리 보유·에이전트·라이선스·콜라보·광고모델 관계를 기록합니다. 관계마다 근거를 여러 개 붙일 수 있습니다.</p>'}</div>`;
+}
+function evListHtml(r, list) {
+  const mine = x => x.created_by === me?.id || isAdmin;
+  return `<ol class="kr-evl">${list.map(x => { const u = safeUrl(evLink(x));
+    return `<li class="${x.stance === 'contradicts' ? 'contra' : ''}"><div><b>${esc(EVK[x.source_kind] || x.source_kind)}</b> · ${esc(x.observed_at || '')}${x.stance === 'contradicts' ? ' <span class="pill warn">반대 근거</span>' : ''}${x.confirmed_by ? ` <span class="pill good" title="${esc(x.confirmed_name)} 확인">사람 확인</span>` : ''}
+      <small>${esc(x.extracted_by === 'ai' ? 'AI가 찾은 근거' : (x.created_name || '직원') + ' 입력')}</small></div>
+      ${x.visible ? (x.quote ? `<p>${esc(x.quote)}</p>` : '') : '<p class="kr-locked">원문은 이 자료를 볼 수 있는 사람에게만 보입니다.</p>'}
+      <div class="kr-act">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">원본 열기</a>` : ''}${x.confirmed_by ? `<button type="button" class="text-btn" data-ev-unconf="${x.id}">확인 취소</button>` : `<button type="button" class="text-btn" data-ev-conf="${x.id}">확인함</button>`}${mine(x) && list.length > 1 ? `<button type="button" class="text-btn" data-ev-del="${x.id}">삭제</button>` : ''}</div></li>`; }).join('')}</ol>
+    <div class="kr-foot"><button class="button" type="button" data-ev-add="${r.id}">${icon('plus')} 근거 추가</button><button class="button" type="button" data-kr-edit="${r.id}">세부 내용 수정</button>${r.trust_level === 'disputed' && !r.valid_to ? `<button class="button" type="button" data-kr-end="${r.id}">끝난 관계로 처리</button>` : ''}${r.created_by === me?.id || isAdmin ? `<button class="button" type="button" data-kr-del="${r.id}">관계 삭제</button>` : ''}</div>`;
+}
+async function evLoad(id) {
+  const box = $('#kr-ev-' + id); if (!box) return;
+  box.innerHTML = `<p class="kr-wait">근거를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>`;
+  const { data, error } = await SB.rpc('pt_relation_evidence_list', {p_ids: [Number(id)]});
+  if (error) { box.innerHTML = `<p class="form-err">근거를 불러오지 못했습니다: ${esc(error.message)}</p>`; return; }
+  evCache[id] = data || [];
+  const r = (rel.relations || []).find(v => String(v.id) === String(id)); if (r) box.innerHTML = evListHtml(r, evCache[id]);
+}
+function evidenceModal(r, e) {
+  modal(`<form id="ev-form" class="kn-form"><h2>근거 추가</h2><p>「${esc(nameOf(r.subject_id))} ${esc(relType(r.verb).name)} ${esc(nameOf(r.object_id))}」 관계에 근거를 붙입니다. 같은 관계에 근거가 쌓일수록 믿을 만한 정도가 올라갑니다.</p>
+    <label>근거 방향<select id="ev-st"><option value="supports">이 관계가 맞다는 근거</option><option value="contradicts">이 관계가 틀렸거나 바뀌었다는 근거</option></select></label>
+    <label>근거 문장 <small>기사·문서·대화에서 그대로 옮긴 한두 문장</small><textarea id="ev-q" rows="3" maxlength="500"></textarea></label>
+    <label>출처 주소<input id="ev-u" type="url" placeholder="https://…"></label>
+    <label>근거 날짜<input id="ev-d" type="date"></label>
+    <div id="ev-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">근거 추가</button></div></form>`);
+  $('#ev-form').onsubmit = async ev => {
+    ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
+    const { error } = await SB.rpc('pt_evidence_add', {p_relation: r.id, p_stance: $('#ev-st').value, p_quote: $('#ev-q').value.trim(), p_url: $('#ev-u').value.trim(), p_on: $('#ev-d').value || null, p_attrs: {}});
+    if (error) { if (btn) btn.disabled = false; $('#ev-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id); toast($('#ev-st')?.value === 'contradicts' ? '반대 근거를 추가했습니다. 다툼 관계로 표시됩니다.' : '근거를 추가했습니다.');
+  };
+}
+function relEditModal(r, e) {
+  modal(`<form id="re-form" class="kn-form"><h2>관계 세부 내용</h2><p>「${esc(nameOf(r.subject_id))} ${esc(relType(r.verb).name)} ${esc(nameOf(r.object_id))}」</p>
+    ${attrFields(r.verb, r.attrs || {})}
+    <div class="kn-two"><label>시작일<input id="re-f" type="date" value="${esc(r.valid_from || '')}"></label><label>종료일<input id="re-t" type="date" value="${esc(r.valid_to || '')}"></label></div>
+    <label>메모<input id="re-n" type="text" maxlength="200" value="${esc(r.note || '')}"></label>
+    <div id="re-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">저장</button></div></form>`);
+  $('#re-form').onsubmit = async ev => {
+    ev.preventDefault(); const btn = ev.submitter; if (btn) btn.disabled = true;
+    const before = {p_id: r.id, p_attrs: r.attrs || {}, p_from: r.valid_from || null, p_to: r.valid_to || null, p_note: r.note || ''};
+    const { error } = await SB.rpc('pt_relation_update', {p_id: r.id, p_attrs: readAttrs(r.verb), p_from: $('#re-f').value || null, p_to: $('#re-t').value || null, p_note: $('#re-n').value.trim()});
+    if (error) { if (btn) btn.disabled = false; $('#re-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
+    toast('관계 내용을 저장했습니다.', {fn: async () => { const x = await SB.rpc('pt_relation_update', before); if (x.error) throw x.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
+  };
 }
 function parseSources(text) {
   return String(text || '').split(/\n/).map(l => l.trim()).filter(Boolean).map(l => { const u = (l.match(/https?:\/\/\S+/) || [''])[0]; const label = l.replace(u, '').replace(/[|·\-–]\s*$/, '').trim(); return {label: label || u, url: u}; });
@@ -1294,32 +1385,65 @@ function relationModal(e) {
   const opts = sel => entities().filter(x => !isContact(x)).sort((a, b) => a.name.localeCompare(b.name, 'ko')).map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)} · ${esc(x.type)}</option>`).join('');
   modal(`<form id="kr-form" class="kn-form"><h2>관계 추가</h2><p>「누가 · 무엇을 · 누구와」 순서로 입력합니다. 출처가 있으면 함께 입력해 주세요.</p>
     <label>누가<select id="kr-s">${opts(e.id)}</select></label>
-    <label>관계<select id="kr-v">${Object.entries(VERB).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
+    <label>관계<select id="kr-v">${(rel.types?.length ? rel.types.map(t => [t.code, t.name]) : Object.entries(VERB)).map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></label>
     <label>누구와 · 무엇을<select id="kr-o"><option value="">선택</option>${opts('')}</select></label>
+    <div id="kr-attrs"></div>
     <div class="kn-two"><label>시작일<input id="kr-f" type="date"></label><label>종료일<input id="kr-t" type="date"></label></div>
+    <label>근거 문장 <small>이 관계를 알게 된 문장 · 같은 관계가 이미 있으면 그 관계에 근거로 붙습니다</small><input id="kr-n" type="text" maxlength="200"></label>
     <label>출처 주소<input id="kr-u" type="url" placeholder="https://…"></label>
-    <label>메모<input id="kr-n" type="text" maxlength="200"></label>
     <div id="kr-err" class="form-err" role="alert"></div>
     <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">관계 저장</button></div></form>`);
+  const drawAttrs = () => { $('#kr-attrs').innerHTML = attrFields($('#kr-v').value); }; $('#kr-v').onchange = drawAttrs; drawAttrs();
   $('#kr-form').onsubmit = async ev => {
     ev.preventDefault(); const s = $('#kr-s').value, o = $('#kr-o').value;
     if (!o || s === o) { $('#kr-err').textContent = '서로 다른 두 엔티티를 선택해 주세요.'; return; }
-    const row = {subject_id: s, verb: $('#kr-v').value, object_id: o, valid_from: $('#kr-f').value || null, valid_to: $('#kr-t').value || null, source_url: $('#kr-u').value.trim(), note: $('#kr-n').value.trim()};
+    const row = {subject_id: s, verb: $('#kr-v').value, object_id: o, attrs: readAttrs($('#kr-v').value), valid_from: $('#kr-f').value || null, valid_to: $('#kr-t').value || null, source_url: $('#kr-u').value.trim(), note: $('#kr-n').value.trim()};
     const { error } = await SB.from('pt_relation').insert(row);
     if (error) { $('#kr-err').textContent = /unique|duplicate/i.test(error.message) ? '같은 관계가 이미 있습니다.' : /source_url/.test(error.message) ? '출처 주소는 http로 시작해야 합니다.' : error.message; return; }
-    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id); toast('관계를 저장했습니다.');
+    const had = relsOf(s).some(x => x.subject_id === s && x.object_id === o && x.verb === row.verb && !x.valid_to);
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id); toast(had ? '같은 관계가 있어 근거로 붙였습니다.' : '관계를 저장했습니다.');
   };
 }
 function bindKn(e) {
   $('#wiki-edit')?.addEventListener('click', () => wikiModal(e));
   $('#wiki-pend')?.addEventListener('click', () => { closeDrawer(); go('review'); });
   $('#kr-add')?.addEventListener('click', () => relationModal(e));
-  $$('[data-kr-del]').forEach(b => b.onclick = async () => {
-    const x = (rel.relations || []).find(v => String(v.id) === b.dataset.krDel); if (!x) return;
-    const { error } = await SB.from('pt_relation').delete().eq('id', x.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
+  $$('[data-kr-ev]').forEach(b => b.onclick = () => { const box = $('#kr-ev-' + b.dataset.krEv), open = box.hidden; box.hidden = !open; b.setAttribute('aria-expanded', String(open)); b.textContent = open ? '근거 닫기' : '근거 보기'; if (open) evLoad(b.dataset.krEv); });
+  krEnt = e;
+  if (!krBound) { krBound = true; $('#drawer')?.addEventListener('click', krClick); }
+}
+let krEnt = null, krBound = false;
+const krReopen = rid => $(`[data-kr-ev="${rid}"]`)?.click();
+async function krClick(ev) {
+  const t = ev.target.closest('.kr-ev [data-ev-add],.kr-ev [data-ev-conf],.kr-ev [data-ev-unconf],.kr-ev [data-ev-del],.kr-ev [data-kr-edit],.kr-ev [data-kr-end],.kr-ev [data-kr-del]');
+  const e = krEnt; if (!t || !e) return;
+  const rid = t.closest('[data-rel]')?.dataset.rel, r = (rel.relations || []).find(v => String(v.id) === String(rid)); if (!r) return;
+  if (t.dataset.evAdd) return evidenceModal(r, e);
+  if (t.dataset.krEdit) return relEditModal(r, e);
+  if (t.dataset.krEnd) {
+    if (!(await confirmBox({title: '끝난 관계로 처리할까요?', body: '오늘 날짜를 종료일로 넣습니다. 반대 근거는 그대로 남고, 다툼 표시는 사라집니다.', ok: '끝난 관계로 처리'}))) return;
+    const before = {p_id: r.id, p_attrs: r.attrs || {}, p_from: r.valid_from || null, p_to: null, p_note: r.note || ''};
+    const { error } = await SB.rpc('pt_relation_update', {...before, p_to: today()}); if (error) return toast('처리하지 못했습니다: ' + error.message);
     await relReload(e.id);
-    toast('관계를 삭제했습니다.', {fn: async () => { const {id, created_by, captured_at, ...row} = x; const r = await SB.from('pt_relation').insert(row); if (r.error) throw r.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
-  });
+    return toast('끝난 관계로 처리했습니다.', {fn: async () => { const x = await SB.rpc('pt_relation_update', before); if (x.error) throw x.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
+  }
+  if (t.dataset.evConf || t.dataset.evUnconf) {
+    const on = !!t.dataset.evConf, id = Number(t.dataset.evConf || t.dataset.evUnconf); t.disabled = true;
+    const { error } = await SB.rpc('pt_evidence_confirm', {p_id: id, p_on: on}); if (error) { t.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
+    await relReload(e.id); krReopen(rid);
+    return toast(on ? '사람이 확인한 근거로 표시했습니다.' : '확인을 취소했습니다.', on ? {fn: async () => { const x = await SB.rpc('pt_evidence_confirm', {p_id: id, p_on: false}); if (x.error) throw x.error; await relReload(e.id); krReopen(rid); toast('실행을 취소했습니다.'); }} : undefined);
+  }
+  if (t.dataset.evDel) {
+    const { data: gone, error } = await SB.rpc('pt_evidence_delete', {p_id: Number(t.dataset.evDel)}); if (error) return toast('삭제하지 못했습니다: ' + error.message);
+    await relReload(e.id); krReopen(rid);
+    return toast('근거를 삭제했습니다.', {fn: async () => { const x = await SB.rpc('pt_evidence_restore', {p: gone}); if (x.error) throw x.error; await relReload(e.id); krReopen(rid); toast('실행을 취소했습니다.'); }});
+  }
+  if (t.dataset.krDel) {
+    if (!(await confirmBox({title: '이 관계를 삭제할까요?', body: `「${esc(nameOf(r.subject_id))} ${esc(relType(r.verb).name)} ${esc(nameOf(r.object_id))}」 관계와 붙은 근거 ${r.evidence_count || 0}건이 함께 삭제됩니다.`, ok: '관계 삭제', danger: true}))) return;
+    const { error } = await SB.from('pt_relation').delete().eq('id', r.id); if (error) return toast('삭제하지 못했습니다: ' + error.message);
+    await relReload(e.id);
+    toast('관계를 삭제했습니다.', {fn: async () => { const {id, created_by, captured_at, trust_level, evidence_count, last_evidence_at, updated_at, source_ref, ...row} = r; const x = await SB.from('pt_relation').insert(row); if (x.error) throw x.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
+  }
 }
 // 위키 바뀌는 내용 — 줄 단위 비교 (지운 줄 · 넣은 줄)
 function diffHtml(a, b) {
