@@ -342,7 +342,7 @@ function openContact(c, keep) {
 const rel = {dir: {}, state: {}, events: [], review: [], cards: {}};
 const STAGE = {R0: '접점 없음', R1: '첫 연락', R2: '미팅', R3: '제안 송부', R4: '협의 중', R5: '계약·실행', R6: '반복 협업'};
 const DEPTH = {1: '실무 팀장급', 2: '대표·의사결정권자', 3: '협업 이력·결과 양호', 4: '아티스트 본인 직접'};
-const EV = {card: '명함', introduced: '소개', reached: '첫 연락', mentioned: '미팅 언급', recommended: '경로 추천', meeting: '미팅', sent: '제안 송부', reply: '회신', deal: '딜', dead: '중단', note: '메모'};
+const EV = {card: '명함', introduced: '소개', reached: '첫 연락', mentioned: '미팅 언급', recommended: '경로 추천', meeting: '미팅', sent: '제안 송부', reply: '회신', deal: '딜', dead: '중단', note: '메모', followup: '후속 일정'};
 const EV_ADD = ['reached', 'meeting', 'sent', 'reply', 'introduced', 'deal', 'dead', 'note'];
 const SRC_KO = {manual: '', heimdall: '헤임달 미팅', gungnir: '궁니르', thor: '토르', core: '판테온 코어', slack: '슬랙'};
 const STALE_DAYS = 90;
@@ -502,7 +502,7 @@ function cardWhereModal(c) {
 }
 
 /* ---------- 확인 대기 (PRD C-02) — 사람이 확인해야 할 후보를 한곳에 ---------- */
-const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 인식 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별칭 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처'};
+const RQ = {meeting: '헤임달 미팅 · 거래처 연결', ocr: '명함 인식 결과', mentioned: '미팅에서 언급된 사람', recommended: '연락 경로 추천', affiliation: '소속 변경 후보', ip_candidate: 'IP 차트 신규 IP', distill: '지식 정리 초안', wiki: '위키 수정', pipeline: '관계 단계 승격 후보', alias: '별칭 추가 제안', auto: '헤임달 미팅에서 자동 등록', mail: '메일에서 찾은 거래처', match: '관계 근거 · 이름 맞추기'};
 const hints = () => entities().filter(e => canRel(e)).map(e => ({e, h: stageHint(e)})).filter(x => x.h);
 const reviewCount = () => rel.review.length + hints().length + (acc.approver ? pendingReqs().length : 0);
 function ipHitSelect(r) {
@@ -521,6 +521,8 @@ function reviewView() {
     : r.kind === 'mail' ? `<li class="rq-item rq-wide rq-mail"><div><b>${esc(P(r).company || r.title)}</b> <span>@${esc(P(r).domain || r.title)}</span><small>직원들이 보낸 메일 ${esc(P(r).total || 0)}통 · 마지막 ${esc(dotDate(P(r).last))}</small>
         <div class="rq-mail-org"><select class="table-select" data-mail-ent="${r.id}" aria-label="회사"><option value="">새 회사로 등록</option>${companyOptions(r.target_id, [P(r).company, P(r).domain])}</select><input class="table-select" data-mail-name="${r.id}" value="${esc(P(r).company || '')}" aria-label="새 회사 이름" ${r.target_id ? 'hidden' : ''}></div>
         <ul class="rq-mail-people">${(P(r).people || []).map((x, i) => `<li><label><input type="checkbox" data-mail-p="${r.id}|${i}" checked> <input class="rq-mail-nm" data-mail-nm="${r.id}|${i}" value="${esc(x.name || '')}" placeholder="이름" aria-label="이름"></label><span>${esc(x.email)}</span><small>${esc(x.count)}통 · ${esc(dotDate(x.last))} · ${esc((x.staff || []).join(', '))}</small></li>`).join('')}</ul></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-mail-go="${r.id}">선택한 담당자 등록</button></span></li>`
+    : r.kind === 'match' ? (() => { const it = P(r).item || {}, side = (k, id) => { const t = it[k] || {}, txt = typeof t === 'string' ? t : (t.text || t.name || ''); return id && byId(id) ? `<b>${esc(byId(id).name)}</b>` : `<select class="table-select" data-match-${k}="${r.id}" aria-label="${esc(txt)}에 맞는 엔티티"><option value="">「${esc(txt)}」 맞는 엔티티 선택</option>${entOptions('', [txt])}</select>`; };
+      return `<li class="rq-item rq-wide"><div>${side('subject', P(r).subject_id)} <em class="rq-verb">${esc(relType(it.verb).name)}</em> ${side('object', P(r).object_id)}${from(r)}${it.quote ? `<small>근거: ${esc(it.quote)}</small>` : ''}<small>목록에 없으면 엔티티를 먼저 등록한 뒤 고르세요. 고른 이름은 회의록 표기를 별칭으로 저장해 다음부터 자동으로 맞춥니다.</small></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-match="${r.id}">관계 근거로 등록</button></span></li>`; })()
     : r.kind === 'mentioned' ? `<li class="rq-item"><div><b>${esc(P(r).name || r.title)}</b>${P(r).role || P(r).org ? ` <span>${esc([P(r).org, P(r).role].filter(Boolean).join(' · '))}</span>` : ''}${P(r).attended ? ' <span class="pill good">참석</span>' : ''}${from(r)}</div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq-person="${r.id}">연락처 등록</button></span></li>`
     : `<li class="rq-item"><div><span class="pill">${esc(RQ[r.kind] || r.kind)}</span> <b>${esc(r.title || '')}</b>${Object.entries(r.payload || {}).filter(([, v]) => v && typeof v !== 'object').slice(0, 4).map(([k, v]) => `<small>${esc(k)}: ${esc(String(v).slice(0, 80))}</small>`).join('')}<time>${esc(ymd(r.created_at))}</time></div><span class="rq-acts"><button class="button" type="button" data-rq="${r.id}|rejected">제외</button><button class="button primary" type="button" data-rq="${r.id}|approved">확인</button></span></li>`;
   return accPanel() + `<div class="notice">시스템이 찾은 후보입니다. 사람이 확인해야 반영됩니다. 확인 또는 제외한 항목은 목록에서 사라지고 이력에 기록됩니다.</div>
@@ -565,6 +567,14 @@ function bindReview() {
     if (error) { b.disabled = false; return toast('처리하지 못했습니다: ' + error.message); }
     await loadRel(); render();
     toast(st === 'approved' ? '확인했습니다.' : '제외했습니다.', {fn: async () => { const r = await SB.rpc('pt_review_decide', {p_id: Number(id), p_status: 'pending', p_note: ''}); if (r.error) throw r.error; await loadRel(); render(); toast('실행을 취소했습니다.'); }});
+  });
+  $$('[data-rq-match]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.rqMatch, s = $(`[data-match-subject="${id}"]`), o = $(`[data-match-object="${id}"]`);
+    if ((s && !s.value) || (o && !o.value)) return toast('맞는 엔티티를 골라 주세요.');
+    b.disabled = true;
+    const { error } = await SB.rpc('pt_match_resolve', {p_id: Number(id), p_subject: s?.value || null, p_object: o?.value || null});
+    if (error) { b.disabled = false; return toast('등록하지 못했습니다: ' + error.message); }
+    await relReload(); toast('관계 근거로 등록했습니다. 엔티티 화면의 연결 관계에 보입니다.');
   });
   $$('[data-rq-link]').forEach(b => b.onclick = async () => {
     const id = Number(b.dataset.rqLink), ent = $(`[data-rq-ent="${id}"]`)?.value;
@@ -664,6 +674,11 @@ function modal(content) {
 // 확인 대기 선택지 (11-01) — 후보 이름·별칭과 겹치는 엔티티만 「추천」으로 (전엔 종류만 맞으면 전부 나와 IP 후보마다 축구 인물이 뜸)
 const nameHits = (texts, pool) => { const ts = texts.flatMap(t => String(t || '').split(/[·,/()\[\]|]|\s+(?:및|등|과|와)\s+/)).map(normCo).filter(t => t.length >= 2);
   return ts.length ? pool.filter(e => [e.name, e.en, ...(e.aliases || [])].some(x => { const n = normCo(x || ''); return n.length >= 2 && ts.some(t => t === n || (n.length >= 3 && t.includes(n)) || (t.length >= 3 && n.includes(t))); })) : []; };
+function entOptions(selected, hint) {
+  const es = entities().filter(e => !isContact(e)).sort((a, b) => a.name.localeCompare(b.name, 'ko')), hits = hint ? nameHits(hint, es) : [];
+  const opt = e => `<option value="${e.id}" ${e.id === selected ? 'selected' : ''}>${esc(e.name)}${e.en ? ' · ' + esc(e.en) : ''} (${esc(e.type)})</option>`;
+  return hits.length ? `<optgroup label="이름이 비슷한 엔티티">${hits.map(opt).join('')}</optgroup><optgroup label="전체">${es.filter(e => !hits.includes(e)).map(opt).join('')}</optgroup>` : es.map(opt).join('');
+}
 function companyOptions(selected, hint) {
   const es = entities().filter(e => e.type !== 'IP·유명인').sort((a, b) => a.name.localeCompare(b.name, 'ko')), hits = hint ? nameHits(hint, es) : [];
   const opt = e => `<option value="${e.id}" ${e.id === selected ? 'selected' : ''}>${esc(e.name)}${e.en ? ' · ' + esc(e.en) : ''} (${esc(e.type)})</option>`;
