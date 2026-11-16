@@ -2806,7 +2806,10 @@ function socialFold(p, fold) {
   const d = p.data || {}, S = d.social || {};
   const job = studio.jobs.find(j => ['wait', 'work'].includes(j.status) && ((j.proposal_id === p.id && j.kind === 'aside' && j.input?.task === 'social') || (j.kind === 'page_types' && j.input?.task === 'social_api' && j.input?.pid === p.id)));
   if (S.ips) {
-    const re = p.stage === 5 && p.status === 'waiting' && d.concepts ? '<div class="drawer-actions"><button class="button" id="soc-reconcept">팬·SNS 결과로 컨셉 다시 생성</button></div>' : '';
+    // 11-17 대표님 — 컨셉을 확정한 뒤(원고가 있음) 결과가 오면 원고를 보강. 보강한 적이 있으면 그 뒤 새 결과일 때만 다시 보인다
+    const boosted = d.social_boost_at && (!S.at || S.at <= d.social_boost_at);
+    const re = p.stage === 5 && p.status === 'waiting' && d.concepts ? '<div class="drawer-actions"><button class="button" id="soc-reconcept">팬·SNS 결과로 컨셉 다시 생성</button></div>'
+      : p.stage >= 6 && d.build?.deck && p.status !== 'working' && !boosted ? '<div class="drawer-actions"><button class="button" id="soc-boost">팬·SNS 결과로 원고 보강</button></div>' : '';
     return fold('팬·SNS', `채널 ${S.ips.reduce((a, x) => a + x.channels.length, 0)}개`, socialBlock(S) + re);
   }
   if (job && (p.stage >= 5 || p.status !== 'working')) return fold('팬·SNS', '조사 중', jobsProg([job]));
@@ -2994,7 +2997,9 @@ const qaBlock = p => { const d = p.data || {}, qa = qaOf(d), busy = studio.jobs.
 // 검수 표시 중 사람이 「이대로 사용」한 이미지는 뺀다 — 같은 이미지(path)인 동안은 다음 검수에서 다시 걸려도 숨김 (10-30 · 대표님 설계 「그대로 사용」)
 const qaOf = d => { if (!(d.qa && d.build && d.qa.version === d.build.version)) return null; const ok = d.qa_ok || {}, S = d.images?.slots || {};
   // 11-13 대표님 개선안 2 — 아직 만들지 않은 이미지(AI 생성 대기·미확보) 칸의 지적은 이미 저장된 검수 결과에서도 숨긴다. 빈 개수는 위쪽 숫자로만
-  const pend = s => s && (s.status === 'ai' || s.status === 'missing'), pendPage = new Set(Object.values(S).filter(pend).map(s => s.slide));
+  // 11-17 대표님 — 페이지 전체 「비어 있음」은 그 페이지 이미지 칸이 전부 대기일 때만 숨긴다(이미 들어간 이미지 오류가 가려지지 않게)
+  const pend = s => s && (s.status === 'ai' || s.status === 'missing'), onPage = Object.values(S).filter(s => s && s.slide && !s.ref_only);
+  const pendPage = new Set(onPage.filter(pend).map(s => s.slide).filter(n => onPage.every(s => s.slide !== n || pend(s))));
   return {...d.qa, flags: (d.qa.flags || []).filter(f => !(f.key && ok[f.key] && ok[f.key] === S[f.key]?.path) && !(f.key && f.path && S[f.key]?.path && f.path !== S[f.key].path)
     && !(f.key && pend(S[f.key])) && !(!f.key && f.type === 'empty' && pendPage.has(f.slide)))}; };
 // 페이지별 검토에서 바로 만들어 넣기 (10-29 김현우) — 단추에 금액을 보이고 누르면 그 자리 하나만 승인해 힉스필드로 만든다
@@ -3017,8 +3022,8 @@ async function asideOther(p, key) {
   await SB.from('pt_proposal').update({status: 'working'}).eq('id', p.id);
   const { data: nj } = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'aside', input: {slots: [{key, kind: s.kind, what: s.what || '', ratio: s.ratio || '', search: im.search || '', avoid}], ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}}).select('id,proposal_id,ref_id,kind,status,at,error,result,input').single();
   if (nj) studio.jobs = [...studio.jobs, nj];
-  await proposalEvent(p.id, `${s.slide}페이지 「${whatText(s.what) || key}」 다른 이미지를 Aside에 요청했습니다`);
-  studio.list = null; await loadStudio(); toast('Aside에 요청했습니다. 찾으면 제안서에 자동 반영됩니다.');
+  await proposalEvent(p.id, `${s.slide}페이지 「${whatText(s.what) || key}」 다른 이미지를 찾도록 요청했습니다`);
+  studio.list = null; await loadStudio(); toast('다른 이미지를 찾고 있습니다. 찾으면 제안서에 자동 반영됩니다.');
 }
 const shapeOff = (w, h, ar) => ar && w && h && (w / h < ar / 1.3 || w / h > ar * 1.3);
 // 메인 이미지 참고 (10-30) — 같은 페이지에 「메인」 이미지가 있거나 제품 페이지의 첫 이미지면, 나머지 컷은 그 이미지를 붙여 같은 인형·캐릭터로 만든다 (봇 hf.ref_of 와 같은 규칙)
@@ -3806,12 +3811,12 @@ async function openProposal(id, keep) {
   $('#img-aside-all')?.addEventListener('click', async ev => {
     const S = liveSlots(d), miss = Object.keys(S).sort().filter(k => S[k].status === 'missing');
     if (!miss.length) return;
-    if (!(await confirmBox({title: `미확보 이미지 ${miss.length}개를 Aside로 찾을까요?`, body: '찾은 이미지는 해당 페이지에 자동으로 들어가고 그 페이지만 다시 생성됩니다. 한 번에 약 10~20분 걸리며, 찾지 못한 칸은 그대로 남습니다.', ok: `${miss.length}개 한 번에 찾기`}))) return;
+    if (!(await confirmBox({title: `미확보 이미지 ${miss.length}개를 다시 찾을까요?`, body: '이미지 API와 이미지 검색으로 먼저 찾고, 찾은 이미지는 해당 페이지에 자동으로 들어갑니다. 찾지 못한 참고 이미지는 AI로 만들고, 공식 이미지·로고는 비워 두어 직접 올릴 수 있게 합니다. SNS 캡처는 Aside가 찾습니다.', ok: `${miss.length}개 한 번에 찾기`}))) return;
     const ims = (d.build?.deck?.slides || []).flatMap(x => x.images || []);
     const slots = miss.map(key => { const s = S[key], im = ims.find(x => x.key === key) || {};
       return {key, kind: s.kind, what: s.what || '', ratio: s.ratio || '', search: im.search || '', avoid: [s.source_page, s.image_url].filter(Boolean)}; });
     ev.target.disabled = true;
-    go({status: 'working'}, {kind: 'aside', input: {slots, ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}}, `미확보 이미지 ${miss.length}개를 한 번에 Aside에 요청했습니다`, 'Aside에 요청했습니다. 찾으면 제안서에 자동 반영됩니다.');
+    go({status: 'working'}, {kind: 'aside', input: {slots, ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}}, `미확보 이미지 ${miss.length}개를 한 번에 다시 찾도록 요청했습니다`, '이미지를 찾고 있습니다. 찾으면 제안서에 자동 반영됩니다.');
   });
   // 11-13 대표님 개선안 1 — 금액이 적힌 버튼 하나로 승인(확인 창 없음). 견적이 없으면 봇이 견적을 내고 정한 금액 이하면 바로 생성
   $('#ai-go')?.addEventListener('click', ev => {
@@ -3834,12 +3839,17 @@ async function openProposal(id, keep) {
     go({stage: 5, status: 'working'}, {kind: 'concepts', input: {instruction: '팬·SNS 조사 결과(팬이 좋아하는 것·싫어하는 것·팬이 쓰는 말·지난 협업 반응)를 적극 반영해 컨셉을 다시 설계해 주세요.'}},
        '팬·SNS 결과로 컨셉 다시 생성을 요청했습니다', '컨셉을 다시 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
+  $('#soc-boost')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: '팬·SNS 결과로 원고를 보강할까요?', body: '컨셉과 페이지 구성은 그대로 두고, 팬이 좋아하는 것·팬이 쓰는 말·지난 협업 반응·SNS 수치를 원고 문장에 반영한 새 버전을 만듭니다. 새로 필요한 이미지 자리가 생기면 이어서 수급합니다. 지금 버전은 이력에 보관됩니다.', ok: '원고 보강'}))) return;
+    ev.target.disabled = true;
+    go({status: 'working', data: {...d, social_boost_at: new Date().toISOString()}}, {kind: 'finalize', input: {social_boost: true}}, '팬·SNS 결과로 원고 보강을 요청했습니다', '원고를 보강합니다. 진행률은 화면에서 확인할 수 있습니다.');
+  });
   $$('#drawer [data-aside]').forEach(b => b.onclick = () => {
     const k = b.dataset.aside, sl = d.images.slots[k];
     const im = (d.build?.deck?.slides || []).flatMap(x => x.images || []).find(x => x.key === k) || {};
     b.disabled = true;
     go({status: 'working'}, {kind: 'aside', input: {slots: [{key: k, kind: sl.kind, what: sl.what || '', ratio: sl.ratio || '', search: im.search || ''}], ips: [p.ip_a_name, p.ip_b_name].filter(Boolean)}},
-       `${sl.slide}페이지 「${sl.what || k}」 이미지를 Aside 로 다시 찾도록 요청했습니다`, 'Aside에 요청했습니다. 진행률은 화면에서 확인할 수 있습니다.');
+       `${sl.slide}페이지 「${sl.what || k}」 이미지를 다시 찾도록 요청했습니다`, '이미지를 찾고 있습니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   $('#rev-go')?.addEventListener('click', ev => {
     const t = $('#rev-ins').value.trim(); if (!t) { $('#rev-ins').focus(); return toast('수정할 내용을 입력해 주세요.'); }
@@ -3970,7 +3980,7 @@ function flowForm(f, lock = 0, showPartner = true) {
   const dis = st => lock && st < lock ? 'disabled' : '', sc = new Set(f.research?.scope || []), src = new Set(f.image_src || []);
   const extra = {
     partner: `<input id="fl-field" maxlength="60" value="${esc(f.partner_field || '')}" placeholder="후보 분야 (예: 캐릭터·게임 · 비우면 전체)" aria-label="후보 분야" ${dis(3)}>`,
-    research: `<div class="fl-opts">${RS_SCOPE.map(([k, n, s]) => `<label class="check"><input type="checkbox" data-fl-scope="${k}" ${k === 'social' ? 'id="sp-social"' : ''} ${k === 'web' || sc.has(k) ? 'checked' : ''} ${k === 'web' ? 'disabled' : dis(4)}> ${n}${s ? ` <small>${s}</small>` : ''}</label>`).join('')}<label class="check"><input type="checkbox" id="fl-1y" ${f.research?.period === '1y' ? 'checked' : ''} ${dis(4)}> 최근 1년 자료 위주</label></div><textarea id="fl-refs" rows="2" maxlength="1500" placeholder="꼭 참고할 자료 (링크·메모)" aria-label="꼭 참고할 자료" ${dis(4)}>${esc(f.research?.refs || '')}</textarea>`,
+    research: `<div class="fl-opts">${RS_SCOPE.map(([k, n, s]) => `<label class="check"><input type="checkbox" data-fl-scope="${k}" ${k === 'social' ? 'id="sp-social"' : ''} ${k === 'web' || sc.has(k) ? 'checked' : ''} ${k === 'web' ? 'disabled' : dis(4)}> ${n}${s ? ` <small>${s}</small>` : ''}</label>`).join('')}<select id="fl-period" aria-label="리서치 기간" ${dis(4)}>${[['', '기간 전체'], ['1y', '최근 1년 위주'], ['3m', '최근 3개월 위주']].map(([v, n]) => `<option value="${v}" ${(f.research?.period || '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div><textarea id="fl-refs" rows="2" maxlength="1500" placeholder="꼭 참고할 자료 (링크·메모)" aria-label="꼭 참고할 자료" ${dis(4)}>${esc(f.research?.refs || '')}</textarea>`,
     concept: `<select id="fl-cc" aria-label="컨셉 후보 수" ${dis(5)}><option value="">후보 5~7개</option><option value="10" ${+f.concept_count === 10 ? 'selected' : ''}>후보 10개</option></select>`,
     outline: '',
     draft: `<select id="fl-len" aria-label="분량" ${lock > 2 ? 'disabled' : ''}><option value="">레퍼런스 구성 분량</option><option value="short" ${f.draft_len === 'short' ? 'selected' : ''}>요약 제안 (약 12페이지)</option></select>`,
@@ -3992,7 +4002,7 @@ function readFlow(root, base) {
   const steps = {...(base?.steps || FLOW_LEGACY)}; qa('[data-fl-step]').forEach(x => { steps[x.dataset.flStep] = x.value; });
   const cap = q('#fl-cap')?.value.trim();
   return {...(base || {}), preset: flowPresetOf(steps), steps, partner_field: (q('#fl-field')?.value || '').trim(),
-    research: {scope: qa('[data-fl-scope]').filter(x => x.checked).map(x => x.dataset.flScope), period: q('#fl-1y')?.checked ? '1y' : '', refs: (q('#fl-refs')?.value || '').trim()},
+    research: {scope: qa('[data-fl-scope]').filter(x => x.checked).map(x => x.dataset.flScope), period: q('#fl-period')?.value || '', refs: (q('#fl-refs')?.value || '').trim()},
     concept_count: Number(q('#fl-cc')?.value) || 0, draft_len: q('#fl-len')?.value || '', image_cap: cap === '' || cap == null ? '' : Math.max(0, +cap),
     image_src: qa('[data-fl-src]').filter(x => x.checked).map(x => x.dataset.flSrc)};
 }
