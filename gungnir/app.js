@@ -169,8 +169,19 @@ async function save(id, patch, isNew = false) {
   if (isContact(e) && APP === 'ygg') loadRel().then(rerender).catch(() => {});     // 사람 표·소속·명함은 DB 트리거가 따라 바꿈
   return e;
 }
+// 11-16 서버는 한 번에 1,000줄까지만 돌려준다 — 엔티티 1,479개·주소록 1,300명을 넘어서 이름순 뒤쪽(판타지오 등)이 화면에서 빠졌음 → 1,000줄씩 나눠 읽기
+async function allRows(build, max = 20000) {
+  let out = [];
+  for (let i = 0; i < max; i += 1000) {
+    const { data, error } = await build().range(i, Math.min(i + 999, max - 1));
+    if (error) return {data: out.length ? out : null, error};
+    out = out.concat(data || []);
+    if (!data || data.length < 1000) break;
+  }
+  return {data: out, error: null};
+}
 async function load() {
-  const [{ data, error }] = await Promise.all([SB.from('pt_entity').select('*').order('name').limit(5000), loadMembers(), loadRel().catch(() => {}), APP === 'ygg' ? loadAcc().catch(() => {}) : null]);
+  const [{ data, error }] = await Promise.all([allRows(() => SB.from('pt_entity').select('*').order('name').order('id')), loadMembers(), loadRel().catch(() => {}), APP === 'ygg' ? loadAcc().catch(() => {}) : null]);
   if (error) throw error;
   all = data.map(fromRow);
 }
@@ -347,15 +358,15 @@ const EV_ADD = ['reached', 'meeting', 'sent', 'reply', 'introduced', 'deal', 'de
 const SRC_KO = {manual: '', heimdall: '헤임달 미팅', gungnir: '궁니르', thor: '토르', core: '판테온 코어', slack: '슬랙'};
 const STALE_DAYS = 90;
 async function loadRel() {
-  const [d, s, ev, rq] = await Promise.all([SB.from('pt_directory').select('*'), SB.from('pt_rel_state').select('*'),
-    SB.from('pt_rel_event').select('*').order('occurred_on', {ascending: false}).order('id', {ascending: false}).limit(3000),
+  const [d, s, ev, rq] = await Promise.all([allRows(() => SB.from('pt_directory').select('*').order('id')), allRows(() => SB.from('pt_rel_state').select('*').order('id')),
+    allRows(() => SB.from('pt_rel_event').select('*').order('occurred_on', {ascending: false}).order('id', {ascending: false}), 3000),
     SB.from('pt_review_queue').select('*').eq('status', 'pending').order('created_at', {ascending: false}).limit(500)]);
-  const [wk, rl, rt] = await Promise.all([SB.from('pt_wiki_page').select('*'), SB.from('pt_relation').select('*').limit(5000), SB.from('pt_relation_type').select('*').eq('active', true).order('sort')]);
+  const [wk, rl, rt] = await Promise.all([SB.from('pt_wiki_page').select('*'), allRows(() => SB.from('pt_relation').select('*').order('id')), SB.from('pt_relation_type').select('*').eq('active', true).order('sort')]);
   rel.wiki = Object.fromEntries((wk.data || []).map(x => [x.entity_id, x])); rel.relations = rl.data || [];
   rel.types = rt.data || []; for (const t of rel.types) VERB[t.code] = t.name;
   const fc = await SB.from('pt_fact_check').select('id,relation_id,status,step,verdict,note,created_at,finished_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()).order('created_at', {ascending: false}).limit(1000);
   rel.facts = fc.data || [];
-  const pj = await SB.from('pt_project').select('*').limit(5000);
+  const pj = await allRows(() => SB.from('pt_project').select('*').order('entity_id'));
   rel.projects = Object.fromEntries((pj.data || []).map(x => [x.entity_id, x]));
   rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
   rel.events = ev.data || []; rel.review = rq.data || [];
@@ -2154,7 +2165,7 @@ const AR_KO = Object.fromEntries(AR_KIND), AR_SRC = {aside: 'Aside', higgsfield:
 const arF = {kind: '', source: '', ip: '', q: ''};
 async function loadArchive() {
   if (studio.archLoading) return; studio.archLoading = true;
-  const { data, error } = await SB.from('pt_image_archive').select('*').eq('hidden', false).order('created_at', {ascending: false}).limit(3000);
+  const { data, error } = await allRows(() => SB.from('pt_image_archive').select('*').eq('hidden', false).order('created_at', {ascending: false}).order('id'), 5000);
   studio.archLoading = false;
   if (error) { studio.archErr = '이미지 아카이브를 불러오지 못했습니다: ' + error.message; studio.arch = []; } else { studio.archErr = ''; studio.arch = data; }
   if (page === 'studio' && studio.tab === 'archive') render();
