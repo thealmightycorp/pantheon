@@ -353,6 +353,8 @@ async function loadRel() {
   const [wk, rl, rt] = await Promise.all([SB.from('pt_wiki_page').select('*'), SB.from('pt_relation').select('*').limit(5000), SB.from('pt_relation_type').select('*').eq('active', true).order('sort')]);
   rel.wiki = Object.fromEntries((wk.data || []).map(x => [x.entity_id, x])); rel.relations = rl.data || [];
   rel.types = rt.data || []; for (const t of rel.types) VERB[t.code] = t.name;
+  const fc = await SB.from('pt_fact_check').select('id,relation_id,status,step,verdict,note,created_at,finished_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()).order('created_at', {ascending: false}).limit(1000);
+  rel.facts = fc.data || [];
   rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
   rel.events = ev.data || []; rel.review = rq.data || [];
 }
@@ -1258,6 +1260,12 @@ const relType = code => (rel.types || []).find(t => t.code === code) || {code, n
 const TRUST = {high: ['높음', 'good'], medium: ['보통', 'muted'], low: ['낮음', 'faint'], disputed: ['다툼', 'warn']};
 const trustPill = r => { const t = TRUST[r.trust_level] || TRUST.low; return `<span class="pill ${t[1]}" title="믿을 만한 정도">${t[0]}</span>`; };
 const EVK = {gungnir_proposal: '궁니르 제안서', gungnir_deal: '궁니르 딜', heimdall_meeting: '헤임달 미팅', business_card: '명함', dart: '공시', web: '웹 기사', manual: '직접 입력', fact_check: '사실 확인'};
+const FCV = {supports: ['맞음', 'good'], contradicts: ['틀림', 'warn'], not_found: ['못 찾음', 'muted']};
+const factOf = id => (rel.facts || []).find(f => f.relation_id === id);
+const factLine = r => { const f = factOf(r.id); if (!f) return '';
+  if (f.status === 'wait' || f.status === 'work') return `<div class="kr-fc" data-fc-rel="${r.id}"><span class="fcbar" aria-hidden="true"><i></i></span><small>${esc(f.status === 'wait' ? '사실 확인 차례를 기다리는 중' : (f.step || '뉴스·공시·공식 사이트를 찾는 중'))}</small></div>`;
+  if (f.status === 'failed') return `<div class="kr-fc"><small>사실 확인 ${esc(dotDate((f.finished_at || f.created_at).slice(0, 10)))}: ${esc(f.note || '확인하지 못했습니다.')}</small></div>`;
+  const v = FCV[f.verdict] || FCV.not_found; return `<div class="kr-fc"><small>사실 확인 ${esc(dotDate((f.finished_at || f.created_at).slice(0, 10)))}</small> <span class="pill ${v[1]}">${v[0]}</span>${f.note ? `<small>${esc(f.note)}</small>` : ''}</div>`; };
 const evAgo = d => { const n = dayN(d); return n == null ? '' : n <= 0 ? '오늘' : n < 31 ? `${n}일 전` : n < 365 ? `${Math.floor(n / 30)}개월 전` : `${Math.floor(n / 365)}년 전`; };
 function attrText(r) {
   const sc = relType(r.verb).attribute_schema || [], a = r.attrs || {};
@@ -1321,8 +1329,8 @@ function relationsBlock(e) {
   const row = r => { const other = r.subject_id === e.id ? r.object_id : r.subject_id, at = attrText(r), per = [r.valid_from, r.valid_to].filter(Boolean).join(' ~ ');
     return `<li data-rel="${r.id}"><div class="kr-main"><span class="kr-who">${who(other)}</span>${trustPill(r)}${r.valid_to ? '<span class="pill muted">종료</span>' : ''}
       <small>${[at, per, r.last_evidence_at ? `마지막 근거 ${evAgo(r.last_evidence_at)}` : '', `근거 ${r.evidence_count || 0}건`].filter(Boolean).map(esc).join(' · ')}</small>
-      <button type="button" class="text-btn kr-toggle" data-kr-ev="${r.id}" aria-expanded="false">근거 보기</button></div><div class="kr-ev" id="kr-ev-${r.id}" hidden></div></li>`; };
-  return `<div class="detail-block"><div class="rl-head"><h3>연결 관계 <small>${rs.length}건</small></h3><button class="button" type="button" id="kr-add">${icon('plus')} 관계 추가</button></div>
+      <button type="button" class="text-btn kr-toggle" data-kr-ev="${r.id}" aria-expanded="false">근거 보기</button></div>${factLine(r)}<div class="kr-ev" id="kr-ev-${r.id}" hidden></div></li>`; };
+  return `<div class="detail-block"><div class="rl-head"><h3>연결 관계 <small>${rs.length}건</small></h3><span class="kr-head-acts">${rs.length ? `<button class="button" type="button" id="kr-factall">관계 전부 사실 확인</button>` : ''}<button class="button" type="button" id="kr-add">${icon('plus')} 관계 추가</button></span></div>
     ${disputed ? `<p class="rl-note"><span class="pill warn">다툼</span> 반대 근거가 붙은 관계 ${disputed}건이 있습니다. 근거를 보고 사실을 확인하거나 끝난 관계로 처리해 주세요.</p>` : ''}
     ${rs.length ? Object.values(groups).sort((a, b) => a.sort - b.sort).map(g => `<div class="kr-group"><h4>${esc(g.name)} <small>${g.list.length}</small></h4><ul class="kn-rel">${g.list.map(row).join('')}</ul></div>`).join('')
       : '<p>회사·브랜드·IP 사이의 권리 보유·에이전트·라이선스·콜라보·광고모델 관계를 기록합니다. 관계마다 근거를 여러 개 붙일 수 있습니다.</p>'}</div>`;
@@ -1331,10 +1339,10 @@ function evListHtml(r, list) {
   const mine = x => x.created_by === me?.id || isAdmin;
   return `<ol class="kr-evl">${list.map(x => { const u = safeUrl(evLink(x));
     return `<li class="${x.stance === 'contradicts' ? 'contra' : ''}"><div><b>${esc(EVK[x.source_kind] || x.source_kind)}</b> · ${esc(x.observed_at || '')}${x.stance === 'contradicts' ? ' <span class="pill warn">반대 근거</span>' : ''}${x.confirmed_by ? ` <span class="pill good" title="${esc(x.confirmed_name)} 확인">사람 확인</span>` : ''}
-      <small>${esc(x.extracted_by === 'ai' ? 'AI가 찾은 근거' : (x.created_name || '직원') + ' 입력')}</small></div>
+      <small>${esc(x.source_kind === 'dart' ? '공시 자동 수집' : x.extracted_by === 'ai' ? 'AI가 찾은 근거' : (x.created_name || '직원') + ' 입력')}</small></div>
       ${x.visible ? (x.quote ? `<p>${esc(x.quote)}</p>` : '') : '<p class="kr-locked">원문은 이 자료를 볼 수 있는 사람에게만 보입니다.</p>'}
       <div class="kr-act">${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">원본 열기</a>` : ''}${x.confirmed_by ? `<button type="button" class="text-btn" data-ev-unconf="${x.id}">확인 취소</button>` : `<button type="button" class="text-btn" data-ev-conf="${x.id}">확인함</button>`}${mine(x) && list.length > 1 ? `<button type="button" class="text-btn" data-ev-del="${x.id}">삭제</button>` : ''}</div></li>`; }).join('')}</ol>
-    <div class="kr-foot"><button class="button" type="button" data-ev-add="${r.id}">${icon('plus')} 근거 추가</button><button class="button" type="button" data-kr-edit="${r.id}">세부 내용 수정</button>${r.trust_level === 'disputed' && !r.valid_to ? `<button class="button" type="button" data-kr-end="${r.id}">끝난 관계로 처리</button>` : ''}${r.created_by === me?.id || isAdmin ? `<button class="button" type="button" data-kr-del="${r.id}">관계 삭제</button>` : ''}</div>`;
+    <div class="kr-foot"><button class="button" type="button" data-kr-fact="${r.id}">지금 사실 확인</button><button class="button" type="button" data-ev-add="${r.id}">${icon('plus')} 근거 추가</button><button class="button" type="button" data-kr-edit="${r.id}">세부 내용 수정</button>${r.trust_level === 'disputed' && !r.valid_to ? `<button class="button" type="button" data-kr-end="${r.id}">끝난 관계로 처리</button>` : ''}${r.created_by === me?.id || isAdmin ? `<button class="button" type="button" data-kr-del="${r.id}">관계 삭제</button>` : ''}</div>`;
 }
 async function evLoad(id) {
   const box = $('#kr-ev-' + id); if (!box) return;
@@ -1424,15 +1432,54 @@ function bindKn(e) {
   $('#wiki-pend')?.addEventListener('click', () => { closeDrawer(); go('review'); });
   $('#kr-add')?.addEventListener('click', () => relationModal(e));
   $$('[data-kr-ev]').forEach(b => b.onclick = () => { const box = $('#kr-ev-' + b.dataset.krEv), open = box.hidden; box.hidden = !open; b.setAttribute('aria-expanded', String(open)); b.textContent = open ? '근거 닫기' : '근거 보기'; if (open) evLoad(b.dataset.krEv); });
+  $('#kr-factall')?.addEventListener('click', async ev => {
+    const ids = relsOf(e.id).filter(r => !['wait', 'work'].includes(factOf(r.id)?.status)).map(r => r.id);
+    if (!ids.length) return toast('이미 모두 확인 중입니다.');
+    if (!(await confirmBox({title: `관계 ${ids.length}건을 사실 확인할까요?`, body: 'AI가 관계마다 뉴스·공시·공식 사이트를 다시 찾아보고, 찾은 출처를 근거로 붙입니다. 관계 하나에 1분 안팎 걸리며, 화면을 닫아도 계속 진행됩니다.', ok: `${ids.length}건 사실 확인`}))) return;
+    factRequest(ids, e);
+  });
   krEnt = e;
   if (!krBound) { krBound = true; $('#drawer')?.addEventListener('click', krClick); }
+  factPoll(e);
+}
+async function factRequest(ids, e) {
+  const { data, error } = await SB.rpc('pt_fact_check_request', {p_ids: ids, p_batch: ids.length > 1 ? e.id : ''});
+  if (error) return toast('사실 확인을 요청하지 못했습니다: ' + error.message);
+  if (!data?.queued) return toast(data?.reason || '이미 확인 중입니다.');
+  await relReload(e.id);
+  toast(`사실 확인 ${data.queued}건을 시작했습니다. 끝나면 결과가 근거로 붙습니다.`);
+}
+let fcTimer = null;
+function factPoll(e) {
+  clearInterval(fcTimer); fcTimer = null;
+  const live = () => relsOf(e.id).map(r => factOf(r.id)).filter(f => f && ['wait', 'work'].includes(f.status));
+  if (!live().length) return;
+  fcTimer = setInterval(async () => {
+    if (krEnt?.id !== e.id || $('#drawer').hidden) { clearInterval(fcTimer); fcTimer = null; return; }
+    if (document.hidden) return;
+    const ids = live().map(f => f.id); if (!ids.length) { clearInterval(fcTimer); return; }
+    const { data } = await SB.from('pt_fact_check').select('id,relation_id,status,step,verdict,note,created_at,finished_at').in('id', ids);
+    let ended = [];
+    for (const f of data || []) {
+      const i = rel.facts.findIndex(x => x.id === f.id); if (i >= 0) rel.facts[i] = f;
+      if (['done', 'failed'].includes(f.status)) ended.push(f);
+      else { const box = $(`[data-fc-rel="${f.relation_id}"] small`); if (box) box.textContent = f.status === 'wait' ? '사실 확인 차례를 기다리는 중' : (f.step || '뉴스·공시·공식 사이트를 찾는 중'); }
+    }
+    if (ended.length) {
+      clearInterval(fcTimer); fcTimer = null;
+      const n = k => ended.filter(f => f.verdict === k).length;
+      await relReload(e.id);
+      toast(`사실 확인 ${ended.length}건 완료 · 맞음 ${n('supports')} · 틀림 ${n('contradicts')} · 못 찾음 ${n('not_found') + ended.filter(f => f.status === 'failed').length}`);
+    }
+  }, 3000);
 }
 let krEnt = null, krBound = false;
 const krReopen = rid => $(`[data-kr-ev="${rid}"]`)?.click();
 async function krClick(ev) {
-  const t = ev.target.closest('.kr-ev [data-ev-add],.kr-ev [data-ev-conf],.kr-ev [data-ev-unconf],.kr-ev [data-ev-del],.kr-ev [data-kr-edit],.kr-ev [data-kr-end],.kr-ev [data-kr-del]');
+  const t = ev.target.closest('.kr-ev [data-kr-fact],.kr-ev [data-ev-add],.kr-ev [data-ev-conf],.kr-ev [data-ev-unconf],.kr-ev [data-ev-del],.kr-ev [data-kr-edit],.kr-ev [data-kr-end],.kr-ev [data-kr-del]');
   const e = krEnt; if (!t || !e) return;
   const rid = t.closest('[data-rel]')?.dataset.rel, r = (rel.relations || []).find(v => String(v.id) === String(rid)); if (!r) return;
+  if (t.dataset.krFact) return factRequest([r.id], e);
   if (t.dataset.evAdd) return evidenceModal(r, e);
   if (t.dataset.krEdit) return relEditModal(r, e);
   if (t.dataset.krEnd) {
