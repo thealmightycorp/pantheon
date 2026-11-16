@@ -323,7 +323,7 @@ function openDetail(id, keep) {
   if (!keep) setRoute(id);
   if (isContact(e)) return openContact(e, keep);
   const cs = contactsOf(e), parent = e.parentId && byId(e.parentId);
-  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${e.id}">그래프에서 보기</button>` : ''}${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + pathBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
+  showDrawer(`${avatar(e)}<h2>${esc(e.name)}</h2><span class="detail-sub">${esc(e.en ? e.en + ' · ' : '')}${esc(e.type)}</span><div class="drawer-actions"><button class="button" id="edit-entity">정보 수정</button>${APP === 'ygg' ? `<button class="button" type="button" data-graph-go="${e.id}">그래프에서 보기</button>` : ''}${adminTools(e)}</div><div class="detail-block"><h3>기본 정보 및 관계</h3><div class="detail-row"><span>소속 / 권리 관계</span><b>${parent ? `<button class="ref" type="button" data-open="${parent.id}">${esc(parent.name)}</button>` : esc(e.agencyText || '—')}</b></div><div class="detail-row"><span>관계 근거</span><b>${e.rel ? esc(e.rel) : PILL_NOREL}</b></div><div class="detail-row"><span>내부 담당자</span><b>${ownersLine(e.owners)}</b></div><div class="detail-row"><span>등록한 직원</span><b>${esc(registrar(e) || '—')}</b></div>${kidsOf(e).length ? `<div class="detail-row"><span>운영 브랜드 · 연결 엔티티</span><b>${kidsOf(e).length}개</b></div>${linkList(kidsOf(e))}` : ''}<div class="detail-row"><span>등록된 담당자</span><b>${cs.length}명</b></div>${cs.length ? linkList(cs) : ''}${pointsBlock(e)}</div>${APP === 'ygg' ? relBlock(e) + pathBlock(e) + timelineBlock(evOf(e.id)) + wikiBlock(e) + projectBlock(e) + relationsBlock(e) : ''}<div class="detail-block"><h3>별칭</h3>${[e.name, ...e.aliases].map(a => `<span class="tag">${esc(a)}</span>`).join('')}</div><div class="detail-block"><h3>내부 담당자 이력</h3><div id="owner-hist"><p>이력을 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div></div>${noteBlock(e)}`, keep);
   $('#edit-entity').onclick = () => entityModal(e); bindNote(e); bindAdminTools(e); loadOwnerHistory(e.id); bindRel(e); bindKn(e); if (APP === 'ygg') loadPaths(e);
 }
 function openContact(c, keep) {
@@ -355,6 +355,8 @@ async function loadRel() {
   rel.types = rt.data || []; for (const t of rel.types) VERB[t.code] = t.name;
   const fc = await SB.from('pt_fact_check').select('id,relation_id,status,step,verdict,note,created_at,finished_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()).order('created_at', {ascending: false}).limit(1000);
   rel.facts = fc.data || [];
+  const pj = await SB.from('pt_project').select('*').limit(5000);
+  rel.projects = Object.fromEntries((pj.data || []).map(x => [x.entity_id, x]));
   rel.dir = Object.fromEntries((d.data || []).map(x => [x.id, x])); rel.state = Object.fromEntries((s.data || []).map(x => [x.id, x]));
   rel.events = ev.data || []; rel.review = rq.data || [];
 }
@@ -1321,6 +1323,50 @@ function wikiBlock(e) {
     ${pend ? `<p class="rl-note">검토 중인 수정 ${pend}건 · <button class="text-btn" type="button" id="wiki-pend">확인 대기에서 보기</button></p>` : ''}
     ${w ? `<div class="kn-md">${mdHtml(w.md)}</div>${srcList(w.sources)}` : '<p>등록된 위키가 없습니다. 이 거래처와의 협업 이력과 참고 사항을 정리해 두면 질문 답변의 근거로 활용됩니다.</p>'}</div>`;
 }
+// 11-16 PRD 5장 — 프로젝트(사건)를 엔티티로 · 콜라보는 같은 프로젝트 참여에서 계산(따로 저장하지 않음 · 13장)
+const PJ_ST = {'제안': 'muted', '진행': 'good', '종료': '', '무산': 'warn'};
+const partsOf = pid => (rel.relations || []).filter(r => r.verb === 'participant_in' && r.object_id === pid);
+function projectBlock(e) {
+  const who = id => `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
+  if (e.type === '프로젝트') {
+    const pj = rel.projects?.[e.id] || {}, ps = partsOf(e.id);
+    return `<div class="detail-block"><h3>프로젝트</h3>
+      <div class="detail-row"><span>상태</span><b><span class="pill ${PJ_ST[pj.status] || ''}">${esc(pj.status || '—')}</span></b></div>
+      <div class="detail-row"><span>시기</span><b>${esc([pj.starts_on, pj.ends_on].filter(Boolean).join(' ~ ') || '—')}</b></div>
+      <div class="detail-row"><span>형태</span><b>${esc(pj.form || '—')}</b></div>
+      ${pj.result_note ? `<div class="detail-row"><span>${pj.ours ? '컨셉 · 결과' : '결과'}</span><b>${esc(pj.result_note)}</b></div>` : ''}
+      ${pj.proposal_id ? `<div class="detail-row"><span>궁니르 제안서</span><b><a href="${GUNGNIR_URL}#studio/${esc(pj.proposal_id)}" target="_blank" rel="noopener">제안서 열기 ↗</a></b></div>` : ''}
+      <div class="detail-row"><span>참여</span><b>${ps.length}곳</b></div>
+      <ul class="pj-parts">${ps.map(r => `<li>${who(r.subject_id)} <span class="pill">${esc((r.attrs || {}).role || '참여')}</span></li>`).join('')}</ul>
+      <div class="drawer-actions"><button class="button" type="button" id="pj-edit">상태·시기 수정</button></div></div>`;
+  }
+  const mine = (rel.relations || []).filter(r => r.verb === 'participant_in' && r.subject_id === e.id);
+  if (!mine.length) return '';
+  const rows = mine.map(r => { const pj = rel.projects?.[r.object_id] || {}, others = partsOf(r.object_id).filter(x => x.subject_id !== e.id);
+    return `<li><div>${who(r.object_id)} <span class="pill ${PJ_ST[pj.status] || ''}">${esc(pj.status || '')}</span> <small>${esc([pj.starts_on, (r.attrs || {}).role].filter(Boolean).join(' · '))}</small></div>
+      ${others.length ? `<small>함께: ${others.map(x => who(x.subject_id)).join(' · ')}</small>` : ''}</li>`; }).join('');
+  const partners = [...new Set(mine.flatMap(r => partsOf(r.object_id).filter(x => x.subject_id !== e.id).map(x => x.subject_id)))];
+  return `<div class="detail-block"><h3>프로젝트·콜라보 이력 <small>${mine.length}건</small></h3>
+    ${partners.length ? `<p class="rl-note">함께한 곳 ${partners.length}곳: ${partners.slice(0, 12).map(who).join(' · ')}</p>` : ''}<ul class="pj-list">${rows}</ul></div>`;
+}
+function projectModal(e) {
+  const pj = rel.projects?.[e.id] || {};
+  modal(`<form id="pj-form" class="kn-form"><h2>${esc(e.name)}</h2>
+    <label>상태<select id="pj-st">${['제안', '진행', '종료', '무산'].map(x => `<option ${x === pj.status ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+    <div class="kn-two"><label>시작일<input id="pj-f" type="date" value="${esc(pj.starts_on || '')}"></label><label>종료일<input id="pj-t" type="date" value="${esc(pj.ends_on || '')}"></label></div>
+    <label>형태<input id="pj-form-v" maxlength="40" value="${esc(pj.form || '')}" placeholder="팝업·MD·광고·컬래버 상품·콘텐츠"></label>
+    <label>결과 메모<textarea id="pj-r" rows="3" maxlength="300">${esc(pj.result_note || '')}</textarea></label>
+    <div id="pj-err" class="form-err" role="alert"></div>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">저장</button></div></form>`);
+  $('#pj-form').onsubmit = async ev => {
+    ev.preventDefault();
+    const before = {status: pj.status, starts_on: pj.starts_on, ends_on: pj.ends_on, form: pj.form, result_note: pj.result_note};
+    const { error } = await SB.from('pt_project').update({status: $('#pj-st').value, starts_on: $('#pj-f').value || null, ends_on: $('#pj-t').value || null, form: $('#pj-form-v').value.trim(), result_note: $('#pj-r').value.trim()}).eq('entity_id', e.id);
+    if (error) { $('#pj-err').textContent = error.message; return; }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); await relReload(e.id);
+    toast('프로젝트 정보를 저장했습니다.', {fn: async () => { const x = await SB.from('pt_project').update(before).eq('entity_id', e.id); if (x.error) throw x.error; await relReload(e.id); toast('실행을 취소했습니다.'); }});
+  };
+}
 function relationsBlock(e) {
   const rs = relsOf(e.id), who = id => `<button class="ref" type="button" data-open="${esc(id)}">${esc(nameOf(id) || '—')}</button>`;
   const groups = {};
@@ -1431,6 +1477,7 @@ function bindKn(e) {
   $('#wiki-edit')?.addEventListener('click', () => wikiModal(e));
   $('#wiki-pend')?.addEventListener('click', () => { closeDrawer(); go('review'); });
   $('#kr-add')?.addEventListener('click', () => relationModal(e));
+  $('#pj-edit')?.addEventListener('click', () => projectModal(e));
   $$('[data-kr-ev]').forEach(b => b.onclick = () => { const box = $('#kr-ev-' + b.dataset.krEv), open = box.hidden; box.hidden = !open; b.setAttribute('aria-expanded', String(open)); b.textContent = open ? '근거 닫기' : '근거 보기'; if (open) evLoad(b.dataset.krEv); });
   $('#kr-factall')?.addEventListener('click', async ev => {
     const ids = relsOf(e.id).filter(r => !['wait', 'work'].includes(factOf(r.id)?.status)).map(r => r.id);
@@ -3408,11 +3455,42 @@ function pvEnd(p) {
   if (p.status === 'done') {
     const r = d.sent_ref && (studio.refs || []).find(x => x.id === d.sent_ref);
     return `<div class="detail-block"><h3>레퍼런스</h3>${d.sent_ref ? `<div class="detail-row"><span>등록</span><b>${r ? esc(refName(r)) : '레퍼런스로 등록됨'}${r ? ` <button class="text-btn" type="button" data-ref-view="${r.id}">보기</button>` : ''}</b></div>`
-      : `<p>잘 나온 제안서는 레퍼런스로 등록하면 다음 제안서의 문체·디자인·구성에 반영됩니다.</p><div class="drawer-actions"><button class="button" id="pv-to-ref">레퍼런스로 보내기</button></div>`}</div>`;
+      : `<p>잘 나온 제안서는 레퍼런스로 등록하면 다음 제안서의 문체·디자인·구성에 반영됩니다.</p><div class="drawer-actions"><button class="button" id="pv-to-ref">레퍼런스로 보내기</button></div>`}</div>`
+      + `<div class="detail-block" id="pv-ygg"><h3>이그드라실</h3><p class="kr-wait">불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>`;
   }
   if ((p.status === 'waiting' || p.status === 'failed') && pvCanEdit(p))
     return `<div class="detail-block"><h3>바로 완료</h3><p>궁니르 밖에서 마무리했거나 더 진행하지 않아도 되는 프로젝트는 지금 단계에서 완료로 바꿀 수 있습니다.</p><div class="drawer-actions"><button class="button" id="pv-close">바로 완료로 변경</button></div></div>`;
   return '';
+}
+// 11-16 PRD 6장·8.2 — 완료한 제안서는 봇이 이그드라실에 「콜라보 제안」 프로젝트·참여·관계 근거로 남김 → 여기서 관계 전부 사실 확인
+let pvYggTimer = null;
+async function pvYgg(p) {
+  clearTimeout(pvYggTimer);
+  const box = $('#pv-ygg'); if (!box) return;
+  const { data: y, error } = await SB.rpc('pt_proposal_relations', {p_id: p.id});
+  if (!$('#pv-ygg')) return;
+  if (error) { box.innerHTML = `<h3>이그드라실</h3><p class="form-err">불러오지 못했습니다: ${esc(error.message)}</p>`; return; }
+  if (!y?.linked) {
+    box.innerHTML = `<h3>이그드라실</h3><p>${p.visibility === 'private' ? '나만 보기 제안서는 이그드라실에 올리지 않습니다. 궁니르 전체에 공유하면 반영됩니다.' : '완료한 제안서의 참여 IP·수신사와 관계를 이그드라실에 정리하고 있습니다. 몇 분 안에 반영됩니다.'}</p>`;
+    if (p.visibility !== 'private') pvYggTimer = setTimeout(() => pvYgg(p), 30000);
+    return;
+  }
+  const ids = y.relation_ids || [], tr = y.trust || {}, ck = y.checked || {}, TR = {high: '높음', medium: '보통', low: '낮음', disputed: '다툼'};
+  box.innerHTML = `<h3>이그드라실</h3>
+    <div class="detail-row"><span>프로젝트</span><b><a href="${YGG_URL}#entities/${esc(y.project_id || '')}" target="_blank" rel="noopener">${esc(y.project_name || '보기')} ↗</a></b></div>
+    <div class="detail-row"><span>관계</span><b>${ids.length}건${Object.keys(tr).length ? ' · ' + Object.entries(tr).map(([k, n]) => `${TR[k] || k} ${n}`).join(' · ') : ''}</b></div>
+    ${Object.keys(ck).length ? `<div class="detail-row"><span>사실 확인</span><b>${[['supports', '맞음'], ['contradicts', '틀림'], ['not_found', '못 찾음'], ['failed', '확인 못 함']].filter(([k]) => ck[k]).map(([k, l]) => `${l} ${ck[k]}`).join(' · ')}</b></div>` : ''}
+    ${y.checking ? `<div class="kr-fc"><span class="fcbar" aria-hidden="true"><i></i></span><small>관계 ${y.checking}건을 사실 확인하는 중</small></div>`
+      : ids.length ? `<p>제안서를 보내기 전에 이 제안서에 나온 관계가 지금도 맞는지 AI가 뉴스·공시·공식 사이트에서 다시 확인합니다.</p><div class="drawer-actions"><button class="button" type="button" id="pv-fact">이 제안서 관계 전부 확인</button></div>` : ''}`;
+  $('#pv-fact')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: `관계 ${ids.length}건을 사실 확인할까요?`, body: '관계 하나에 1분 안팎 걸리며, 화면을 닫아도 계속 진행됩니다. 결과는 이그드라실 관계의 근거로 붙습니다.', ok: `${ids.length}건 사실 확인`}))) return;
+    ev.target.disabled = true;
+    const { data, error } = await SB.rpc('pt_fact_check_request', {p_ids: ids, p_batch: 'p:' + p.id});
+    if (error) { ev.target.disabled = false; return toast('사실 확인을 요청하지 못했습니다: ' + error.message); }
+    toast(data?.queued ? `사실 확인 ${data.queued}건을 시작했습니다.` : (data?.reason || '이미 확인 중입니다.'));
+    pvYgg(p);
+  });
+  if (y.checking) pvYggTimer = setTimeout(() => { if (!document.hidden) pvYgg(p); else pvYggTimer = setTimeout(() => pvYgg(p), 4000); }, 4000);
 }
 // 레퍼런스로 보내기 — 궁니르에서 만든 PDF 를 그대로 쓰거나, 밖에서 마무리한 최종 PDF 를 올린다 → pt_proposal_ref + 학습(analyze_reference)
 function pvToRef(p) {
@@ -3579,6 +3657,7 @@ async function openProposal(id, keep) {
     await proposalEvent(p.id, '궁니르 전체에 공유했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('궁니르 전체에 공유했습니다.');
   });
   $('#pv-to-ref')?.addEventListener('click', () => pvToRef(p));
+  if ($('#pv-ygg')) pvYgg(p);
   $$('#drawer .pv-side [data-ref-view]').forEach(b => b.onclick = () => openRef(b.dataset.refView));
   $('#pv-close')?.addEventListener('click', async ev => {
     const empty = d.images ? Object.values(liveSlots(d)).filter(s => s.status === 'missing' || s.status === 'ai').length : 0;
