@@ -5225,7 +5225,60 @@ $('#add-btn').onclick = () => page === 'contacts' ? contactModal() : page === 's
 $('#export-btn').onclick = exportCSV;
 $('#notification').onclick = () => go('home');
 $('.top-avatar').onclick = () => $('#profile').click();      // 폰에서는 왼쪽 메뉴가 아래 막대가 되어 프로필이 위 오른쪽 사진으로
-$('#profile').onclick = async () => { if (!me) return; modal(`<h2>내 계정</h2><p><b>${esc(myName)}</b> · ${isAdmin ? 'DB 관리자' : '구성원'}<br>${esc(me.email || '')}</p><p>이 브라우저에서만 로그아웃됩니다. 다른 기기의 로그인은 그대로입니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button" type="button" id="logout-go">로그아웃</button></div>`); $('#logout-go').onclick = async () => { await SB.auth.signOut({scope: 'local'}); location.reload(); }; };
+// 내 명함 · 인사 문자 (11-17 · 홍석진 대표님 지시 22번 · sql/046 · 봇 greet.py) — 디지털 명함 링크(공개는 본인이 켤 때만) + 내가 올린 명함에 인사 문자
+const GREET_DEFAULT = '더올마이티 {name}입니다. 명함 감사합니다 {link}';
+const krBytes = s => [...String(s || '')].reduce((n, c) => n + (c.charCodeAt(0) < 128 ? 1 : 2), 0);
+const GREET_ST = {preview: '미리보기', wait: '보낼 예정', sending: '보내는 중', sent: '보냄', fail: '보내지 못함', skip: '보내지 않음'};
+async function myCardModal() {
+  const [{ data: row }, { data: st }, { data: sms }] = await Promise.all([
+    SB.from('pt_my_card').select('*').eq('member_id', me.id).maybeSingle(),
+    SB.from('pt_greet_setting').select('*').eq('id', 1).maybeSingle(),
+    SB.from('pt_greet_sms').select('id,to_name,to_phone,body,bytes,status,reason,scheduled_at,sent_at,created_at').eq('member_id', me.id).order('id', {ascending: false}).limit(10)]);
+  const c = row || {name: myName || '', company: '더올마이티', email: me.email || '', is_public: false, greet_on: false, greet_text: '', token: ''};
+  const base = st?.card_base || 'thealmightycorp.github.io/pantheon/c#', link = c.token ? base + c.token : '';
+  const F = [['name', '이름 *'], ['name_en', '영문 이름'], ['company', '회사'], ['dept', '부서'], ['title', '직함'], ['mobile', '휴대폰 (인사 문자 보내는 번호)'], ['office_phone', '전화'], ['email', '이메일'], ['web', '웹사이트'], ['address', '주소']];
+  const kst = t => t ? new Date(t).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
+  const fmtTel = p => String(p || '').replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+  const list = (sms || []).length ? `<ul class="facts">${sms.map(m => `<li><b>${esc(GREET_ST[m.status] || m.status)}</b> · ${esc(m.to_name || '이름 없음')} ${m.to_phone && m.to_phone !== '-' ? esc(fmtTel(m.to_phone)) : ''}${m.status === 'wait' ? ` · ${kst(m.scheduled_at)}` : m.status === 'sent' ? ` · ${kst(m.sent_at)}` : ''}${m.reason ? ` <small>${esc(m.reason)}</small>` : ''}<br><small>${esc(m.body)} (${m.bytes}바이트${m.bytes > 90 ? ' · 장문' : ''})</small>${['preview', 'wait'].includes(m.status) ? ` <button class="button" type="button" data-greet-skip="${m.id}">보내지 않기</button>` : ''}</li>`).join('')}</ul>` : '<p>아직 인사 문자가 없습니다. 인사 문자를 켠 뒤 명함을 올리면 여기에 보낼 문자가 보입니다.</p>';
+  const admin = isAdmin ? `<h3>발송 설정 (관리자)</h3><label class="check"><input type="checkbox" id="gs-on" ${st?.enabled ? 'checked' : ''}> 실제로 보내기 (끄면 미리보기만 남김)</label><label>시험 중 보낼 번호 (쉼표로 구분 · 비우면 모두)<input id="gs-only" value="${esc((st?.only_to || []).map(fmtTel).join(', '))}" placeholder="010-0000-0000"></label><p><small>보내는 시간 ${st?.hour_from ?? 9}~${st?.hour_to ?? 20}시${st?.weekend ? '' : ' · 주말에 올린 명함은 월요일 오전에'} · 솔라피 키는 서버 PC 에서 넣습니다.</small></p>` : '';
+  modal(`<form id="mc-form"><h2>내 명함 · 인사 문자</h2>
+    <p>명함 링크는 「공개」를 켠 경우에만 열립니다. 인사 문자는 켠 뒤에 올린 명함에만, 같은 번호에는 한 번만 보냅니다.</p>
+    ${F.map(([k, n]) => `<label>${n}<input id="mc-${k}" maxlength="${k === 'address' ? 200 : 80}" value="${esc(c[k] || '')}" ${k === 'name' ? 'required' : ''}></label>`).join('')}
+    <label>명함 앞면 이미지 (선택)<input type="file" id="mc-img" accept="image/*"></label>${c.image_url ? `<p><img src="${esc(c.image_url)}" alt="내 명함" style="max-width:100%;border-radius:8px"></p>` : ''}
+    <label class="check"><input type="checkbox" id="mc-public" ${c.is_public ? 'checked' : ''}> 명함 링크 공개</label>
+    ${link ? `<p>내 명함 링크: <a href="https://${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a> <button class="button" type="button" id="mc-copy">링크 복사</button></p>` : '<p><small>저장하면 내 명함 링크가 만들어집니다.</small></p>'}
+    <label class="check"><input type="checkbox" id="mc-greet" ${c.greet_on ? 'checked' : ''}> 내가 올린 명함의 상대에게 인사 문자 보내기</label>
+    <label>인사 문자 문구 ({name} 내 이름 · {link} 내 명함 링크)<textarea id="mc-text" rows="2" maxlength="200">${esc(c.greet_text || GREET_DEFAULT)}</textarea></label>
+    <p id="mc-prev"></p>
+    ${admin}
+    <h3>최근 인사 문자</h3>${list}
+    <p class="error" id="mc-error"></p>
+    <div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button primary" type="submit">저장</button></div></form>`);
+  const prev = () => { const t = ($('#mc-text').value.trim() || GREET_DEFAULT).replace('{name}', $('#mc-name').value.trim()).replace('{link}', $('#mc-public').checked ? (link || base + 'XXXXXXXXXX') : '').replace(/\s+/g, ' ').trim(), b = krBytes(t);
+    $('#mc-prev').innerHTML = `<small>보낼 문자: ${esc(t)}<br>${b}바이트 · ${b > 90 ? '<b>90바이트를 넘어 장문(LMS) 요금입니다</b>' : '단문(SMS)'}</small>`; };
+  ['#mc-text', '#mc-name'].forEach(s => $(s).addEventListener('input', prev)); $('#mc-public').addEventListener('change', prev); prev();
+  $('#mc-copy')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText('https://' + link); toast('명함 링크를 복사했습니다.'); } catch { toast('복사하지 못했습니다. 링크를 길게 눌러 복사해 주세요.'); } });
+  $$('[data-greet-skip]').forEach(b => b.onclick = async () => { b.disabled = true; const { error } = await SB.from('pt_greet_sms').update({status: 'skip', reason: '보내지 않기로 함'}).eq('id', +b.dataset.greetSkip);
+    if (error) { b.disabled = false; return toast('바꾸지 못했습니다: ' + error.message); } $('#modal').dataset.dirty = ''; $('#modal').close(); myCardModal(); toast('이 문자는 보내지 않습니다.'); });
+  $('#mc-form').onsubmit = async ev => {
+    ev.preventDefault(); const v = Object.fromEntries(F.map(([k]) => [k, $('#mc-' + k).value.trim()]));
+    if (!v.name) { $('#mc-error').textContent = '이름을 입력해 주세요.'; return; }
+    if ($('#mc-greet').checked && !v.mobile) { $('#mc-error').textContent = '인사 문자를 보내려면 휴대폰 번호가 필요합니다.'; return; }
+    const txt = $('#mc-text').value.trim(); const body = {member_id: me.id, ...v, is_public: $('#mc-public').checked, greet_on: $('#mc-greet').checked, greet_text: txt === GREET_DEFAULT ? '' : txt};
+    const f = $('#mc-img').files?.[0];
+    if (f) { const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg', path = `${me.id}/card-${Date.now()}.${ext}`;
+      const up = await SB.storage.from('pt-card-public').upload(path, f, {upsert: true, contentType: f.type || 'image/jpeg'});
+      if (up.error) { $('#mc-error').textContent = '명함 이미지를 올리지 못했습니다: ' + up.error.message; return; }
+      body.image_url = SB.storage.from('pt-card-public').getPublicUrl(path).data.publicUrl; }
+    const { error } = await SB.from('pt_my_card').upsert(body, {onConflict: 'member_id'});
+    if (error) { $('#mc-error').textContent = '저장하지 못했습니다: ' + error.message; return; }
+    if (isAdmin && $('#gs-on')) { const only = $('#gs-only').value.split(/[,\s]+/).map(x => x.replace(/\D/g, '')).filter(x => x.length >= 10);
+      const r = await SB.from('pt_greet_setting').update({enabled: $('#gs-on').checked, only_to: only, updated_at: new Date().toISOString()}).eq('id', 1);
+      if (r.error) { $('#mc-error').textContent = '발송 설정을 저장하지 못했습니다: ' + r.error.message; return; } }
+    $('#modal').dataset.dirty = ''; $('#modal').close(); toast('내 명함을 저장했습니다.'); myCardModal();
+  };
+}
+$('#profile').onclick = async () => { if (!me) return; modal(`<h2>내 계정</h2><p><b>${esc(myName)}</b> · ${isAdmin ? 'DB 관리자' : '구성원'}<br>${esc(me.email || '')}</p><p>이 브라우저에서만 로그아웃됩니다. 다른 기기의 로그인은 그대로입니다.</p><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button><button class="button" type="button" id="mycard-go">내 명함 · 인사 문자</button><button class="button" type="button" id="logout-go">로그아웃</button></div>`); $('#logout-go').onclick = async () => { await SB.auth.signOut({scope: 'local'}); location.reload(); }; $('#mycard-go').onclick = () => { $('#modal').close(); myCardModal(); }; };
 $('#overlay').onclick = closeDrawer;
 $('#drawer').addEventListener('click', ev => { const b = ev.target.closest('[data-graph-go]'); if (b) location.hash = '#graph/' + b.dataset.graphGo; });   // 상세 「그래프에서 보기」 (11-03 · PRD E-07-11)
 SB.auth.onAuthStateChange(e => { if (e === 'PASSWORD_RECOVERY') { RECOVERY = true; recoveryScreen(); } });

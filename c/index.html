@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>명함 · THE ALMIGHTY</title>
+<style>
+:root{--bg:#f4f2ec;--card:#fff;--ink:#1d2420;--muted:#5f6b63;--line:#e3e0d6;--accent:#183d32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:440px;margin:0 auto;padding:24px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 20px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.co{font-size:13px;letter-spacing:.08em;color:var(--accent);font-weight:700;margin:0 0 18px}
+h1{font-size:26px;margin:0}
+.en{color:var(--muted);font-size:14px;margin:4px 0 0}
+.role{margin:10px 0 0;font-size:15px;color:var(--muted)}
+.img{width:100%;border-radius:10px;border:1px solid var(--line);margin:18px 0 0;display:block}
+dl{margin:20px 0 0;display:grid;grid-template-columns:64px 1fr;row-gap:12px;column-gap:8px;font-size:15px}
+dt{color:var(--muted)}
+dd{margin:0;word-break:break-all}
+dd a{color:var(--ink)}
+.save{display:block;width:100%;margin:24px 0 0;padding:15px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:17px;font-weight:700;text-align:center;text-decoration:none}
+.note{color:var(--muted);font-size:13px;text-align:center;margin:12px 0 0}
+.empty{text-align:center;color:var(--muted);padding:60px 0;font-size:15px;line-height:1.6}
+.dots i{animation:b 1.2s infinite;font-style:normal}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes b{0%,80%,100%{opacity:.2}40%{opacity:1}}
+</style>
+</head>
+<body>
+<main id="root"><p class="empty">명함을 불러오는 중<span class="dots"><i>.</i><i>.</i><i>.</i></span></p></main>
+<script>
+(function () {
+  var URL0 = "https://dwoiobqucmikbtikfjwk.supabase.co", KEY = "sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9";
+  var root = document.getElementById("root");
+  var esc = function (s) { return String(s || "").replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
+  var token = (location.hash || "").replace(/^#/, "").trim();
+  var none = function () { root.innerHTML = '<p class="empty">명함을 찾을 수 없습니다.<br>링크를 다시 확인해 주세요.</p>'; };
+  if (token.length < 8) return none();
+  var tel = function (p) { return String(p || "").replace(/[^0-9+]/g, ""); };
+  var vline = function (s) { return String(s || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1"); };
+  fetch(URL0 + "/rest/v1/rpc/pt_card_public", {method: "POST", headers: {"apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json"},
+    body: JSON.stringify({p_token: token})})
+    .then(function (r) { return r.json(); })
+    .then(function (c) {
+      if (!c || !c.name) return none();
+      document.title = c.name + " · " + (c.company || "THE ALMIGHTY");
+      var rows = [["휴대폰", c.mobile, "tel:" + tel(c.mobile)], ["전화", c.office_phone, "tel:" + tel(c.office_phone)], ["이메일", c.email, "mailto:" + c.email],
+                  ["웹", c.web, /^https?:/i.test(c.web || "") ? c.web : "https://" + c.web], ["주소", c.address, ""]].filter(function (x) { return x[1]; });
+      var v = ["BEGIN:VCARD", "VERSION:3.0", "N:" + vline(c.name) + ";;;;", "FN:" + vline(c.name), c.company ? "ORG:" + vline(c.company) + (c.dept ? ";" + vline(c.dept) : "") : "",
+               c.title ? "TITLE:" + vline(c.title) : "", c.mobile ? "TEL;TYPE=CELL:" + tel(c.mobile) : "", c.office_phone ? "TEL;TYPE=WORK:" + tel(c.office_phone) : "",
+               c.email ? "EMAIL;TYPE=WORK:" + c.email : "", c.web ? "URL:" + c.web : "", c.address ? "ADR;TYPE=WORK:;;" + vline(c.address) + ";;;;" : "",
+               c.name_en ? "NICKNAME:" + vline(c.name_en) : "", "END:VCARD"].filter(Boolean).join("\r\n");
+      var href = "data:text/vcard;charset=utf-8," + encodeURIComponent(v);
+      root.innerHTML = '<div class="card"><p class="co">' + esc(c.company || "THE ALMIGHTY") + '</p><h1>' + esc(c.name) + '</h1>' +
+        (c.name_en ? '<p class="en">' + esc(c.name_en) + '</p>' : '') +
+        ((c.dept || c.title) ? '<p class="role">' + esc([c.dept, c.title].filter(Boolean).join(" · ")) + '</p>' : '') +
+        (c.image_url ? '<img class="img" src="' + esc(c.image_url) + '" alt="' + esc(c.name) + ' 명함">' : '') +
+        '<dl>' + rows.map(function (x) { return '<dt>' + x[0] + '</dt><dd>' + (x[2] ? '<a href="' + esc(x[2]) + '">' + esc(x[1]) + '</a>' : esc(x[1])) + '</dd>'; }).join("") + '</dl>' +
+        '<a class="save" href="' + href + '" download="' + esc(c.name) + '.vcf">연락처에 저장</a>' +
+        '<p class="note">누르면 휴대폰 연락처에 바로 저장할 수 있습니다.</p></div>';
+    })
+    .catch(none);
+})();
+</script>
+</body>
+</html>
