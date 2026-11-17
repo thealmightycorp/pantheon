@@ -211,7 +211,7 @@ function 로그인화면(말) {
   };
 }
 async function 시작() {
-  if (로컬) { D = await (await fetch("data-v2.json")).json(); 그리기(); return; }
+  if (로컬) { D = await (await fetch("data-v3.json")).json(); 그리기(); return; }
   const 오류 = new URLSearchParams(location.hash.slice(1)).get("error_description") || new URLSearchParams(location.search).get("error_description");
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return 로그인화면(오류 ? "슬랙 로그인이 취소되었거나 실패했습니다." : "");
@@ -227,7 +227,7 @@ async function 시작() {
   if (!됨) { await SB.auth.signOut({ scope: "local" }); return 로그인화면("헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요."); }
   if (location.hash.includes("access_token")) try { history.replaceState(null, "", location.pathname); } catch {}
   앱().innerHTML = `<p class="loading">기록을 불러오는 중…</p>`;
-  const { data: 파일, error } = await SB.storage.from(함).download("data-v2.json");
+  const { data: 파일, error } = await SB.storage.from(함).download("data-v3.json");
   if (error) { 앱().innerHTML = `<p class="loading err">기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</p>`; return; }
   D = JSON.parse(await 파일.text());
   const 경로들 = D.원본.flatMap((x) => [...x.A.편, ...x.B.편]).flatMap((c) => [c.영상, c.표지]);
@@ -347,7 +347,8 @@ function 그리기() {
           <details><summary>프롬프트 원문 보기</summary><pre>${esc(D.프롬프트.B.머리)}\n\n${esc(D.프롬프트.B.길이)}</pre></details></div>
       </div>
       ${D.프롬프트.골포스트 && 팀들.includes("골포스트") ? `<div class="panel note-panel"><h3>골포스트 편집 기준</h3><p class="txt">골포스트는 11월 6일 김성효 팀장 피드백을 반영한 편집 기준 위에 A·B 지시를 더했습니다. 한 구간을 그대로 자르지 않고 필요한 문장만 골라 이어 붙이며, 핵심 한마디를 영상 맨 앞에 먼저 보여 줍니다. 통역이 같은 내용을 반복하는 문장과 인터뷰어의 맞장구는 빼고, 질문은 꼭 필요할 때 한 문장만 넣습니다. 자막은 한국어와 영어를 함께 넣고 질문은 「Q.」로 표시합니다.</p></div>` : ""}
-      <div class="common"><details><summary>공통 지시 원문 보기(사운드스루·맛출장)</summary><pre>${esc(D.프롬프트.공통)}</pre></details>${D.프롬프트.골포스트 ? `<details><summary>공통 지시 원문 보기(골포스트)</summary><pre>${esc(D.프롬프트.골포스트)}</pre></details>` : ""}</div>
+      ${D.프롬프트.맛출장 && 팀들.includes("맛출장") ? `<div class="panel note-panel"><h3>맛출장 편집 기준 (11월 17일 다시 만듦)</h3><p class="txt">맛출장은 11월 17일 정영록 PD 피드백을 반영해 다시 만들었습니다. 한 구간을 그대로 자르지 않고, 영상 여러 곳에서 같은 이야기에 해당하는 문장을 골라 「훅 → 상황 → 핵심 → 마무리」 순서로 이어 붙입니다. 말 사이 0.45초가 넘는 쉼은 잘라 템포를 줄였고, 마지막 말 뒤에는 0.8초 여유를 둡니다. 자른 지점 바로 뒤에서 원본 컷이 바뀌면 그 컷에 맞춰 시작해, 다른 장면이 첫 화면에 비치지 않게 했습니다.</p></div>` : ""}
+      <div class="common"><details><summary>공통 지시 원문 보기(사운드스루)</summary><pre>${esc(D.프롬프트.공통)}</pre></details>${D.프롬프트.골포스트 ? `<details><summary>공통 지시 원문 보기(골포스트)</summary><pre>${esc(D.프롬프트.골포스트)}</pre></details>` : ""}${D.프롬프트.맛출장 ? `<details><summary>공통 지시 원문 보기(맛출장)</summary><pre>${esc(D.프롬프트.맛출장)}</pre></details>` : ""}</div>
     </section>
 
     <section id="숫자">
