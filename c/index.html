@@ -34,6 +34,7 @@ dd a{color:var(--ink)}
   var URL0 = "https://dwoiobqucmikbtikfjwk.supabase.co", KEY = "sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9";
   var root = document.getElementById("root");
   var esc = function (s) { return String(s || "").replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
+  window.addEventListener("hashchange", function () { location.reload(); });
   var token = (location.hash || "").replace(/^#/, "").trim();
   var none = function () { root.innerHTML = '<p class="empty">명함을 찾을 수 없습니다.<br>링크를 다시 확인해 주세요.</p>'; };
   if (token.length < 8) return none();
