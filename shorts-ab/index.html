@@ -211,7 +211,7 @@ function 로그인화면(말) {
   };
 }
 async function 시작() {
-  if (로컬) { D = await (await fetch("data-v4.json")).json(); 그리기(); return; }
+  if (로컬) { D = await (await fetch("data-v5.json")).json(); 그리기(); return; }
   const 오류 = new URLSearchParams(location.hash.slice(1)).get("error_description") || new URLSearchParams(location.search).get("error_description");
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return 로그인화면(오류 ? "슬랙 로그인이 취소되었거나 실패했습니다." : "");
@@ -227,7 +227,7 @@ async function 시작() {
   if (!됨) { await SB.auth.signOut({ scope: "local" }); return 로그인화면("헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요."); }
   if (location.hash.includes("access_token")) try { history.replaceState(null, "", location.pathname); } catch {}
   앱().innerHTML = `<p class="loading">기록을 불러오는 중…</p>`;
-  const { data: 파일, error } = await SB.storage.from(함).download("data-v4.json");
+  const { data: 파일, error } = await SB.storage.from(함).download("data-v5.json");
   if (error) { 앱().innerHTML = `<p class="loading err">기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</p>`; return; }
   D = JSON.parse(await 파일.text());
   const 경로들 = D.원본.flatMap((x) => [...x.A.편, ...x.B.편]).flatMap((c) => [c.영상, c.표지]);
