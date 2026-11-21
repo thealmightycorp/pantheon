@@ -27,7 +27,8 @@ const SLACK_ERR = sessionStorage.getItem('pt_slack') && /error/.test(AUTH_Q) ? (
 if (SLACK_ERR) { sessionStorage.removeItem('pt_slack'); try { history.replaceState(null, '', location.pathname); } catch {} }
 const LINK_ERR = !SLACK_ERR && /error_code=|error=access_denied/.test(location.hash || '') ? (HANDOFF.on ? '이미 사용했거나 만료된 로그인 링크입니다. 판테온 지도에서 다시 눌러 주세요.' : '이미 사용했거나 만료된 링크입니다. 로그인 화면의 「처음이거나 비밀번호를 잊었어요」에서 다시 요청하고, 가장 최근에 받은 메일의 링크를 클릭해 주세요.') : '';
 if (LINK_ERR) try { history.replaceState(null, '', location.pathname); } catch {}
-const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
+const SB_URL = 'https://dwoiobqucmikbtikfjwk.supabase.co';
+const SB = createClient(SB_URL, 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const icons = {review:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8 M8 15l1.5 1.5L12 14 M14 9.5h3 M14 15.5h3"/>',chart:'<path d="M4 20V10 M10 20V4 M16 20v-7 M22 20H2"/>',studio:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',entities:'<path d="M12 3 3 8l9 5 9-5-9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5"/>',contacts:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17c0-4 8-4 8 0 M2 7h3 M2 12h3 M2 17h3"/>',admin:'<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-3-3 1Z"/><circle cx="12" cy="12" r="3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',bell:'<path d="M5 16h14l-2-3V8a5 5 0 0 0-10 0v5l-2 3Z M10 20h4"/>',plus:'<path d="M12 5v14 M5 12h14"/>',upload:'<path d="M12 16V4 m-5 5 5-5 5 5 M4 15v5h16v-5"/>',download:'<path d="M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5"/>',arrow:'<path d="M4 12h16 m-5-5 5 5-5 5"/>',up:'<path d="m3 16 7-7 4 4 7-9 M15 4h6v6"/>',warning:'<path d="M12 3 2 21h20L12 3Z M12 9v5 M12 17v.2"/>',close:'<path d="m6 6 12 12 M6 18 18 6"/>',side:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',big:'<path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/>',link:'<path d="m9 15 6-6 M7 14l-2 2a3 3 0 0 0 4 4l4-4 M11 8l4-4a3 3 0 0 1 4 4l-2 2"/>'};
 icons.manual = '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5 M8 7h7 M8 11h7"/>';
@@ -2971,6 +2972,33 @@ async function loadPdfjs() {
   PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   return PDFJS;
 }
+// 11-21 지금 PDF 에 화면에서 갈아 끼운 페이지(build.patches)를 끼운 한 파일 — 봇 작업 없이 브라우저에서 (같은 판·같은 수정이면 다시 쓰기)
+let PDFLIB = null;
+async function pdfWithPatches(p, b, title) {
+  const pt = b.patches || {}, sig = b.version + ':' + Object.keys(pt).sort((x, y) => x - y).map(k => k + '=' + (pt[k]?.pdf || pt[k]) + '#' + (pt[k]?.n || 1)).join(',');
+  let h = 0; for (const c of sig) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const out = `proposals/${p.id}/view/v${b.version}-${h.toString(36)}.pdf`;
+  const ex = await SB.storage.from('pt-studio').createSignedUrl(out, 60);
+  if (!ex.error) return out;            // 서명은 파일이 있을 때만 나옴
+  if (!PDFLIB) {
+    await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    PDFLIB = window.PDFLib;
+  }
+  const bytes = async path => { const r = await SB.storage.from('pt-studio').download(path); if (r.error) throw r.error; return await r.data.arrayBuffer(); };
+  const doc = await PDFLIB.PDFDocument.load(await bytes(b.pdf)), N = doc.getPageCount(), cache = {};
+  for (const k of Object.keys(pt).map(Number).sort((x, y) => x - y)) {
+    if (!(k >= 1 && k <= N)) continue;
+    const src = pt[k]?.pdf || pt[k], n = pt[k]?.n || 1;
+    cache[src] ||= await PDFLIB.PDFDocument.load(await bytes(src));
+    if (n > cache[src].getPageCount()) continue;
+    const [pg] = await doc.copyPages(cache[src], [n - 1]);
+    doc.removePage(k - 1); doc.insertPage(k - 1, pg);
+  }
+  doc.setTitle(title.replace(/\.pdf$/i, ''));
+  const up = await SB.storage.from('pt-studio').upload(out, new Blob([await doc.save()], {type: 'application/pdf'}), {contentType: 'application/pdf', upsert: false});
+  if (up.error && !/exists|Duplicate/i.test(up.error.message)) throw up.error;
+  return out;
+}
 async function replaceSlotImage(p, key, f) {
   if (f.size > 15e6) return toast('15MB 이하 이미지를 선택해 주세요.');
   const d = studio.list?.find(x => x.id === p.id)?.data || p.data;
@@ -3657,7 +3685,7 @@ async function openProposal(id, keep) {
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
   if (p.status !== 'working' && d.build) action = action + shortPanel(p);          // 11-13 대표님 개선안 3 — 지금 할 일이 먼저, 내용 보강은 그 아래
   const dlTip = '<p class="muted-box dl-tip">PPTX 파일은 <b>키노트</b>에서 바로 열립니다. <b>Figma</b>는 Figma Slides 파일 목록의 「가져오기」에서 PPTX를 올리면 편집할 수 있습니다. Figma에 Pretendard 글꼴이 없으면 기본 글꼴로 바뀝니다.</p>';
-  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF·PPTX 다운로드 또는 완료 시 전체 파일에 일괄 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button><button class="button" data-file="${esc(d.build.pdf)}" data-dl="pdf">PDF 다운로드</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="pptx" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
+  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF 보기·다운로드에는 바로 들어가고, PPTX 다운로드나 완료 때 전체 파일에 한 번 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#285541')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#285541')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button><button class="button" data-file="${esc(d.build.pdf)}" data-dl="pdf">PDF 다운로드</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="pptx" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
@@ -3782,17 +3810,40 @@ async function openProposal(id, keep) {
   });
   const patched = Object.keys(d.build?.patches || {}).length;
   $$('#drawer [data-file]').forEach(b => b.onclick = async () => {
-    if (patched) {          // 페이지만 갈아 끼운 상태 — 파일을 받을 때 전체에 한 번 반영
+    const isPdf = b.dataset.dl !== 'pptx';
+    // 11-21 홍석진 대표님 「완료 전 PDF 보기 → 이미지 생성을 해 버림 · 파일 이름 v3」 — PDF 는 반영 작업을 넣지 않고
+    // 지금 있는 PDF 에 화면에서 갈아 끼운 페이지(patches)만 브라우저에서 끼워 바로 연다. 빈 이미지 자리는 회색 자리표시 그대로
+    const fname = `${pTitle(p)} 제안서${p.recipient ? '_' + p.recipient : ''}_v${d.build.version}_${new Date().toISOString().slice(2, 10).replace(/-/g, '')}.${isPdf ? 'pdf' : 'pptx'}`.replace(/[\\/:*?"<>|]+/g, ' ');
+    if (!isPdf && patched) {          // PPTX 는 파일 안 페이지를 바꿔야 해서 전체 반영이 필요 — 한 번만, 상태는 그대로
+      if (p.status === 'working') return toast('수정한 페이지를 전체 파일에 반영하는 중입니다. 끝나면 PPTX를 받을 수 있습니다.');
       b.disabled = true;
-      // 11-14 대표님 — 반영이 끝나면 원래 상태(완료·대기)로 돌아간다(봇 keep_status). 이미지 단계로 돌아가거나 새로 만들지 않음
-      return go({status: 'working'}, {kind: 'finalize', input: {keep_status: p.status}}, `수정한 ${patched}개 페이지를 전체 파일에 반영합니다`, `수정한 ${patched}개 페이지를 전체 파일에 반영하는 중입니다. 끝나면 지금까지 만든 내용 그대로 PDF를 열 수 있습니다.`);
+      return go({status: 'working'}, {kind: 'finalize', input: {keep_status: ['done', 'waiting', 'failed'].includes(p.status) ? p.status : 'waiting'}}, `수정한 ${patched}개 페이지를 PPTX에 반영합니다`, `수정한 ${patched}개 페이지를 PPTX에 반영하는 중입니다. 이미지는 새로 만들지 않습니다.`);
     }
-    // 11-13 대표님 「완성 전 PDF 를 받으면 파일명이 v2 로만 뜬다」 — 내려받기는 「IP × IP 제안서_수신사_v2.pdf」
-    const ext = b.dataset.dl === 'pdf' ? 'pdf' : 'pptx', fname = `${pTitle(p)} 제안서${p.recipient ? '_' + p.recipient : ''}_v${d.build.version}.${ext}`.replace(/[\\/:*?"<>|]+/g, ' ');
-    const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(b.dataset.file, 600, b.dataset.dl ? {download: fname} : undefined);
-    if (error) return toast('파일을 열지 못했습니다.');
-    if (b.dataset.dl) { const l = document.createElement('a'); l.href = u.signedUrl; l.download = fname; document.body.appendChild(l); l.click(); l.remove(); return; }
-    window.open(u.signedUrl, '_blank', 'noopener');
+    if (!isPdf) {
+      const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(b.dataset.file, 600, {download: fname});
+      if (error) return toast('파일을 열지 못했습니다.');
+      const l = document.createElement('a'); l.href = u.signedUrl; l.download = fname; document.body.appendChild(l); l.click(); l.remove(); return;
+    }
+    const w = b.dataset.dl ? null : window.open('', '_blank');      // 팝업 막힘을 피하려 창 먼저
+    if (w) w.document.write('<p style="font:15px sans-serif;padding:24px">PDF를 여는 중입니다…</p>');
+    b.disabled = true;
+    try {
+      let path = b.dataset.file;
+      if (patched) path = await pdfWithPatches(p, d.build, fname);
+      if (b.dataset.dl && !patched) {
+        const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(path, 600, {download: fname});
+        if (error) throw error;
+        const l = document.createElement('a'); l.href = u.signedUrl; l.download = fname; document.body.appendChild(l); l.click(); l.remove(); return;
+      }
+      const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(path, 600);
+      if (error) throw error;
+      const tok = new URL(u.signedUrl).searchParams.get('token');
+      const view = `${SB_URL}/functions/v1/pt-pdf?path=${encodeURIComponent(path)}&token=${encodeURIComponent(tok)}&name=${encodeURIComponent(fname)}${b.dataset.dl ? '&dl=1' : ''}`;
+      if (b.dataset.dl) { const l = document.createElement('a'); l.href = view; document.body.appendChild(l); l.click(); l.remove(); return; }
+      w ? (w.location.href = view) : window.open(view, '_blank', 'noopener');
+    } catch (e) {
+      w?.close(); toast('PDF를 열지 못했습니다. 잠시 뒤 다시 눌러 주세요.');
+    } finally { b.disabled = false; }
   });
   $('#acc-apply')?.addEventListener('click', ev => {
     ev.target.disabled = true; const c = $('#acc-new').value.toUpperCase();
