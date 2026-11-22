@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AX 서버 현황</title>
+<link rel="icon" type="image/png" href="../brand/favicon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap">
+<link rel="stylesheet" href="../pantheon-tokens.css">
+<!-- 서버 현황판 (2026-11-22 · 김현우) — 원본 pantheon/web/server/index.html · 배포 thealmightycorp/pantheon server/
+     데이터: Supabase pt_server_status(id=1) — 서버 PC pantheon/server/server_status.py 가 30초마다 씀 · 볼 수 있는 사람 pt_server_can() -->
+<style>
+/* 판테온 디자인 기준 v1 토큰 위에: 계기판처럼 위는 요약, 아래로 갈수록 자세히 */
+.sv{--ok:#1b6e66;--ok-pale:#e3f0ee;--bad:var(--negative);--bad-pale:var(--negative-pale);--warn:var(--warning);--warn-pale:var(--warning-pale);
+  --c-cpu:#1b6e66;--c-mem:#4a5fa8;--c-gpu:#a8562a;--c-vram:#7a4f9e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--text);font:var(--fs-body)/1.5 var(--font);-webkit-font-smoothing:antialiased}
+.sv{max-width:1240px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+/* 머리 */
+.sv-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.sv-head .eyebrow{font-size:var(--fs-small);letter-spacing:.08em;color:var(--muted);font-weight:600}
+.sv-head h1{font:600 var(--fs-title)/1.2 var(--serif);margin:4px 0 0;text-wrap:balance}
+.sv-head .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+.live{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--ok-pale);color:var(--accent-ink);font-weight:600;font-size:12px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:beat 2s infinite}
+.live.stale{background:var(--bad-pale);color:var(--negative-ink)}.live.stale i{background:var(--bad);animation:none}
+@keyframes beat{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.live i{animation:none}}
+.btn{font:inherit;font-size:13px;border:1px solid var(--control);background:var(--raised);border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--text);text-decoration:none}
+.btn:hover{background:var(--surface)}.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 알림 띠 */
+.banner{border-radius:var(--radius-row);padding:12px 16px;font-weight:600;border:1px solid var(--negative-line);background:var(--bad-pale);color:var(--negative-ink)}
+.banner.warn{border-color:var(--warning-line);background:var(--warn-pale);color:var(--warning-ink)}
+/* 요약 줄 */
+.sum{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.sum>div{background:var(--surface);border-radius:var(--radius-row);padding:12px 14px;min-width:0}
+.sum small{display:block;color:var(--muted);font-size:12px;font-weight:600}
+.sum b{display:block;font-size:22px;font-weight:700;line-height:1.25;margin-top:2px}
+.sum b em{font-style:normal;font-size:13px;color:var(--muted);font-weight:600;margin-left:3px}
+.sum span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum .bad b{color:var(--bad)}.sum .warn b{color:var(--warn)}
+/* 패널 */
+.panel{background:var(--surface);border-radius:var(--radius-card);padding:var(--pad);display:grid;gap:12px;min-width:0;align-content:start}
+.panel h2{margin:0;font-size:var(--fs-section);font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.panel h2 small{font-weight:500;color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+/* 자원 */
+.res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.gauge{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-row);padding:12px 14px 8px;display:grid;gap:4px;min-width:0}
+.gauge .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.gauge .top small{color:var(--muted);font-weight:600;font-size:12px}
+.gauge .top b{font-size:24px;font-weight:700}
+.gauge .top b em{font-style:normal;font-size:13px;color:var(--muted);margin-left:1px}
+.gauge .sub{font-size:12px;color:var(--muted);min-height:18px}
+.gauge svg{width:100%;height:46px;display:block}
+.disks{display:grid;gap:8px}
+.disk{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13px}
+.bar{height:8px;border-radius:99px;background:var(--active);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar.hi i{background:var(--warn)}.bar.crit i{background:var(--bad)}
+/* 처리 중 */
+.runs{display:grid;gap:8px}
+.run{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-row);padding:12px 14px;display:grid;gap:6px;min-width:0}
+.run .l1{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.run .l1 b{font-weight:700}
+.run .t{color:var(--text);overflow-wrap:anywhere}
+.run .step{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.run .l3{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+.run .l3 .bar{flex:1}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--pill-neutral-bg);color:var(--pill-neutral-ink);white-space:nowrap}
+.chip.s-헤임달{background:#e8ecf7;color:#2f437f}.chip.s-궁니르{background:#f6ebe3;color:#7c3d1a}.chip.s-이그드라실{background:var(--ok-pale);color:var(--accent-ink)}
+.empty{color:var(--muted);font-size:13px;padding:6px 2px}
+/* 표 */
+.tw{overflow-x:auto;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-row)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--raised)}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right;white-space:nowrap}
+.st{white-space:nowrap}
+td .sm{display:block;color:var(--muted);font-size:12px}
+.ord{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:8px;background:var(--active);font-weight:700;font-size:12px}
+.ord.first{background:var(--accent);color:var(--primary-ink)}
+/* 서비스 */
+.svcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.svc{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-row);padding:10px 12px;display:grid;grid-template-columns:12px minmax(0,1fr);gap:2px 10px;align-items:center}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ok)}
+.dot.warn{background:var(--warn)}.dot.down{background:var(--bad)}.dot.off{background:#b9b9b5}
+.svc b{font-weight:600;font-size:13px}
+.svc span{grid-column:2;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.svc.down{border-color:var(--negative-line);background:var(--bad-pale)}
+.st{font-weight:600}.st.ok{color:var(--ok)}.st.warn{color:var(--warn)}.st.bad{color:var(--bad)}.st.mute{color:var(--muted)}
+.tip{position:fixed;pointer-events:none;background:var(--text);color:var(--ground);font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;z-index:20}
+/* 로그인·권한 */
+.gate{max-width:440px;margin:12vh auto;padding:28px;background:var(--surface);border-radius:var(--radius-card);display:grid;gap:12px;text-align:center}
+.gate h1{font:600 22px/1.3 var(--serif);margin:0}
+.gate p{margin:0;color:var(--muted)}
+footer{color:var(--faint);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 16px}
+@media (max-width:1000px){.sum{grid-template-columns:repeat(3,minmax(0,1fr))}.res{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.sum{grid-template-columns:repeat(2,minmax(0,1fr))}.res{grid-template-columns:minmax(0,1fr)}.hide-sm{display:none}}
+</style>
+</head>
+<body>
+<div class="sv" id="app">
+  <div class="gate"><h1>서버 현황</h1><p>불러오는 중…</p></div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
+const $app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const POLL = 15000;
+let row = null, fetchedAt = 0, lastErr = '';
+
+// ── 시간·크기 표기
+const T = s => s ? new Date(s).getTime() : null;
+function ago(ms) {
+  if (ms == null) return '';
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return s + '초';
+  const m = Math.round(s / 60); if (m < 60) return m + '분';
+  const h = Math.floor(m / 60); if (h < 48) return h + '시간' + (m % 60 ? ` ${m % 60}분` : '');
+  return Math.floor(h / 24) + '일';
+}
+const since = s => s ? ago(Date.now() - T(s)) : '';
+const sinceShort = s => { if (!s) return ''; const a = ago(Date.now() - T(s)); return a.replace(/시간 \d+분$/, '시간'); };
+const kst = s => s ? new Date(s).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}) : '—';
+const GB = b => (b / 1073741824).toFixed(b >= 1e11 ? 0 : 1);
+const hex = n => n == null ? '—' : '0x' + (n >>> 0).toString(16).toUpperCase();
+const TASK_RES = {0: '정상', 267009: '실행 중', 267011: '아직 안 돎', 267014: '중지됨', 2147750687: '이미 실행 중'};
+
+// ── 작은 선 그래프 (지난 2시간)
+function spark(hist, key, color, max = 100) {
+  const pts = hist.filter(p => p[key] != null);
+  if (pts.length < 2) return '<svg viewBox="0 0 200 46" aria-hidden="true"></svg>';
+  const t0 = pts[0].t, t1 = pts.at(-1).t, W = 200, H = 46, P = 3;
+  const x = t => P + (W - 2 * P) * (t - t0) / Math.max(1, t1 - t0), y = v => H - P - (H - 2 * P) * Math.min(v, max) / max;
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join('');
+  const last = pts.at(-1);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-spark="${key}" role="img" aria-label="지난 ${Math.round((t1 - t0) / 60)}분 추이">
+    <line x1="${P}" x2="${W - P}" y1="${y(50)}" y2="${y(50)}" stroke="var(--rule)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    <path d="${line}L${x(t1)},${H - P}L${x(t0)},${H - P}Z" fill="${color}" fill-opacity=".10"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    <circle cx="${x(last.t)}" cy="${y(last[key])}" r="2.6" fill="${color}"/></svg>`;
+}
+const barCls = p => p >= 90 ? 'crit' : p >= 75 ? 'hi' : '';
+
+function render() {
+  const d = row.data || {}, s = d.sys || {}, g = (s.gpu || [])[0], hist = d.hist || [];
+  const age = Date.now() - T(row.at), stale = age > 120000;
+  const svcs = d.services || [], bad = svcs.filter(x => x.state === 'down'), warn = svcs.filter(x => x.state === 'warn');
+  const run = d.running || [], q = d.queue || [], today = d.today || {}, net = s.net || {};
+  const failedTasks = (d.tasks || []).filter(t => t.result && ![267009, 267011, 2147750687].includes(t.result));
+  const issues = bad.length + failedTasks.length;
+  const banner = stale
+    ? `<div class="banner" role="alert">서버 PC에서 ${ago(age)} 동안 새 정보가 오지 않았습니다. 서버가 꺼졌거나, 인터넷이 끊겼거나, 수집기가 멈췄을 수 있습니다. 아래는 ${kst(row.at)} 기준입니다.</div>`
+    : bad.length ? `<div class="banner" role="alert">멈춘 서비스 ${bad.length}개: ${bad.map(b => esc(b.name)).join(', ')}</div>`
+    : !net.ok ? `<div class="banner warn" role="status">인터넷 확인(DNS)이 실패했습니다. 와이파이 연결이 불안정할 수 있습니다.</div>` : '';
+  const vram = g && g.mem_total ? g.mem_used / g.mem_total * 100 : null;
+  const memPct = s.mem_pct;
+  const workers = [...new Set(q.map(r => r.worker))];
+
+  $app.innerHTML = `
+  <header class="sv-head">
+    <div><div class="eyebrow">AX SERVER · ${esc(row.host || '')}</div><h1>서버 현황</h1></div>
+    <div class="meta">
+      <span class="live ${stale ? 'stale' : ''}" id="live"><i></i><span id="live-t">${stale ? '연결 끊김' : '실시간'} · ${ago(age)} 전 갱신</span></span>
+      <span>켜진 지 ${since(d.boot_at)}</span>
+      <a class="btn" href="../">이그드라실로</a>
+    </div>
+  </header>
+  ${banner}
+  <section class="sum" id="summary" aria-label="요약">
+    <div class="${issues ? 'bad' : ''}"><small>상태</small><b>${issues ? `확인 ${issues}` : '모두 정상'}</b><span>서비스 ${svcs.filter(x => x.state === 'ok').length}/${svcs.filter(x => x.state !== 'off').length} 동작${warn.length ? ` · 주의 ${warn.length}` : ''}</span></div>
+    <div><small>지금 처리 중</small><b class="num">${run.length}<em>건</em></b><span>${run.length ? esc(run.map(r => r.sys).filter((v, i, a) => a.indexOf(v) === i).join(' · ')) : '쉬는 중'}</span></div>
+    <div class="${q.length >= 10 ? 'warn' : ''}"><small>대기</small><b class="num">${q.length}<em>건</em></b><span>${q.length ? `가장 오래 ${since(q[0].at)} 기다림` : '밀린 일 없음'}</span></div>
+    <div class="${today.fail ? 'warn' : ''}"><small>오늘 끝낸 일</small><b class="num">${today.done ?? 0}<em>건</em></b><span>실패 ${today.fail ?? 0}건</span></div>
+    <div class="${net.ok === false ? 'bad' : ''}"><small>인터넷</small><b>${esc(net.kind || '—')}</b><span>${net.ok ? `DNS ${net.dns_ms}ms 응답` : '응답 없음'}</span></div>
+    <div><small>마지막 정기 점검</small><b class="num">${d.check ? kst(d.check.at).split(' ').slice(-1)[0] : '—'}</b><span>${d.check ? `${kst(d.check.at)} · 확인 필요 ${d.check.need}` : '기록 없음'}</span></div>
+  </section>
+
+  <section class="panel" id="resources">
+    <h2>자원 사용 <small>그래프는 지난 ${hist.length > 1 ? ago((hist.at(-1).t - hist[0].t) * 1000) : '—'} · 30초 간격</small></h2>
+    <div class="res">
+      <div class="gauge"><div class="top"><small>CPU</small><b class="num">${s.cpu?.toFixed(0) ?? '—'}<em>%</em></b></div><div class="sub">${s.cores ?? '—'}코어${s.cpu_ghz ? ` · ${s.cpu_ghz}GHz` : ''}</div>${spark(hist, 'cpu', 'var(--c-cpu)')}</div>
+      <div class="gauge"><div class="top"><small>메모리</small><b class="num">${memPct?.toFixed(0) ?? '—'}<em>%</em></b></div><div class="sub num">${s.mem_used ? `${GB(s.mem_used)} / ${GB(s.mem_total)} GB` : ''}</div>${spark(hist, 'mem', 'var(--c-mem)')}</div>
+      <div class="gauge"><div class="top"><small>GPU</small><b class="num">${g?.util?.toFixed(0) ?? '—'}<em>%</em></b></div><div class="sub">${g ? `${esc(g.name.replace('NVIDIA GeForce ', ''))} · ${g.temp?.toFixed(0)}°C · ${g.power?.toFixed(0)}W` : 'GPU 정보 없음'}</div>${spark(hist, 'gpu', 'var(--c-gpu)')}</div>
+      <div class="gauge"><div class="top"><small>GPU 메모리</small><b class="num">${vram?.toFixed(0) ?? '—'}<em>%</em></b></div><div class="sub num">${g ? `${(g.mem_used / 1024).toFixed(1)} / ${(g.mem_total / 1024).toFixed(0)} GB` : ''}</div>${spark(hist, 'vram', 'var(--c-vram)')}</div>
+    </div>
+    <div class="disks">${(s.disks || []).map(k => `<div class="disk"><b>${esc(k.drive)}</b><div class="bar ${barCls(k.pct)}"><i style="width:${k.pct}%"></i></div><span class="num">${GB(k.free)} GB 남음 / ${GB(k.total)} GB</span></div>`).join('')}</div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" id="running">
+      <h2>지금 처리 중 <small>${run.length}건</small></h2>
+      <div class="runs">${run.length ? run.map(r => `<div class="run">
+        <div class="l1"><span class="chip s-${esc(r.sys)}">${esc(r.sys)}</span><b>${esc(r.what)}</b><span class="sm" style="color:var(--muted);font-size:12px">#${esc(String(r.id).slice(0, 8))} · ${esc(r.worker)}</span></div>
+        ${r.title ? `<div class="t">${esc(r.title)}${r.by ? ` <span style="color:var(--muted)">· ${esc(r.by)}</span>` : ''}</div>` : ''}
+        ${r.step ? `<div class="step">${esc(r.step)}</div>` : ''}
+        <div class="l3">${r.progress != null ? `<div class="bar"><i style="width:${Math.max(2, Math.min(100, r.progress))}%"></i></div><span class="num">${Math.round(r.progress)}%</span>` : ''}<span>${r.started_at ? `${since(r.started_at)}째` : `요청 ${since(r.at)} 전`}${r.eta ? ` · 약 ${ago(r.eta * 1000)} 남음` : ''}</span></div>
+      </div>`).join('') : '<div class="empty">지금 처리 중인 일이 없습니다.</div>'}</div>
+    </section>
+
+    <section class="panel" id="queue">
+      <h2>대기 순번 <small>일꾼별로 들어온 순서대로 처리합니다</small></h2>
+      ${q.length ? `<div class="tw"><table data-table="queue"><thead><tr><th>순번</th><th>일</th><th class="hide-sm">일꾼</th><th class="r">기다림</th></tr></thead><tbody>
+        ${workers.map(w => q.filter(r => r.worker === w).map(r => `<tr><td><span class="ord ${r.order === 1 ? 'first' : ''}">${r.order}</span></td>
+          <td><span class="chip s-${esc(r.sys)}">${esc(r.sys)}</span> ${esc(r.what)}${r.title ? `<span class="sm">${esc(r.title)}${r.by ? ` · ${esc(r.by)}` : ''}</span>` : ''}</td>
+          <td class="hide-sm">${esc(r.worker)}</td><td class="r num">${since(r.at)}<span class="sm">${kst(r.at)}</span></td></tr>`).join('')).join('')}
+      </tbody></table></div>` : '<div class="empty">기다리는 일이 없습니다.</div>'}
+    </section>
+  </div>
+
+  <section class="panel" id="services">
+    <h2>서비스 <small>봇·워커가 살아 있는지</small></h2>
+    <div class="svcs">${svcs.map(x => `<div class="svc ${x.state === 'down' ? 'down' : ''}"><i class="dot ${x.state === 'ok' ? '' : x.state}" aria-hidden="true"></i><b>${esc(x.name)}</b>
+      <span>${{ok: '동작 중', warn: '주의', down: '멈춤', off: '꺼 둠'}[x.state] || ''}${x.since && x.state === 'ok' ? ` · ${since(x.since)}째` : ''}${x.note ? ` · ${esc(x.note)}` : ''}</span></div>`).join('')}</div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" id="procs">
+      <h2>자원을 많이 쓰는 프로그램 <small>CPU 순</small></h2>
+      <div class="tw"><table data-table="procs"><thead><tr><th>프로그램</th><th class="r">CPU</th><th class="r">메모리</th><th class="r">GPU 메모리</th></tr></thead><tbody>
+        ${(d.procs || []).map(p => `<tr><td>${esc(p.name)}${p.n > 1 ? ` <span style="color:var(--muted)">×${p.n}</span>` : ''}</td><td class="r num">${p.cpu.toFixed(1)}%</td><td class="r num">${p.mem >= 1024 ? (p.mem / 1024).toFixed(1) + ' GB' : p.mem + ' MB'}</td><td class="r num">${p.gpu_mem ? (p.gpu_mem >= 1024 ? (p.gpu_mem / 1024).toFixed(1) + ' GB' : p.gpu_mem + ' MB') : '—'}</td></tr>`).join('')}
+      </tbody></table></div>
+    </section>
+
+    <section class="panel" id="recent">
+      <h2>최근 끝난 일</h2>
+      <div class="tw"><table data-table="recent"><thead><tr><th>결과</th><th>일</th><th class="r">끝난 때</th></tr></thead><tbody>
+        ${(d.recent || []).map(r => `<tr><td><span class="st ${r.status === 'done' ? 'ok' : 'bad'}">${r.status === 'done' ? '완료' : '실패'}</span></td>
+          <td><span class="chip s-${esc(r.sys)}">${esc(r.sys)}</span> ${esc(r.what)}${r.title ? `<span class="sm">${esc(r.title)}</span>` : ''}${r.error && r.status !== 'done' ? `<span class="sm" style="color:var(--negative-ink)">${esc(r.error)}</span>` : ''}</td>
+          <td class="r num">${sinceShort(r.done_at)} 전<span class="sm">${kst(r.done_at)}</span></td></tr>`).join('') || '<tr><td colspan="3" class="empty">기록 없음</td></tr>'}
+      </tbody></table></div>
+    </section>
+  </div>
+
+  <section class="panel" id="tasks">
+    <h2>예약 작업 <small>Windows 작업 스케줄러 · 5분마다 확인</small></h2>
+    <div class="tw"><table data-table="tasks"><thead><tr><th>작업</th><th>상태</th><th>마지막 실행</th><th>결과</th><th class="hide-sm">다음 실행</th></tr></thead><tbody>
+      ${(d.tasks || []).map(t => { const r = t.result, okR = r === 0 || r === 267009 || r === 267011 || r === 2147750687;
+        return `<tr><td>${esc(t.name)}<span class="sm">${esc(t.task)}</span></td><td>${t.state === 'Running' ? '<span class="st ok">실행 중</span>' : t.state === 'Ready' ? '대기' : t.state === 'Disabled' ? '<span class="st bad">꺼짐</span>' : esc(t.state || '—')}</td>
+        <td class="num">${t.last_run ? kst(t.last_run) : '—'}</td><td><span class="st ${okR ? 'mute' : 'bad'}">${TASK_RES[r] || hex(r)}</span></td><td class="num hide-sm">${t.next_run ? kst(t.next_run) : '—'}</td></tr>`; }).join('')}
+    </tbody></table></div>
+  </section>
+
+  <footer><span>서버 PC가 30초마다 보내고, 이 화면은 15초마다 새로 읽습니다.</span><span>마지막 수신 ${kst(row.at)}</span>${lastErr ? `<span style="color:var(--negative)">읽기 오류: ${esc(lastErr)}</span>` : ''}</footer>`;
+}
+
+// 숫자만 바뀌는 「n초 전」은 1초마다
+setInterval(() => {
+  const el = document.getElementById('live-t'); if (!el || !row) return;
+  const age = Date.now() - T(row.at);
+  el.textContent = `${age > 120000 ? '연결 끊김' : '실시간'} · ${ago(age)} 전 갱신`;
+}, 1000);
+
+// 그래프에 마우스를 올리면 그 시각 값
+document.addEventListener('pointermove', e => {
+  const tip = document.getElementById('tip'), svg = e.target.closest?.('svg[data-spark]');
+  if (!svg || !row) { tip.hidden = true; return; }
+  const key = svg.dataset.spark, hist = (row.data.hist || []).filter(p => p[key] != null); if (hist.length < 2) return;
+  const r = svg.getBoundingClientRect(), f = (e.clientX - r.left) / r.width;
+  const t = hist[0].t + f * (hist.at(-1).t - hist[0].t);
+  const p = hist.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
+  tip.textContent = `${new Date(p.t * 1000).toLocaleTimeString('ko-KR', {timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false})} · ${p[key].toFixed(0)}%`;
+  tip.hidden = false;
+  tip.style.left = Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 34) + 'px';
+});
+
+async function load() {
+  const { data, error } = await SB.from('pt_server_status').select('at,host,data').eq('id', 1).maybeSingle();
+  if (error) { lastErr = error.message; if (row) render(); return; }
+  lastErr = '';
+  if (!data) { $app.innerHTML = `<div class="gate"><h1>서버 현황</h1><p>이 화면을 볼 수 있는 권한이 없습니다.<br>필요하면 AX팀 김현우에게 요청해 주세요.</p><a class="btn" href="../">이그드라실로 돌아가기</a></div>`; return false; }
+  row = data; fetchedAt = Date.now(); render(); return true;
+}
+
+(async () => {
+  const { data: { session } } = await SB.auth.getSession();
+  if (!session) {
+    $app.innerHTML = `<div class="gate"><h1>서버 현황</h1><p>이그드라실(헤임달 계정·슬랙)로 로그인한 뒤 다시 열어 주세요.</p><a class="btn" href="../#server">이그드라실에서 로그인</a></div>`;
+    return;
+  }
+  if (await load() === false) return;
+  setInterval(() => { if (!document.hidden) load(); }, POLL);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+})();
+</script>
+</body>
+</html>
