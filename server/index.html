@@ -281,7 +281,7 @@ async function load() {
 (async () => {
   const { data: { session } } = await SB.auth.getSession();
   if (!session) {
-    $app.innerHTML = `<div class="gate"><h1>서버 현황</h1><p>이그드라실(헤임달 계정·슬랙)로 로그인한 뒤 다시 열어 주세요.</p><a class="btn" href="../#server">이그드라실에서 로그인</a></div>`;
+    $app.innerHTML = `<div class="gate"><h1>서버 현황</h1><p>이그드라실(헤임달 계정·슬랙)로 로그인한 뒤 다시 열어 주세요.</p><a class="btn" href="../">이그드라실에서 로그인</a></div>`;
     return;
   }
   if (await load() === false) return;
