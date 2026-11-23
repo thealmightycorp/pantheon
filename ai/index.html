@@ -107,6 +107,7 @@ function people() {
     const k = key(r);
     const p = P.get(k) || {name: r.name || r.email, team: r.team || '구성원 명단에 없음', emails: new Set(), seats: [], monthly: 0, monthlyUnknown: false, used: null, act: {}};
     p.emails.add(r.email);
+    if (r.data?.left) { p.left = true; p.leftSrc = r.data.left_src || ''; }
     if (r.kind === 'seat') {
       p.seats.push({svc: r.service, plan: r.plan, usd: r.monthly_usd, note: r.note});
       if (r.monthly_usd == null) p.monthlyUnknown = true; else p.monthly += Number(r.monthly_usd);
@@ -137,7 +138,8 @@ function render() {
   const fails = ORDER.filter(k => st[k] && !st[k].ok);
   const P = people(), teams = [...new Set(P.map(p => p.team))].sort((a, b) => a.localeCompare(b, 'ko'));
   const claudeSeats = rows.filter(r => r.service === 'claude' && r.kind === 'seat');
-  const idle = P.filter(p => p.seats.some(s => s.svc === 'claude') && !hasAct(p));
+  const idle = P.filter(p => !p.left && p.seats.some(s => s.svc === 'claude') && !hasAct(p));
+  const leavers = P.filter(p => p.left && p.seats.length);
   // 팀별 합계
   const T = teams.map(t => { const ps = P.filter(p => p.team === t);
     return {t, n: ps.length, seats: ps.reduce((a, p) => a + p.seats.length, 0), monthly: ps.reduce((a, p) => a + p.monthly, 0),
@@ -208,7 +210,7 @@ function render() {
     <div class="tools"><input id="q" type="search" placeholder="이름·팀·메일 찾기" value="${esc(q)}" aria-label="직원 찾기">
       <select id="team" aria-label="팀 고르기"><option value="">모든 팀</option>${teams.map(t => `<option ${t === teamSel ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
     <div class="tw"><table><thead><tr><th>이름</th><th>구독 좌석</th><th class="r">월 좌석비</th><th class="r">Claude 이번 달</th><th class="hide-sm">활용(최근 30일${allFull ? '' : ' 상위 목록'})</th></tr></thead><tbody>
-      ${shown.map(p => `<tr><td><b>${esc(p.name)}</b><span class="sm">${esc(p.team)}</span></td><td>${p.seats.map(seatChip).join('') || '<span class="unk">좌석 없음</span>'}</td>
+      ${shown.map(p => `<tr><td><b>${esc(p.name)}</b>${p.left ? ' <span class="chip bad" title="' + esc(p.leftSrc) + '">퇴사 · 좌석 정리 필요</span>' : ''}<span class="sm">${esc(p.team)}</span></td><td>${p.seats.map(seatChip).join('') || '<span class="unk">좌석 없음</span>'}</td>
         <td class="r num">${p.seats.length ? usd(p.monthly) : '—'}${p.monthlyUnknown ? '<span class="sm">일부 확인 불가</span>' : ''}</td>
         <td class="r num">${p.used == null ? '—' : usd(p.used, 2)}</td>
         <td class="hide-sm">${actTxt(p) ? esc(actTxt(p)) : p.seats.some(s => s.svc === 'claude') ? `<span class="unk">${(p.used || 0) > 0 ? '사용 크레딧 씀' : allFull ? '최근 30일 활동 기록 없음' : '상위 목록 밖(확인 불가)'}</span>` : '—'}</td></tr>`).join('')}
@@ -256,6 +258,9 @@ function render() {
       ${hcred != null ? `<div class="meter"><div class="top"><span>힉스필드 월 크레딧</span><b class="num">${hcred.toFixed(0)}%</b></div><div class="bar"><i style="width:${hcred}%"></i></div><span class="unk">${n0(hd.credits_used)} / ${n0(hd.credits_month)} 사용</span></div>` : ''}
       ${v ? `<div class="meter"><div class="top"><span>Vercel 포함 크레딧</span><b class="num">${v.data?.included_credit ? ((v.data.included_credit_used || 0) / v.data.included_credit * 100).toFixed(0) : '—'}%</b></div><div class="bar"><i style="width:${v.data?.included_credit ? (v.data.included_credit_used || 0) / v.data.included_credit * 100 : 0}%"></i></div><span class="unk">${usd(v.data?.included_credit_used, 2)} / ${usd(v.data?.included_credit)}</span></div>` : ''}
     </div>
+    <h2 style="margin-top:4px">퇴사자 좌석 <small>${leavers.length}명 · 월 ${usd(leavers.reduce((a, p) => a + p.monthly, 0))} · 좌석 정리 필요</small></h2>
+    <div>${leavers.map(p => `<span class="chip bad" title="${esc(p.leftSrc)}">${esc(p.name)} · ${esc(p.team)} · ${p.seats.map(x => esc(SVC[x.svc] || x.svc)).join('·')} ${usd(p.monthly)}</span>`).join('') || '<span class="unk">없음</span>'}</div>
+    <p class="note">헤임달 구성원 명단의 퇴사 표시, 없으면 수집기 설정 파일(ai_usage_config.json)의 수동 퇴사 목록 기준입니다.</p>
     <h2 style="margin-top:4px">안 쓰는 좌석 후보 <small>Claude · ${idle.length}명 · 월 ${usd(idle.reduce((a, p) => a + p.seats.filter(s => s.svc === 'claude').reduce((x, s) => x + (Number(s.usd) || 0), 0), 0))}</small></h2>
     <p class="note">${allFull ? '이번 달 사용 크레딧이 US$0 이고 최근 30일 분석 화면 전원 목록(메시지·코드·아티팩트·지출)에 활동이 없는 사람입니다. 개인 사정(휴가·입사 직후)이 있을 수 있어 정리 전에 본인 확인이 필요합니다.' : '이번 달 사용 크레딧이 US$0 이고 최근 30일 분석 화면 상위 목록에도 없는 사람입니다. 일부 목록은 상위 멤버만 읽혀 「안 씀」이 아니라 「활용 확인 안 됨」입니다 — 정리 전에 본인 확인이 필요합니다.'}</p>
     <div>${idle.map(p => `<span class="chip warn">${esc(p.name)} · ${esc(p.team)}</span>`).join('') || '<span class="unk">없음</span>'}</div>
