@@ -2599,10 +2599,16 @@ const olDefault = p => { const r = olRefOf(p); return r ? 'ref:' + r.id : p.mode
 const olTplName = k => { if (!k.startsWith('ref:')) return OL_TPL[k]?.[0] || ''; const r = olRefs().find(x => 'ref:' + x.id === k); return r ? `레퍼런스 구성 · ${refName(r)}` : '레퍼런스 구성'; };
 const olTplOpts = () => [...olRefs().map(r => ['ref:' + r.id, olTplName('ref:' + r.id)]), ...Object.entries(OL_TPL).map(([k, [n]]) => [k, n])];
 const olFromTpl = k => (k.startsWith('ref:') ? olRefs().find(r => 'ref:' + r.id === k)?.profile.outline || [] : OL_TPL[k][1].split(' ')).map(olType).filter(Boolean).map(olSnap);
-const olOf = p => p.data?.outline?.length ? p.data.outline : olFromTpl(olDefault(p));
+// 11-23 지영현 「제안서 구성 한 번 편집하면 다음 작업에서도 그 구성으로 유지」 — 내가 구성 편집에서 저장한 마지막 구성(같은 제안 방식)을 새 프로젝트 기본으로
+const myOutline = p => { const collab = p.mode === 'collab';
+  const x = (studio.list || []).filter(r => me && r.created_by === me.id && r.id !== p.id && r.data?.outline_mine_at && r.data?.outline?.length && (r.mode === 'collab') === collab)
+    .sort((a, b) => String(b.data.outline_mine_at).localeCompare(String(a.data.outline_mine_at)))[0];
+  return x ? x.data.outline : null; };
+const olOf = p => p.data?.outline?.length ? p.data.outline : (myOutline(p) || olFromTpl(olDefault(p)));
+const olTplOf = p => p.data?.outline?.length ? (p.data.outline_tpl || '') : myOutline(p) ? 'mine' : olDefault(p);
 function olSummary(p) {
   const ol = olOf(p), saved = !!p.data?.outline?.length;
-  return `<div class="ol-sum"><div class="ol-sum-h"><b>페이지 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : esc(olTplName(olDefault(p))) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
+  return `<div class="ol-sum"><div class="ol-sum-h"><b>페이지 구성</b><small>${ol.length}페이지 · ${saved ? '저장한 구성' : myOutline(p) ? '내가 지난번에 저장한 구성' : esc(olTplName(olDefault(p))) + '(기본 구성)'}</small><button class="button small" type="button" id="ol-edit">구성 편집</button></div>
     <ol class="ol-strip">${ol.map((x, i) => `<li title="${i + 1}. ${esc(x.name)}"><span style="background-image:url('${olImg(x)}')"></span><small>${i + 1}</small></li>`).join('')}</ol></div>`;
 }
 function olEditor(p) {
@@ -2611,7 +2617,7 @@ function olEditor(p) {
   let D = $('#olx'); if (!D) { D = document.createElement('dialog'); D.id = 'olx'; D.className = 'review olx'; document.body.appendChild(D); }
   const later = p.stage >= 5;
   let uid = 0, rows = olOf(p).map(x => ({k: ++uid, x: {...x}})), sel = 0, group = '전체', idx = 0, drag = 0, moving = null, last = null, dirty = false,
-    tpl = p.data?.outline?.length ? (p.data.outline_tpl || '') : olDefault(p);
+    tpl = olTplOf(p) === 'mine' ? '' : olTplOf(p);
   D.innerHTML = `<div class="rv-head"><div><h2>제안서 구성 · ${esc(pTitle(p))}</h2><small>${later ? '확정한 컨셉에 맞게 페이지를 넣고 빼거나 순서를 바꿉니다. 저장한 구성 그대로 제안서를 생성합니다.' : '제안 방향에 맞는 기본 구성을 불러와 뼈대를 정합니다. 저장한 구성은 리서치·컨셉 설계·제안서 생성에 반영됩니다.'}</small></div><div class="rv-nav"><button class="button" type="button" id="ol-close">닫기</button><button class="button primary" type="button" id="ol-save">이 구성으로 저장</button></div></div>
   <div class="ol-grid">
     <section class="ol-panel" aria-label="페이지 구역"><div class="ol-ph"><h3>페이지 구역 <small id="ol-count"></small></h3><label class="ol-tpl"><span>기본 구성</span><select id="ol-tpl" aria-label="기본 구성"><option value="">선택</option>${olTplOpts().map(([k, n]) => `<option value="${esc(k)}"${k === tpl ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
@@ -2762,7 +2768,7 @@ function olEditor(p) {
     const outline = rows.map(r => r.x);
     const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
     if (e0) { ev.target.disabled = false; return toast('불러오지 못했습니다: ' + e0.message); }
-    const { error } = await SB.from('pt_proposal').update({data: {...row.data, outline, outline_tpl: tpl}}).eq('id', p.id);
+    const { error } = await SB.from('pt_proposal').update({data: {...row.data, outline, outline_tpl: tpl, outline_mine_at: new Date().toISOString()}}).eq('id', p.id);   // 다음 새 프로젝트 기본 구성으로 (11-23)
     if (error) { ev.target.disabled = false; return toast('저장하지 못했습니다: ' + error.message); }
     await proposalEvent(p.id, `제안서 구성을 ${outline.length}페이지로 저장했습니다`);
     dirty = false; D.close(); studio.list = null; await loadStudio(); if (activeDetail === 'p:' + p.id) openProposal(p.id, true);
@@ -3817,7 +3823,7 @@ async function openProposal(id, keep) {
   $('#intake-ok')?.addEventListener('click', () => {
     $('#intake-ok').disabled = true;
     const next = p.mode === 'collab' && !p.ip_b_name ? 3 : 4, ol = olOf(p);
-    go({stage: next, status: 'working', data: {...d, outline: ol, outline_tpl: d.outline?.length ? (d.outline_tpl || '') : olDefault(p)}}, {kind: JOB_OF[next], input: {}}, `기본 정보를 확정했습니다 (제안서 구성 ${ol.length}페이지) → ${STAGES[next - 1]} 시작`, '기본 정보를 확정했습니다.');
+    go({stage: next, status: 'working', data: {...d, outline: ol, outline_tpl: olTplOf(p)}}, {kind: JOB_OF[next], input: {}}, `기본 정보를 확정했습니다 (제안서 구성 ${ol.length}페이지) → ${STAGES[next - 1]} 시작`, '기본 정보를 확정했습니다.');
   });
   $('#pause-go')?.addEventListener('click', () => {
     $('#pause-go').disabled = true;
@@ -4029,7 +4035,7 @@ async function openProposal(id, keep) {
     const c = d.concepts.candidates[+b.dataset.concept];
     $$('#drawer [data-concept]').forEach(x => x.disabled = true);
     const ds = readDeckStyle(p), ol = olOf(p);
-    go({stage: 6, status: 'working', data: {...d, concept_selected: c, deck_style: ds, outline: ol, outline_tpl: d.outline?.length ? (d.outline_tpl || '') : olDefault(p)}}, {kind: 'build', input: {}}, `컨셉 「${c.name}」을(를) 확정했습니다 → 제안서 생성 (${ol.length}페이지 구성)`, '컨셉을 확정했습니다.');
+    go({stage: 6, status: 'working', data: {...d, concept_selected: c, deck_style: ds, outline: ol, outline_tpl: olTplOf(p)}}, {kind: 'build', input: {}}, `컨셉 「${c.name}」을(를) 확정했습니다 → 제안서 생성 (${ol.length}페이지 구성)`, '컨셉을 확정했습니다.');
   });
   $('#cc-go')?.addEventListener('click', async ev => {
     const t = $('#cc-ins').value.trim(); if (!t) { $('#cc-ins').focus(); return toast('수정 요청을 입력해 주세요.'); }
@@ -4191,7 +4197,8 @@ function studioProjectModal(p) {
       row.data = {...row.data, flow: fl, concept_count: fl.concept_count || 0, social_on: fl.research.scope.includes('social')};
       // 11-13 개선안 6 — 페이지 구성이 「자동」이면 기본 정보 확정 없이 바로 시작(레퍼런스 구성 그대로, 「요약 제안」이면 요약 구성)
       if (fl.steps.outline === 'auto') {
-        const tpl = fl.draft_len === 'short' ? 'short' : olDefault({mode, ref_id: row.ref_id, data: row.data}), ol = olFromTpl(tpl);
+        const pp = {mode, ref_id: row.ref_id, data: row.data}, mine = fl.draft_len === 'short' ? null : myOutline(pp);   // 내가 지난번에 저장한 구성이 있으면 그대로 (11-23)
+        const tpl = fl.draft_len === 'short' ? 'short' : mine ? 'mine' : olDefault(pp), ol = mine ? mine.map(x => ({...x})) : olFromTpl(tpl);
         if (ol.length) { row.data = {...row.data, outline: ol, outline_tpl: tpl}; start = mode === 'collab' && !row.ip_b_name ? 3 : 4; }
       }
     }
