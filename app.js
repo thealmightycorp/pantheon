@@ -2335,7 +2335,7 @@ const AR_NEAR = {official: 'official', logo: 'logo', capture: 'capture', referen
 function arPick(p, key, done, pickFn) {
   const S = (studio.list?.find(x => x.id === p.id)?.data || p.data).images.slots, s = S[key];
   const ip = [p.ip_a_name, p.ip_b_name].filter(Boolean);
-  const f = {kind: AR_NEAR[s.kind] || '', source: '', ip: '', q: ''};
+  const f = {kind: pickFn ? '' : AR_NEAR[s.kind] || '', source: '', ip: '', q: ''};   // 레퍼런스는 종류 상관없이 (공식 캐릭터 이미지 등)
   const draw = () => {
     const box = $('#arp'); if (!box) return;
     if (!studio.arch) { box.innerHTML = '<div class="empty"><p>이미지 아카이브를 불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>'; return; }
@@ -3013,10 +3013,13 @@ async function setSlotRefs(p, key, fn, msg) {
   const refs = fn(S, [...(cur.refs || [])]);
   if (!refs) return false;
   S[key] = {...cur, refs};
-  const { error } = await SB.from('pt_proposal').update({data: {...d, images: {...d.images, slots: S}}}).eq('id', p.id);
+  const nd = {...d, images: {...d.images, slots: S}};
+  const { error } = await SB.from('pt_proposal').update({data: nd}).eq('id', p.id);
   if (error) { toast('저장하지 못했습니다: ' + error.message); return false; }
   await proposalEvent(p.id, msg);
-  studio.list = null; await loadStudio(); return true;
+  // 목록을 비우지 않고 이 제안서만 바로 바꾼다 — 다른 새로 읽기가 진행 중이면 loadStudio 가 그냥 돌아와 화면이 옛 값으로 남았다 (11-23 시험)
+  const it = studio.list?.find(x => x.id === p.id); if (it) it.data = nd;
+  loadStudio(); return true;
 }
 async function addSlotRef(p, key, path, what) {
   const ok = await setSlotRefs(p, key, (S, refs) => {
