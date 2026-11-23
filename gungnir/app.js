@@ -2332,7 +2332,7 @@ async function arView(id) {
 }
 // 제안서 이미지 확인·수정 카드 「아카이브에서 선택」 — 고른 이미지를 그 자리에 넣는다(복사본 그대로 · 내 이미지로 교체와 같은 흐름)
 const AR_NEAR = {official: 'official', logo: 'logo', capture: 'capture', reference: 'reference', ai_concept: 'ai_concept', mockup: 'mockup', texture: 'texture'};
-function arPick(p, key, done) {
+function arPick(p, key, done, pickFn) {
   const S = (studio.list?.find(x => x.id === p.id)?.data || p.data).images.slots, s = S[key];
   const ip = [p.ip_a_name, p.ip_b_name].filter(Boolean);
   const f = {kind: AR_NEAR[s.kind] || '', source: '', ip: '', q: ''};
@@ -2345,8 +2345,8 @@ function arPick(p, key, done) {
   };
   const bindPick = () => { const b = $('#arp-body'); arThumbs(b); b.querySelectorAll('[data-ar-pick]').forEach(c => c.onclick = async () => {
     const a = studio.arch.find(x => x.id === c.dataset.ar); if (!a) return;
-    $('#modal').close(); if (await useArchive(p, key, a)) done?.(); }); };
-  modal(`<div><h2>아카이브에서 선택</h2><p>${esc(whatText(s.what))} 위치에 적용할 이미지를 선택해 주세요. ${ip.length ? `${esc(ip.join(' · '))} 이미지만 보려면 IP를 선택해 주세요.` : ''}</p><div id="arp"></div><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button></div></div>`);
+    $('#modal').close(); if (await (pickFn ? pickFn(a) : useArchive(p, key, a))) done?.(); }); };
+  modal(`<div><h2>${pickFn ? '레퍼런스 이미지 선택' : '아카이브에서 선택'}</h2><p>${esc(whatText(s.what))} ${pickFn ? '이미지를 만들 때 참고할 이미지를 선택해 주세요. 캐릭터·제품 모양을 그대로 따라 그립니다.' : '위치에 적용할 이미지를 선택해 주세요.'} ${ip.length ? `${esc(ip.join(' · '))} 이미지만 보려면 IP를 선택해 주세요.` : ''}</p><div id="arp"></div><div class="modal-actions"><button class="button" type="button" data-cancel>닫기</button></div></div>`);
   $('#modal').classList.add('wide'); $('#modal').addEventListener('close', () => { $('#modal').classList.remove('wide'); window.removeEventListener('pt-arch', draw); }, {once: true});
   window.addEventListener('pt-arch', draw); draw(); if (!studio.arch) loadArchive();
 }
@@ -3001,6 +3001,42 @@ async function pdfWithPatches(p, b, title) {
   if (up.error && !/exists|Duplicate/i.test(up.error.message)) throw up.error;
   return out;
 }
+// AI 이미지 레퍼런스 직접 붙이기 (11-23 지영현 「힉스필드 이미지 제작 전 레퍼런스 이미지 첨부 · 캐릭터가 완전히 다르게 나와요」)
+// 붙인 이미지는 원고 밖 자리 ref_user_… 로 두고 그 자리의 refs 맨 앞에 넣는다 — 봇 hf.ref_paths 가 그대로 붙여 만들고, images.gather 가 다시 모아도 남긴다
+const userRefs = (d, key) => { const S = d.images?.slots || {}; return (S[key]?.refs || []).filter(k => k.startsWith('ref_user_') && S[k]?.path); };
+const slidePre = (p, key) => { const s = (studio.list?.find(x => x.id === p.id)?.data || p.data).images?.slots?.[key]; return s?.slide ? s.slide + '페이지 ' : ''; };
+async function setSlotRefs(p, key, fn, msg) {
+  const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+  if (e0) { toast('불러오지 못했습니다: ' + e0.message); return false; }
+  const d = row.data, S = {...d.images.slots}, cur = S[key];
+  if (!cur) { toast('이미지 자리를 찾지 못했습니다.'); return false; }
+  const refs = fn(S, [...(cur.refs || [])]);
+  if (!refs) return false;
+  S[key] = {...cur, refs};
+  const { error } = await SB.from('pt_proposal').update({data: {...d, images: {...d.images, slots: S}}}).eq('id', p.id);
+  if (error) { toast('저장하지 못했습니다: ' + error.message); return false; }
+  await proposalEvent(p.id, msg);
+  studio.list = null; await loadStudio(); return true;
+}
+async function addSlotRef(p, key, path, what) {
+  const ok = await setSlotRefs(p, key, (S, refs) => {
+    if (userRefs({images: {slots: S}}, key).length >= 3) { toast('레퍼런스는 3장까지 붙일 수 있습니다.'); return null; }
+    const rk = `ref_user_${key}_${Date.now().toString(36)}`;
+    S[rk] = {kind: 'reference', what, ratio: '', slide: 0, status: 'uploaded', path, ref_only: true};
+    return [rk, ...refs];
+  }, `${slidePre(p, key)}「${what}」을(를) AI 이미지 레퍼런스로 붙였습니다`);
+  if (ok) toast('레퍼런스를 붙였습니다. 다음에 AI로 만들 때 이 이미지를 참고합니다.');
+  return ok;
+}
+const dropSlotRef = (p, key, rk) => setSlotRefs(p, key, (S, refs) => refs.filter(k => k !== rk), `${slidePre(p, key)}AI 이미지 레퍼런스 한 장을 뺐습니다`);
+async function uploadSlotRef(p, key, f) {
+  if (f.size > 15e6) { toast('15MB 이하 이미지를 선택해 주세요.'); return false; }
+  const ext = (f.name.match(/\.(jpe?g|png|webp)$/i)?.[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg');
+  const path = `proposals/${p.id}/img/ref-${key}-u${Date.now()}.${ext}`;
+  const up = await SB.storage.from('pt-studio').upload(path, f, {contentType: f.type || 'image/jpeg', upsert: false});
+  if (up.error) { toast('올리지 못했습니다: ' + up.error.message); return false; }
+  return addSlotRef(p, key, path, f.name.replace(/\.[^.]+$/, '').slice(0, 40) || '직접 올린 레퍼런스');
+}
 async function replaceSlotImage(p, key, f) {
   if (f.size > 15e6) return toast('15MB 이하 이미지를 선택해 주세요.');
   const d = studio.list?.find(x => x.id === p.id)?.data || p.data;
@@ -3064,7 +3100,8 @@ const refOf = (d, key) => { const S = d.images?.slots || {};
   return ''; };
 // 붙여 만드는 공식 로고·아티스트 사진 (10-30 굿즈 목업에 IP 로고) — 봇 hf.ref_paths 와 같은 규칙
 const logoRefs = (d, key) => { const S = d.images?.slots || {}, s = S[key] || {};
-  const r = (s.refs || []).filter(k => S[k]?.path).map(k => S[k].what || k);
+  const r = (s.refs || []).filter(k => S[k]?.path && !k.startsWith('ref_user_')).map(k => S[k].what || k);   // 사람이 붙인 레퍼런스는 refBox 에 따로 (11-23)
+  if (!r.length && userRefs(d, key).length) return r;
   if (r.length || s.kind !== 'mockup' || refOf(d, key)) return r;
   const L = Object.values(S).filter(v => v.kind === 'logo' && v.path && !v.ref_only && !/ALMIGHTY|올마이티|[·×,&+/]|나란히|함께|와 |과 |및 /i.test(v.what || ''));
   const P = studio.list?.find(x => x.data === d) || {};
@@ -3080,7 +3117,7 @@ async function autoRoom(usd, p) {
 }
 async function quickMake(p, key, mode, prompt, why) {
   const fresh = studio.list?.find(x => x.id === p.id)?.data || p.data, cur = fresh.images.slots[key];
-  const ref = mode === 'ai' && (refOf(fresh, key) || logoRefs(fresh, key).length), usd = mode === 'ai' && !ref ? 0.02 : 0.1;
+  const ref = mode === 'ai' && (refOf(fresh, key) || logoRefs(fresh, key).length || userRefs(fresh, key).length), usd = mode === 'ai' && !ref ? 0.02 : 0.1;
   const cost = mode === 'ai' && !ref ? '$0.01' : '$0.08';
   const what = mode === 'upscale' ? '이미지를 고해상도로 보정합니다. 인물 얼굴이 미세하게 달라질 수 있습니다.'
              : mode === 'widen' ? '이미지 외곽을 확장해 잘림 없이 전체가 표시되도록 합니다.'
@@ -3315,6 +3352,9 @@ async function pageReview(pid, start) {
     const card = k => { const s = S[k], [cls, label] = SLOT_ST[s.status] || ['', s.status], bad = fl.filter(f => f.key === k);
       return `<div class="rv-slot${bad.length ? ' flag' : ''}"><div class="ithumb" data-thumb="${esc(s.path || '')}" data-rk="${esc(k)}">${s.path ? '' : `<span>${esc(KIND_KO_IMG[s.kind] || s.kind)}</span>`}</div><div class="rv-info"><div class="ihead"><b>${esc(KIND_KO_IMG[s.kind] || s.kind)}</b><span class="pill ${cls}">${label}</span></div><small>${esc(whatText(s.what))}</small>${(s.cand ? [] : bad).map(f => `<small class="warn">${esc(QA_KO[f.type] || '확인')} · ${esc(f.detail)}</small>${[...new Set([...String(f.detail).matchAll(/(\d{1,2})\s*페이지/g)].map(m => +m[1]).filter(n => n !== cur && n >= 1 && n <= N))].map(n => `<button class="text-btn go" data-go-page="${n}">${n}페이지 보기 ▶</button>`).join('')}`).join('')}${s.cand ? `<div class="rv-cand"><div class="ithumb" data-cand-thumb="${esc(s.cand.path)}"></div><div><b>새 이미지</b><small>아직 제안서에 반영되지 않았습니다</small><div class="ibtns"><button class="button small" data-cand-view="${esc(k)}">이 이미지로 미리보기</button><button class="button primary small" data-cand-ok="${esc(k)}">이 이미지로 확정</button><button class="text-btn" data-cand-no="${esc(k)}">새 이미지 폐기</button></div></div></div>` : ''}<div class="ibtns">${s.path && okd(k) ? `<span class="pill good">확정</span><button class="text-btn" data-rv-unok="${esc(k)}">확정 취소</button>` : bad.length && s.path && !s.cand ? `<button class="text-btn ok" data-rv-ok="${esc(k)}">이 이미지로 확정</button>` : ''}${s.path ? `<button class="text-btn" data-rv-open="${esc(k)}">크게 보기·수정</button>` : ''}<button class="text-btn" data-rv-arch="${esc(k)}">아카이브에서 선택</button><label class="text-btn up">내 이미지로 교체<input type="file" accept="image/png,image/jpeg,image/webp" data-rv-up="${esc(k)}" hidden></label></div>${makeBox(k, s)}</div></div>`; };
     const canAi = s => AI_KINDS.includes(s.kind) || (!s.path && !['official', 'logo', 'capture'].includes(s.kind));
+    // 레퍼런스 직접 붙이기 (11-23) — 붙인 이미지 작은 그림 + 빼기, 아카이브에서 고르기·내 이미지 올리기
+    const refBox = k => { const mine = userRefs(d, k);
+      return `<div class="rv-refs"><small>레퍼런스 이미지${mine.length ? ` ${mine.length}장 · 캐릭터·제품 모양을 그대로 따라 만듭니다` : ' · 캐릭터·제품을 똑같이 그려야 하면 붙여 주세요'}</small>${mine.length ? `<div class="rv-ref-list">${mine.map(rk => `<span class="rv-ref"><span class="ithumb" data-thumb="${esc(S[rk].path)}"></span><button type="button" class="text-btn" data-ref-drop="${esc(k)}" data-rk="${esc(rk)}">빼기</button></span>`).join('')}</div>` : ''}${mine.length < 3 ? `<div class="ibtns"><button type="button" class="text-btn" data-ref-arch="${esc(k)}">아카이브에서 레퍼런스 고르기</button><label class="text-btn up">레퍼런스 이미지 올리기<input type="file" accept="image/png,image/jpeg,image/webp" data-ref-up="${esc(k)}" hidden></label></div>` : ''}</div>`; };
     function makeBox(k, s) {
       if (p.status === 'working' && (s.widen || s.upscale || s.status === 'ai')) { const live = liveJobs(p.id); return `<div class="rv-busy">${jobsProg(live.length ? live : [null])}</div>`; }
       // 이 이미지를 Aside 가 찾는 중이면 단추 대신 진행 표시 — 두 번 눌러 같은 요청이 두 번 가는 것 막기 (10-30)
@@ -3324,7 +3364,7 @@ async function pageReview(pid, start) {
       // 자동 검수가 고친 프롬프트·고칠 점이 있으면 미리 채운다 (10-30 김현우 「개선할 점에 자동으로 개선 프롬프트」)
       const fx = fl.find(f => f.key === k && f.prompt_fix);
       return `<div class="rv-make">${ai ? `${fx ? '<small class="rv-fix">자동 검수에서 수정한 프롬프트입니다. 확인 후 다시 생성해 주세요.</small>' : ''}<textarea data-mk-prompt="${esc(k)}" rows="${fx ? 5 : 3}" placeholder="생성 프롬프트(영문) — 피사체·장면·분위기">${esc(fx ? fx.prompt_fix : s.prompt || '')}</textarea>
-        <input data-mk-why="${esc(k)}" maxlength="200" placeholder="개선할 점(재생성 시 반영)" value="${esc(fx ? (fx.why || fx.detail) : '')}">${refOf(d, k) ? `<small class="rv-fix">메인 이미지(「${esc(whatText(S[refOf(d, k)]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다</small>` : ''}${logoRefs(d, k).length ? `<small class="rv-fix">공식 자료를 첨부해 생성합니다: ${esc(logoRefs(d, k).join(' · '))}</small>` : ''}<button class="button primary small" data-mk-ai="${esc(k)}">${s.status === 'generated' ? 'AI로 다시 생성' : 'AI로 생성'} · 약 $${refOf(d, k) || logoRefs(d, k).length ? '0.08' : '0.01'}</button>` : ''}
+        <input data-mk-why="${esc(k)}" maxlength="200" placeholder="개선할 점(재생성 시 반영)" value="${esc(fx ? (fx.why || fx.detail) : '')}">${refOf(d, k) ? `<small class="rv-fix">메인 이미지(「${esc(whatText(S[refOf(d, k)]?.what).slice(0, 20))}」)를 참고해 동일한 모델로 생성합니다</small>` : ''}${logoRefs(d, k).length ? `<small class="rv-fix">공식 자료를 첨부해 생성합니다: ${esc(logoRefs(d, k).join(' · '))}</small>` : ''}${refBox(k)}<button class="button primary small" data-mk-ai="${esc(k)}">${s.status === 'generated' ? 'AI로 다시 생성' : 'AI로 생성'} · 약 $${refOf(d, k) || logoRefs(d, k).length || userRefs(d, k).length ? '0.08' : '0.01'}</button>` : ''}
         ${s.path && !['logo', 'texture'].includes(s.kind) ? `<button class="button small" data-mk-fit="${esc(k)}">힉스필드로 영역에 맞춘 이미지 생성 · 약 $0.08</button>` : ''}
         ${spots(k).length === 1 && +spots(k)[0].page === cur && !(spots(k)[0].w * spots(k)[0].h / (12192000 * 6858000) > 0.8) ? `<button class="button small" data-rv-size="${esc(k)}">이미지 영역 크기 조절</button>` : ''}
         ${['official', 'logo', 'reference', 'capture'].includes(s.kind) ? `<button class="button small" data-mk-other="${esc(k)}">Aside로 다른 이미지 검색</button>` : ''}
@@ -3516,6 +3556,9 @@ async function pageReview(pid, start) {
       h.onclick = () => { const c = card1(k); if (S[k].path && c?.querySelector('.ithumb')?.dataset.src) return open(k);
         c?.scrollIntoView({block: 'center', behavior: 'smooth'}); c?.classList.add('hl'); setTimeout(() => c?.classList.remove('hl'), 1600); }; });
     $$('#rv-side [data-rv-arch]').forEach(x => x.onclick = () => arPick(p, x.dataset.rvArch, () => show(cur)));
+    $$('#rv-side [data-ref-arch]').forEach(x => x.onclick = () => { const k = x.dataset.refArch; arPick(p, k, () => show(cur), a => addSlotRef(p, k, a.path, whatText(a.what || '').slice(0, 40) || '아카이브 이미지')); });
+    $$('#rv-side [data-ref-up]').forEach(inp => inp.onchange = async () => { const f = inp.files[0]; if (f && await uploadSlotRef(p, inp.dataset.refUp, f)) show(cur); });
+    $$('#rv-side [data-ref-drop]').forEach(x => x.onclick = async () => { x.disabled = true; if (await dropSlotRef(p, x.dataset.refDrop, x.dataset.rk)) show(cur); else x.disabled = false; });
     $$('#rv-side [data-rv-up]').forEach(inp => inp.onchange = async () => { const f = inp.files[0]; if (f && await replaceSlotImage(p, inp.dataset.rvUp, f)) show(cur); });
     $$('#rv-side [data-mk-ai]').forEach(x => x.onclick = async () => { const k = x.dataset.mkAi, pr = $(`[data-mk-prompt="${CSS.escape(k)}"]`).value.trim();
       if (!pr) return toast('생성 프롬프트를 입력해 주세요.');
