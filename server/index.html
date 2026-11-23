@@ -91,6 +91,12 @@ td .sm{display:block;color:var(--muted);font-size:12px}
 .svc b{font-weight:600;font-size:13px}
 .svc span{grid-column:2;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .svc.down{border-color:var(--negative-line);background:var(--bad-pale)}
+.svc .act{grid-column:2;margin-top:6px}
+.btn.sm{font-size:12px;padding:4px 10px}.btn.fix{background:var(--text);color:var(--ground);border-color:var(--text)}.btn:disabled{opacity:.6;cursor:default}
+.h2r{margin-left:auto}.busy{font-size:12px;color:var(--muted);font-weight:600}
+.cmds{display:grid;gap:6px;font-size:13px}.cmds>small{color:var(--muted);font-size:12px}
+.cmd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-row);padding:8px 12px}
+.cmd .sm{display:block;color:var(--muted);font-size:12px}.cmd>span:last-child{overflow-wrap:anywhere}
 .st{font-weight:600}.st.ok{color:var(--ok)}.st.warn{color:var(--warn)}.st.bad{color:var(--bad)}.st.mute{color:var(--muted)}
 .tip{position:fixed;pointer-events:none;background:var(--text);color:var(--ground);font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;z-index:20}
 /* 로그인·권한 */
@@ -117,6 +123,9 @@ const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const POLL = 15000;
 let row = null, fetchedAt = 0, lastErr = '';
+let cmds = [], cmdErr = '', fastTimer = null;   // 현황판 버튼 요청 (pt_server_cmd)
+const pending = key => cmds.find(c => c.service === key && (c.status === 'wait' || c.status === 'work'));
+const svcName = key => key === 'status' ? '전체' : ((row?.data?.services || []).find(x => x.key === key)?.name || key);
 
 // ── 시간·크기 표기
 const T = s => s ? new Date(s).getTime() : null;
@@ -162,7 +171,7 @@ function render() {
   const issues = bad.length + failedTasks.length;
   const banner = stale
     ? `<div class="banner" role="alert">서버 PC에서 ${ago(age)} 동안 새 정보가 오지 않았습니다. 서버가 꺼졌거나, 인터넷이 끊겼거나, 수집기가 멈췄을 수 있습니다. 아래는 ${kst(row.at)} 기준입니다.</div>`
-    : bad.length ? `<div class="banner" role="alert">멈춘 서비스 ${bad.length}개: ${bad.map(b => esc(b.name)).join(', ')}</div>`
+    : bad.length ? `<div class="banner" role="alert">멈춘 서비스 ${bad.length}개: ${bad.map(b => esc(b.name)).join(', ')} · 아래 「서비스」에서 「다시 켜기」를 누르면 서버 PC가 다시 띄웁니다.</div>`
     : !net.ok ? `<div class="banner warn" role="status">인터넷 확인(DNS)이 실패했습니다. 와이파이 연결이 불안정할 수 있습니다.</div>` : '';
   const vram = g && g.mem_total ? g.mem_used / g.mem_total * 100 : null;
   const memPct = s.mem_pct;
@@ -220,9 +229,15 @@ function render() {
   </div>
 
   <section class="panel" id="services">
-    <h2>서비스 <small>봇·워커가 살아 있는지</small></h2>
-    <div class="svcs">${svcs.map(x => `<div class="svc ${x.state === 'down' ? 'down' : ''}"><i class="dot ${x.state === 'ok' ? '' : x.state}" aria-hidden="true"></i><b>${esc(x.name)}</b>
-      <span>${{ok: '동작 중', warn: '주의', down: '멈춤', off: '꺼 둠'}[x.state] || ''}${x.since && x.state === 'ok' ? ` · ${since(x.since)}째` : ''}${x.note ? ` · ${esc(x.note)}` : ''}</span></div>`).join('')}</div>
+    <h2>서비스 <small>봇·워커가 살아 있는지</small><span class="h2r">${pending('status') ? '<span class="busy">확인 중…</span>' : '<button class="btn sm" data-cmd="refresh" data-svc="status">지금 다시 확인</button>'}</span></h2>
+    <div class="svcs">${svcs.map(x => { const p = pending(x.key);
+      const act = p ? `<span class="busy">${p.action === 'fix' ? '고치는 중…' : '확인 중…'}</span>`
+        : x.fix && x.state !== 'ok' ? `<button class="btn sm fix" data-cmd="fix" data-svc="${esc(x.key)}" data-name="${esc(x.name)}">다시 켜기</button>` : '';
+      return `<div class="svc ${x.state === 'down' ? 'down' : ''}"><i class="dot ${x.state === 'ok' ? '' : x.state}" aria-hidden="true"></i><b>${esc(x.name)}</b>
+      <span>${{ok: '동작 중', warn: '주의', down: '멈춤', off: '꺼 둠'}[x.state] || ''}${x.since && x.state === 'ok' ? ` · ${since(x.since)}째` : ''}${x.note ? ` · ${esc(x.note)}` : ''}</span>${act ? `<div class="act">${act}</div>` : ''}</div>`; }).join('')}</div>
+    ${cmds.length ? `<div class="cmds"><small>최근 조치</small>${cmds.map(c => `<div class="cmd"><span class="st ${c.status === 'done' ? 'ok' : c.status === 'fail' ? 'bad' : 'mute'}">${{wait: '대기', work: '처리 중', done: '완료', fail: '안 됨'}[c.status] || ''}</span>
+      <span><b>${esc(svcName(c.service))}</b> ${c.action === 'fix' ? '다시 켜기' : '다시 확인'}${c.msg ? ` — ${esc(c.msg)}` : ''}<span class="sm">${kshort(c.at)}${c.by_email ? ` · ${esc(c.by_email.split('@')[0])}` : ''}</span></span></div>`).join('')}</div>` : ''}
+    ${cmdErr ? `<div class="empty" style="color:var(--negative-ink)">${esc(cmdErr)}</div>` : ''}
   </section>
 
   <div class="grid2">
@@ -285,8 +300,31 @@ async function load() {
   if (error) { lastErr = error.message; if (row) render(); return; }
   lastErr = '';
   if (!data) { $app.innerHTML = `<div class="gate"><h1>서버 현황</h1><p>이 화면을 볼 수 있는 권한이 없습니다.<br>필요하면 AX팀 김현우에게 요청해 주세요.</p><a class="btn" href="../">이그드라실로 돌아가기</a></div>`; return false; }
-  row = data; fetchedAt = Date.now(); render(); return true;
+  row = data; fetchedAt = Date.now();
+  await loadCmds();
+  render(); return true;
 }
+
+async function loadCmds() {
+  const since = new Date(Date.now() - 86400000).toISOString();
+  const { data, error } = await SB.from('pt_server_cmd').select('id,at,by_email,service,action,status,msg').gte('at', since).order('at', {ascending: false}).limit(5);
+  if (!error) cmds = data || [];
+  // 처리 중인 요청이 있으면 3초마다 다시 읽어 결과를 빨리 보여 줌
+  const busy = cmds.some(c => c.status === 'wait' || c.status === 'work');
+  if (busy && !fastTimer) fastTimer = setInterval(() => { if (!document.hidden) load(); }, 3000);
+  if (!busy && fastTimer) { clearInterval(fastTimer); fastTimer = null; }
+}
+
+// 「다시 켜기」·「지금 다시 확인」 — 서버 PC 수집기가 5초 안에 가져가 정해 둔 방법으로만 처리
+$app.addEventListener('click', async e => {
+  const b = e.target.closest('button[data-cmd]'); if (!b) return;
+  const action = b.dataset.cmd, service = b.dataset.svc;
+  if (action === 'fix' && !confirm(`${b.dataset.name}을(를) 다시 켤까요?\n서버 PC가 정해 둔 방법으로 다시 띄우고, 1분쯤 뒤 결과를 여기에 보여 줍니다.`)) return;
+  b.disabled = true; b.textContent = '보내는 중…';
+  const { error } = await SB.from('pt_server_cmd').insert({ service, action });
+  cmdErr = error ? `요청을 보내지 못했습니다: ${error.message}` : '';
+  await load();
+});
 
 (async () => {
   const { data: { session } } = await SB.auth.getSession();
