@@ -4085,7 +4085,7 @@ function flowForm(f, lock = 0, showPartner = true) {
   const dis = st => lock && st < lock ? 'disabled' : '', sc = new Set(f.research?.scope || []), src = new Set(f.image_src || []);
   const extra = {
     partner: `<input id="fl-field" maxlength="60" value="${esc(f.partner_field || '')}" placeholder="후보 분야 (예: 캐릭터·게임 · 비우면 전체)" aria-label="후보 분야" ${dis(3)}>`,
-    research: `<div class="fl-opts">${RS_SCOPE.map(([k, n, s]) => `<label class="check"><input type="checkbox" data-fl-scope="${k}" ${k === 'social' ? 'id="sp-social"' : ''} ${k === 'web' || sc.has(k) ? 'checked' : ''} ${k === 'web' ? 'disabled' : dis(4)}> ${n}${s ? ` <small>${s}</small>` : ''}</label>`).join('')}<select id="fl-period" aria-label="리서치 기간" ${dis(4)}>${[['', '기간 전체'], ['1y', '최근 1년 위주'], ['3m', '최근 3개월 위주']].map(([v, n]) => `<option value="${v}" ${(f.research?.period || '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div><textarea id="fl-refs" rows="2" maxlength="1500" placeholder="꼭 참고할 자료 (링크·메모)" aria-label="꼭 참고할 자료" ${dis(4)}>${esc(f.research?.refs || '')}</textarea>`,
+    research: `<div class="fl-opts">${RS_SCOPE.map(([k, n, s]) => `<label class="check"><input type="checkbox" data-fl-scope="${k}" ${k === 'social' ? 'id="sp-social"' : ''} ${k === 'web' || sc.has(k) ? 'checked' : ''} ${k === 'web' ? 'disabled' : dis(4)}> ${n}${s ? ` <small>${s}</small>` : ''}</label>`).join('')}<select id="fl-period" aria-label="리서치 기간" ${dis(4)}>${[['', '기간 전체'], ['1y', '최근 1년 위주'], ['3m', '최근 3개월 위주']].map(([v, n]) => `<option value="${v}" ${(f.research?.period || '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select><label class="check"><input type="checkbox" id="fl-reuse" ${f.research?.reuse === false ? '' : 'checked'} ${dis(4)}> 30일 안에 조사한 같은 IP 리서치 다시 쓰기 <small>더 빠름 · 끄면 처음부터 새로 조사</small></label></div><textarea id="fl-refs" rows="2" maxlength="1500" placeholder="꼭 참고할 자료 (링크·메모)" aria-label="꼭 참고할 자료" ${dis(4)}>${esc(f.research?.refs || '')}</textarea>`,
     concept: `<select id="fl-cc" aria-label="컨셉 후보 수" ${dis(5)}><option value="">후보 5~7개</option><option value="10" ${+f.concept_count === 10 ? 'selected' : ''}>후보 10개</option></select>`,
     outline: '',
     draft: `<select id="fl-len" aria-label="분량" ${lock > 2 ? 'disabled' : ''}><option value="">레퍼런스 구성 분량</option><option value="short" ${f.draft_len === 'short' ? 'selected' : ''}>요약 제안 (약 12페이지)</option></select>`,
@@ -4107,7 +4107,7 @@ function readFlow(root, base) {
   const steps = {...(base?.steps || FLOW_LEGACY)}; qa('[data-fl-step]').forEach(x => { steps[x.dataset.flStep] = x.value; });
   const cap = q('#fl-cap')?.value.trim();
   return {...(base || {}), preset: flowPresetOf(steps), steps, partner_field: (q('#fl-field')?.value || '').trim(),
-    research: {scope: qa('[data-fl-scope]').filter(x => x.checked).map(x => x.dataset.flScope), period: q('#fl-period')?.value || '', refs: (q('#fl-refs')?.value || '').trim()},
+    research: {scope: qa('[data-fl-scope]').filter(x => x.checked).map(x => x.dataset.flScope), period: q('#fl-period')?.value || '', refs: (q('#fl-refs')?.value || '').trim(), reuse: q('#fl-reuse') ? q('#fl-reuse').checked : true},
     concept_count: Number(q('#fl-cc')?.value) || 0, draft_len: q('#fl-len')?.value || '', image_cap: cap === '' || cap == null ? '' : Math.max(0, +cap),
     image_src: qa('[data-fl-src]').filter(x => x.checked).map(x => x.dataset.flSrc)};
 }
