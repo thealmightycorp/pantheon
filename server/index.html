@@ -92,6 +92,19 @@ td .sm{display:block;color:var(--muted);font-size:12px}
 .svc span{grid-column:2;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .svc.down{border-color:var(--negative-line);background:var(--bad-pale)}
 .svc .act{grid-column:2;margin-top:6px}
+.btn.danger{background:var(--negative);color:#fff;border-color:var(--negative)}.btn.danger:hover{background:var(--negative-ink)}
+.panel.danger{border:1px solid var(--negative-line)}
+.pcrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}.pcrow p{margin:0;color:var(--muted);font-size:13px;flex:1 1 240px}
+.banner.reboot{display:grid;gap:8px;border-color:var(--warning-line,var(--negative-line));background:var(--warn-pale);color:var(--text)}
+.banner.reboot span{font-weight:500;font-size:13px}
+.indet{height:6px;border-radius:99px;background:var(--active);overflow:hidden;position:relative}
+.indet i{position:absolute;inset:0 auto 0 0;width:35%;background:var(--warn);border-radius:99px;animation:indet 1.4s ease-in-out infinite}
+@keyframes indet{0%{left:-35%}100%{left:100%}}
+@media (prefers-reduced-motion:reduce){.indet i{animation:none;width:100%;opacity:.5}}
+dialog#rbdlg{border:0;border-radius:var(--radius-card);padding:22px;max-width:min(420px,calc(100vw - 32px));background:var(--surface);color:var(--text)}
+dialog#rbdlg::backdrop{background:rgba(0,0,0,.4)}
+#rbdlg h3{margin:0 0 10px;font-size:18px}#rbdlg p{margin:0 0 10px;font-size:14px}#rbdlg .muted{color:var(--muted);font-size:13px}
+.dlg-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .btn.sm{font-size:12px;padding:4px 10px}.btn.fix{background:var(--text);color:var(--ground);border-color:var(--text)}.btn:disabled{opacity:.6;cursor:default}
 .h2r{margin-left:auto}.busy{font-size:12px;color:var(--muted);font-weight:600}
 .cmds{display:grid;gap:6px;font-size:13px}.cmds>small{color:var(--muted);font-size:12px}
@@ -116,6 +129,16 @@ table.procs th.r{white-space:normal}
   <div class="gate"><h1>서버 현황</h1><p>불러오는 중…</p></div>
 </div>
 <div class="tip" id="tip" hidden></div>
+<dialog id="rbdlg" aria-labelledby="rbdlg-h">
+  <h3 id="rbdlg-h">서버 PC를 재부팅할까요?</h3>
+  <p id="rbdlg-n"></p>
+  <p class="muted">재부팅하는 1~3분 동안 슬랙 봇·헤임달·궁니르가 멈춥니다. 다시 켜지면 저절로 모두 돌아옵니다.</p>
+  <div class="dlg-btns">
+    <button class="btn" value="reboot" data-rb="reboot">작업 끝나면 재부팅</button>
+    <button class="btn danger" data-rb="reboot_now">바로 재부팅</button>
+    <button class="btn" data-rb="">취소</button>
+  </div>
+</dialog>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB = createClient('https://dwoiobqucmikbtikfjwk.supabase.co', 'sb_publishable_K6BW26u2jRkTBDwuMqaaFA_3HkfnOc9');
@@ -125,7 +148,7 @@ const POLL = 15000;
 let row = null, fetchedAt = 0, lastErr = '';
 let cmds = [], cmdErr = '', fastTimer = null;   // 현황판 버튼 요청 (pt_server_cmd)
 const pending = key => cmds.find(c => c.service === key && (c.status === 'wait' || c.status === 'work'));
-const svcName = key => key === 'status' ? '전체' : ((row?.data?.services || []).find(x => x.key === key)?.name || key);
+const svcName = key => key === 'status' ? '전체' : key === 'pc' ? '서버 PC' :((row?.data?.services || []).find(x => x.key === key)?.name || key);
 
 // ── 시간·크기 표기
 const T = s => s ? new Date(s).getTime() : null;
@@ -169,7 +192,14 @@ function render() {
   const run = d.running || [], q = d.queue || [], today = d.today || {}, net = s.net || {};
   const failedTasks = (d.tasks || []).filter(t => t.result && !TASK_OK.includes(t.result));
   const issues = bad.length + failedTasks.length;
-  const banner = stale
+  // 재부팅: 「재부팅 시작」으로 끝난 요청이 지금 켜진 시각보다 뒤면 재부팅 중 (다시 올라와 boot_at 이 바뀌면 저절로 풀림)
+  const rb = cmds.find(c => c.service === 'pc' && c.status === 'done' && c.msg === '재부팅 시작');
+  const rebooting = rb && T(rb.done_at) > T(d.boot_at) && Date.now() - T(rb.done_at) < 30 * 60000;
+  const rbWait = cmds.find(c => c.service === 'pc' && (c.status === 'wait' || c.status === 'work'));
+  const banner = rebooting
+    ? `<div class="banner reboot" role="status"><b>서버 PC 재부팅 중</b><span>다시 켜지면 자동 로그인 뒤 봇·워커가 차례로 켜지고, 이 화면도 저절로 정상으로 돌아옵니다.</span><div class="indet" aria-hidden="true"><i></i></div></div>`
+    : rbWait ? `<div class="banner warn" role="status">서버 PC 재부팅 대기 · ${esc(rbWait.msg || '요청을 보냈습니다')}</div>`
+    : stale
     ? `<div class="banner" role="alert">서버 PC에서 ${ago(age)} 동안 새 정보가 오지 않았습니다. 서버가 꺼졌거나, 인터넷이 끊겼거나, 수집기가 멈췄을 수 있습니다. 아래는 ${kst(row.at)} 기준입니다.</div>`
     : bad.length ? `<div class="banner" role="alert">멈춘 서비스 ${bad.length}개: ${bad.map(b => esc(b.name)).join(', ')} · 아래 「서비스」에서 「다시 켜기」를 누르면 서버 PC가 다시 띄웁니다.</div>`
     : !net.ok ? `<div class="banner warn" role="status">인터넷 확인(DNS)이 실패했습니다. 와이파이 연결이 불안정할 수 있습니다.</div>` : '';
@@ -182,7 +212,7 @@ function render() {
     <div><div class="eyebrow">AX SERVER · ${esc(row.host || '')}</div><h1>서버 현황</h1></div>
     <div class="meta">
       <span class="live ${stale ? 'stale' : ''}" id="live"><i></i><span id="live-t">${stale ? '연결 끊김' : '실시간'} · ${ago(age)} 전 갱신</span></span>
-      <span>켜진 지 ${since(d.boot_at)}</span>
+      <span>마지막 재부팅 ${kshort(d.boot_at)} · 켜진 지 ${since(d.boot_at)}</span>
       <a class="btn" href="../">이그드라실로</a>
     </div>
   </header>
@@ -236,7 +266,7 @@ function render() {
       return `<div class="svc ${x.state === 'down' ? 'down' : ''}"><i class="dot ${x.state === 'ok' ? '' : x.state}" aria-hidden="true"></i><b>${esc(x.name)}</b>
       <span>${{ok: '동작 중', warn: '주의', down: '멈춤', off: '꺼 둠'}[x.state] || ''}${x.since && x.state === 'ok' ? ` · ${since(x.since)}째` : ''}${x.note ? ` · ${esc(x.note)}` : ''}</span>${act ? `<div class="act">${act}</div>` : ''}</div>`; }).join('')}</div>
     ${cmds.length ? `<div class="cmds"><small>최근 조치</small>${cmds.map(c => `<div class="cmd"><span class="st ${c.status === 'done' ? 'ok' : c.status === 'fail' ? 'bad' : 'mute'}">${{wait: '대기', work: '처리 중', done: '완료', fail: '안 됨'}[c.status] || ''}</span>
-      <span><b>${esc(svcName(c.service))}</b> ${c.action === 'fix' ? '다시 켜기' : '다시 확인'}${c.msg ? ` — ${esc(c.msg)}` : ''}<span class="sm">${kshort(c.at)}${c.by_email ? ` · ${esc(c.by_email.split('@')[0])}` : ''}</span></span></div>`).join('')}</div>` : ''}
+      <span><b>${esc(svcName(c.service))}</b> ${{fix: '다시 켜기', refresh: '다시 확인', reboot: '작업 끝나면 재부팅', reboot_now: '바로 재부팅'}[c.action] || esc(c.action)}${c.msg ? ` — ${esc(c.msg)}` : ''}<span class="sm">${kshort(c.at)}${c.by_email ? ` · ${esc(c.by_email.split('@')[0])}` : ''}</span></span></div>`).join('')}</div>` : ''}
     ${cmdErr ? `<div class="empty" style="color:var(--negative-ink)">${esc(cmdErr)}</div>` : ''}
   </section>
 
@@ -270,6 +300,15 @@ function render() {
         return `<tr><td>${esc(t.name)}<span class="sm">${esc(t.task)}</span></td><td>${st}${!okR ? `<span class="sm" style="color:var(--negative-ink)">${esc(TASK_RES[r] || hex(r))}</span>` : ''}</td>
         <td class="r num">${kshort(t.last_run)}</td><td class="r num hide-sm">${kshort(t.next_run)}</td></tr>`; }).join('')}
     </tbody></table></div>
+  </section>
+
+  <section class="panel danger" id="pc">
+    <h2>서버 PC 관리 <small>필요할 때만 · 누르면 한 번 더 묻습니다</small></h2>
+    <div class="pcrow">
+      <p>${d.autologon === false ? '자동 로그인이 꺼져 있어 지금은 재부팅할 수 없습니다(재부팅하면 로그인 화면에서 모든 봇이 멈춤).' : '재부팅하면 1~3분쯤 모든 봇·워커가 멈췄다가 저절로 다시 켜집니다.'}</p>
+      ${rebooting ? '<span class="busy">재부팅 중…</span>' : rbWait ? '<span class="busy">재부팅 대기 중…</span>'
+        : `<button class="btn danger" data-reboot ${d.autologon === false || stale ? 'disabled' : ''}>서버 PC 재부팅</button>`}
+    </div>
   </section>
 
   <footer><span>서버 PC가 30초마다 보내고, 이 화면은 15초마다 새로 읽습니다.</span><span>마지막 수신 ${kst(row.at)}</span>${lastErr ? `<span style="color:var(--negative)">읽기 오류: ${esc(lastErr)}</span>` : ''}</footer>`;
@@ -307,13 +346,36 @@ async function load() {
 
 async function loadCmds() {
   const since = new Date(Date.now() - 86400000).toISOString();
-  const { data, error } = await SB.from('pt_server_cmd').select('id,at,by_email,service,action,status,msg').gte('at', since).order('at', {ascending: false}).limit(5);
+  const { data, error } = await SB.from('pt_server_cmd').select('id,at,by_email,service,action,status,msg,done_at').gte('at', since).order('at', {ascending: false}).limit(5);
   if (!error) cmds = data || [];
   // 처리 중인 요청이 있으면 3초마다 다시 읽어 결과를 빨리 보여 줌
   const busy = cmds.some(c => c.status === 'wait' || c.status === 'work');
   if (busy && !fastTimer) fastTimer = setInterval(() => { if (!document.hidden) load(); }, 3000);
   if (!busy && fastTimer) { clearInterval(fastTimer); fastTimer = null; }
 }
+
+// 「서버 PC 재부팅」 — 진행 중인 작업 수를 보여 주고 셋 중에서 고름
+const $dlg = document.getElementById('rbdlg');
+$app.addEventListener('click', e => {
+  if (!e.target.closest('button[data-reboot]') || !row) return;
+  const n = (row.data.running || []).length;
+  document.getElementById('rbdlg-n').innerHTML = n
+    ? `지금 진행 중인 작업이 <b>${n}건</b> 있습니다. 「작업 끝나면 재부팅」을 고르면 모두 끝난 뒤(최대 30분 기다림) 재부팅합니다.`
+    : '지금 진행 중인 작업은 없습니다.';
+  $dlg.showModal();
+});
+$dlg.addEventListener('click', async e => {
+  const b = e.target.closest('button[data-rb]');
+  if (!b) { if (e.target === $dlg) $dlg.close(); return; }
+  const action = b.dataset.rb;
+  if (!action) { $dlg.close(); return; }
+  $dlg.querySelectorAll('button').forEach(x => x.disabled = true);
+  const { error } = await SB.from('pt_server_cmd').insert({ service: 'pc', action });
+  cmdErr = error ? `재부팅 요청을 보내지 못했습니다: ${error.message}` : '';
+  $dlg.querySelectorAll('button').forEach(x => x.disabled = false);
+  $dlg.close();
+  await load();
+});
 
 // 「다시 켜기」·「지금 다시 확인」 — 서버 PC 수집기가 5초 안에 가져가 정해 둔 방법으로만 처리
 $app.addEventListener('click', async e => {
