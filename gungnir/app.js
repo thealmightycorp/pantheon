@@ -4305,7 +4305,7 @@ async function exportCSV() {
 }
 function go(p) { page = p; filter = '전체'; entState = '전체'; query = ''; $('#global-search').value = ''; try { history.replaceState(null, '', '#' + p); } catch {} render(); window.scrollTo(0, 0); }
 /* ---------- IP 차트 (10-31) — 요즘 뜨는 신규 IP · 전체 IP 순위 (sql/012 · 봇 ipchart.py 가 매일 08시 갱신 — 11-06 하루 4번에서 줄임) ---------- */
-const IPK = {kpop: 'K-POP', character: '캐릭터', animation: '애니메이션', movie: '영화', ott: 'OTT', influencer: '인플루언서', other: '기타'};
+const IPK = {kpop: 'K-POP', actor: '배우', character: '캐릭터', animation: '애니메이션', movie: '영화', ott: 'OTT', influencer: '인플루언서', other: '기타'};
 const IPP = [['rt', '실시간', '전일 대비'], ['day', '일간', '전일 대비'], ['week', '주간', '전주 대비'], ['month', '월간', '전월 대비'], ['year', '연간', '전년 대비'], ['range', '기간 설정', '직전 같은 기간 대비']];
 const ipc = {chart: 'new', period: 'rt', kind: 'all', from: '', to: '', rows: null, ips: {}, run: null, err: '', key: '', poll: null, open: null, openChart: ''};
 const ipKst = iso => { try { const d = new Date(new Date(iso).getTime() + 9 * 3600e3); return `${d.getUTCMonth() + 1}.${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; } catch { return ''; } };
@@ -4557,6 +4557,7 @@ function ipbKind(t) {
   const hit = Object.entries(IPK).find(([k, v]) => t === k || t === v);
   if (hit) return hit[0];
   if (/k-?pop|아이돌|가수|걸그룹|보이그룹|아티스트/i.test(t)) return 'kpop';
+  if (/배우|actor|actress/i.test(t)) return 'actor';
   if (/애니/.test(t) && !/영화/.test(t)) return 'animation';
   if (/영화|movie|film|슈퍼히어로/i.test(t)) return 'movie';
   if (/드라마|예능|시리즈|ott|tv/i.test(t)) return 'ott';
