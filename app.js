@@ -3532,7 +3532,7 @@ async function pageReview(pid, start) {
     }
     const loose = fl.filter(f => !f.key || !keys.includes(f.key));
     $('#rv-side').innerHTML = `${loose.map(f => `<div class="rv-flag"><b>${esc(QA_KO[f.type] || '확인')}</b> ${esc(f.detail)}</div>`).join('')}${keys.length ? keys.map(card).join('') : '<p class="muted-box">이 페이지에는 이미지가 없습니다.</p>'}`;
-    const paths = keys.map(k => S[k].path).filter(Boolean);
+    const paths = [...new Set([...keys.map(k => S[k].path), ...$$('#rv-side .rv-ref [data-thumb]').map(el => el.dataset.thumb)].filter(Boolean))];   // 붙인 레퍼런스 작은 그림도 (11-23)
     if (paths.length) {
       const { data } = await SB.storage.from('pt-studio').createSignedUrls(paths, 900);
       (data || []).forEach(x => { if (!x.signedUrl) return; $$(`#rv-side [data-thumb="${CSS.escape(x.path)}"]`).forEach(el => { el.style.backgroundImage = `url("${x.signedUrl}")`; el.dataset.src = x.signedUrl; }); });
