@@ -233,6 +233,7 @@ function render() {
   if (page !== 'search' && page !== 'moved' && !navMenus().some(m => m[0] === page)) page = APP === 'gungnir' ? (navMenus()[0]?.[0] || 'studio') : 'home';
   $('#nav').innerHTML = navMenus().filter(m => APP !== 'ygg' || m[0] !== 'home').map(([key, title]) => `<a class="nav-item ${page === key ? 'active' : ''}" href="#${key}" data-page="${key}"${page === key ? ' aria-current="page"' : ''}>${icon(key)}<span>${title}</span>${key === 'contacts' ? `<span class="nav-count">${contacts().length}</span>` : key === 'review' && reviewCount() ? `<span class="nav-count">${reviewCount()}</span>` : ''}</a>`).join('')
     + (APP === 'ygg' ? (studioCan || ipcCan ? `<a class="nav-item nav-app" href="${GUNGNIR_URL}${studioCan ? '' : '#chart'}" title="궁니르 · 제안서·소싱으로 이동">${icon('studio')}<span>궁니르</span><i aria-hidden="true">↗</i></a>` : '')
+      + (serverCan ? `<a class="nav-item nav-app" href="server/" target="_blank" rel="noopener" title="서버 PC 현황">${icon('admin')}<span>서버 현황</span><i aria-hidden="true">↗</i></a>` : '')
       : `<a class="nav-item nav-app" href="${YGG_URL}" title="이그드라실로 이동">${icon('entities')}<span>이그드라실</span><i aria-hidden="true">↗</i></a>`);
   const title = {home:['대시보드','거래처·IP·담당자와의 관계를 한곳에서 확인하세요.'], entities:['엔티티','더올마이티·골포스트·사운드스루의 거래처·브랜드·기관·IP 목록입니다.'], contacts:['주소록','거래처 담당자를 사람 단위로 찾습니다. 연락처는 직접 올린 분과 승인권자가 보고, 다른 분은 열람 요청으로 볼 수 있습니다.'], cards:['명함 올리기','받은 명함을 여러 장 한 번에 올리고, 한 장씩 보며 어디서 만났는지 메모를 남깁니다.'], chart:['소싱 · IP 차트','인기 상승 IP 순위와 IP 스코어, 조합 시뮬레이션을 확인합니다. IP 차트는 하루 4회 갱신됩니다.'], graph:['관계 그래프','회사·IP·담당자 간 연결 관계를 그래프로 확인합니다. 항목을 클릭하면 연결된 대상이 강조됩니다.'], manual:['사용 매뉴얼', APP === 'gungnir' ? '궁니르 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.' : '이그드라실 화면별 사용법과 자주 묻는 질문을 정리했습니다. 궁금한 것은 「매뉴얼에 물어보기」에 질문하세요.'], review:['확인 대기','시스템이 찾은 후보를 확인해 반영합니다.'], moved:['제안서 스튜디오','제안서 스튜디오가 궁니르로 이전되었습니다.'], studio:['제안서 스튜디오','IP를 입력하면 리서치·제안서·이미지는 이그드라실 봇이 진행하고, 담당자는 결정 단계에서만 확인합니다.'], search:['검색 결과', `「${query.trim()}」 검색 결과 ${searchHits(query).length}건입니다. 결과가 하나이면 Enter 키로 상세 화면을 바로 열 수 있습니다.`], admin:['DB 관리','누가 언제 무엇을 수정했는지 확인하고, 필요하면 이전 내용으로 복원할 수 있습니다.']}[page];
   $('#crumb').textContent = page === 'search' ? '검색 결과' : title[0];
@@ -1999,7 +2000,8 @@ function bindAdmin() {
 /* ---------- 제안서 스튜디오 (2026-10-27 · 시험 기간: 홍석진·김현우·류성열만 — DB 가 pt_studio_can 으로 막음) ----------
    대표님 almighty-proposal-studio 의 흐름: IP 입력 → 인테이크 → (콜라보) 파트너 추천 → 리서치 → 컨셉 → 제안서 생성 → 이미지 계획 → 생성·삽입·QA
    사람은 게이트에서만 결정하고, 단계 작업은 pt_proposal_job 대기열에 넣어 이그드라실 봇(서버 PC)이 처리한다. 엔티티는 판테온 pt_entity 를 쓴다 */
-let studioCan = false, ipcCan = false;         // IP 차트 — 11-01 전 직원 공개 (sql/022 pt_ipchart_can = pt_can_use)
+let studioCan = false, ipcCan = false, serverCan = false;   // serverCan — 서버 현황판(sql/2026-11-22 pt_server_can, 홍석진 대표님·김현우만)
+         // IP 차트 — 11-01 전 직원 공개 (sql/022 pt_ipchart_can = pt_can_use)
 const studio = {tab: 'projects', filter: 'all', by: '', stage: 0, q: '', refQ: '', refType: '', refNew: null, sort: {k: 'updated', d: -1}, list: null, refs: null, jobs: [], loading: false, err: ''};
 const STAGES = ['IP 입력', '기본 정보', '파트너 IP 추천', '리서치', '컨셉 설계', '제안서 생성', '이미지 계획', '생성·삽입·검수'];
 const GATES = {2: '기본 정보 확정', 3: '파트너 IP 선택', 5: '컨셉 확정', 7: '이미지 수급·크레딧 승인', 8: '반려 이미지 최종 판단'};
@@ -5236,8 +5238,8 @@ async function start() {
     if (fail) { await SB.auth.signOut({scope: 'local'}); return loginScreen(fail); }
   }
   me = session.user;
-  const [can, adm, mem, sc, ic] = await Promise.all([SB.rpc('pt_can_use'), SB.rpc('pt_is_admin'), SB.from('hd_member').select('name,role,status').eq('id', me.id).maybeSingle(), SB.rpc('pt_studio_can'), SB.rpc('pt_ipchart_can')]);
-  studioCan = !sc.error && !!sc.data; ipcCan = !ic.error && !!ic.data;            // 제안서 스튜디오 — 시험 기간 3명만 (함수가 없거나 거절이면 숨김)
+  const [can, adm, mem, sc, ic, sv] = await Promise.all([SB.rpc('pt_can_use'), SB.rpc('pt_is_admin'), SB.from('hd_member').select('name,role,status').eq('id', me.id).maybeSingle(), SB.rpc('pt_studio_can'), SB.rpc('pt_ipchart_can'), SB.rpc('pt_server_can')]);
+  studioCan = !sc.error && !!sc.data; ipcCan = !ic.error && !!ic.data; serverCan = !sv.error && sv.data === true;            // 제안서 스튜디오 — 시험 기간 3명만 (함수가 없거나 거절이면 숨김)
   if (!can.data) { const left = mem.data?.status === 'left'; await SB.auth.signOut({scope: 'local'}); return loginScreen(left ? '퇴사 처리된 계정입니다. 더 이상 이용하실 수 없습니다.' : '헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요.'); }
   isAdmin = !!adm.data; myName = mem.data?.name || me.email;
   $('#login').hidden = true;
