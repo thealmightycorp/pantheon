@@ -245,6 +245,7 @@ select,input[type=text],input[type=number],input[type=email],input[type=password
     <button class="rb" type="button" data-kind="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg>비디오</button>
     <button class="rb" type="button" data-kind="archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 4h18v3H3zM10 11h4"/></svg>아카이브</button>
     <span class="gap"></span>
+    <button class="rb" type="button" id="nav-mcp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V3M15 7V3M6 7h12v4a6 6 0 0 1-12 0zM12 17v4"/></svg>MCP 연결</button>
     <a class="rb" href="../ai/#hf" id="nav-usage" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>사용 현황</a>
     <button class="rb" type="button" id="logout" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h11"/></svg>로그아웃</button>
     <a class="rb" href="https://pantheon-map.vercel.app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v9M9.5 10v9M14.5 10v9M19 10v9M3 21h18"/></svg>판테온</a>
@@ -417,6 +418,38 @@ function limitSheet() {
   </div>`;
   $dlg.hidden = false;
 }
+function mcpSheet() {
+  const step = (n, t) => `<li style="margin:0 0 6px">${t}</li>`;
+  const code = (v, id) => `<div style="display:flex;gap:8px;align-items:center"><code style="flex:1;min-width:0;overflow-wrap:anywhere;background:var(--anvil);border:1px solid var(--seam);border-radius:10px;padding:8px 10px;font-size:12px">${esc(v)}</code><button class="btn quiet" type="button" data-cp="${esc(v)}" aria-label="${id} 복사">복사</button></div>`;
+  $dlg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mcpt">
+    <h2 id="mcpt">Claude·Codex에서 신드리 쓰기</h2>
+    <p style="margin:0;font-size:13px;color:var(--ash)">한 번 연결해 두면 Claude나 Codex 대화창에서 바로 이미지·영상을 만들 수 있습니다. 한도·용도 기록은 신드리와 같습니다.</p>
+    <div class="f"><span class="lab">Claude (웹·데스크톱 앱)</span>
+      <ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">
+        ${step(1, '왼쪽 아래 내 이름 → <b>설정</b> → <b>커넥터</b> → <b>커스텀 커넥터 추가</b>')}
+        ${step(2, '이름과 주소를 아래처럼 넣고 <b>추가</b>')}
+      </ol>
+      ${code('이그드라실·궁니르', '이름')}
+      ${code(MCP, '주소')}
+      <ol start="3" style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">
+        ${step(3, '<b>연결</b> → 헤임달 계정(또는 슬랙)으로 로그인 → <b>연결 허용</b>')}
+      </ol></div>
+    <div class="f"><span class="lab">Codex</span>
+      <ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">
+        ${step(1, '터미널에서 아래 명령 실행')}
+      </ol>
+      ${code('codex mcp add yggdrasil --url ' + MCP, '명령')}
+      <ol start="2" style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">
+        ${step(2, '브라우저가 열리면 로그인 → <b>연결 허용</b>')}
+      </ol></div>
+    <div class="f"><span class="lab">이렇게 요청하세요</span>
+      <p style="margin:0;font-size:13px;color:var(--bone)">「힉스필드로 4:3 이미지 한 장 만들어 줘. 장면: 한강 노을 아래 러닝하는 사람. 용도: 골포스트 인스타 카드」</p>
+      <p style="margin:0;font-size:12px;color:var(--muted)">예상 금액을 먼저 보여 드리고, 확인하시면 만듭니다. 만든 것은 신드리 아카이브에도 남습니다.</p></div>
+    <div class="acts"><button class="btn quiet" type="button" data-close>닫기</button></div>
+  </div>`;
+  $dlg.hidden = false;
+}
+document.getElementById('nav-mcp').addEventListener('click', mcpSheet);
 let reqAmt = 50;
 async function loadReqs() { const { data } = await SB.from('pt_hf_limit_req').select('id,at,add_usd,status,reason').eq('uid', me.id).order('id', {ascending: false}).limit(5); reqs = data || []; }
 function mediaHtml(k, p, req) {
@@ -655,6 +688,7 @@ $dlg.addEventListener('click', async e => {
     await loadReqs(); closeDlg(); render(); return;
   }
   if (b.dataset.pickgen) { const k = b.dataset.k; (media[k] = media[k] || []).push({gen: Number(b.dataset.pickgen)}); closeDlg(); render(); return; }
+  if (b.dataset.cp) { try { await navigator.clipboard.writeText(b.dataset.cp); b.textContent = '복사했습니다'; } catch { b.textContent = '복사하지 못했습니다'; } return; }
   if (b.dataset.copy) { const g = gens.find(x => x.id === Number(b.dataset.copy)); try { await navigator.clipboard.writeText(g.prompt || ''); b.textContent = '복사했습니다'; } catch { b.textContent = '복사하지 못했습니다'; } return; }
   if (b.dataset.again) {
     const g = gens.find(x => x.id === Number(b.dataset.again)), m = models.find(x => x.path === g.model_path);
