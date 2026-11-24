@@ -351,9 +351,10 @@ function confirmSheet(d) {
     <div><div class="price num">${usd(d.est)}</div><div class="hint" style="font-size:12px;color:var(--muted)">힉스필드 예상 비용 · 실패하거나 내용 검사에서 거절되면 청구되지 않습니다</div></div>
     <div class="row"><span>모델</span><b>${esc(sel.family_title + ' · ' + wfName(sel))}</b></div>
     <div class="row"><span>용도</span><b>${esc(purpose)}</b></div>
-    ${(d.settings || []).length ? `<div class="row"><span>설정</span><b>${esc(d.settings.join(' · '))}</b></div>` : ''}
+    ${(() => { const { fields, media: md } = collect(); const xs = Object.entries(fields).filter(([k]) => k !== 'prompt').map(([k, v]) => `${lab(k)} ${v === true ? '켬' : v === false ? '끔' : v}`).concat(Object.entries(md).map(([k, l]) => `${lab(k)} ${l.length}개`));
+      return xs.length ? `<div class="row"><span>설정</span><b>${esc(xs.join(' · '))}</b></div>` : ''; })()}
     <div class="f"><div class="row"><span>이번 달 사용</span><b class="num">${usd(d.spent)} → ${usd(d.after)} / ${usd(d.limit)}</b></div><div class="bar ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}"><i style="width:${pct}%"></i></div></div>
-    ${d.note ? `<p class="hint" style="margin:0;font-size:12px;color:var(--muted)">${esc(d.note)}</p>` : ''}
+    ${d.note && /token/i.test(d.note) ? `<p class="hint" style="margin:0;font-size:12px;color:var(--muted)">이 모델은 쓴 만큼 나중에 정산되어, 실제 금액은 보통 이보다 적습니다.</p>` : ''}
     <div class="err" id="cerr" hidden></div>
     <div class="acts"><button class="pt-btn quiet" type="button" data-close>취소</button><button class="pt-btn accent" type="button" id="cgo">${usd(d.est)}로 만들기</button></div></div>`;
   $dlg.hidden = false; document.getElementById('cgo').focus();
