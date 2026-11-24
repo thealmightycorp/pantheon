@@ -73,6 +73,8 @@ button{font:inherit;color:inherit}
 .wall{column-width:250px;column-gap:10px}
 .tile{display:block;width:100%;break-inside:avoid;margin:0 0 10px;position:relative;border:0;padding:0;border-radius:var(--r-tile);overflow:hidden;background:var(--iron);cursor:zoom-in}
 .tile img,.tile video{display:block;width:100%;height:auto}
+.tile video{background:#000;object-fit:cover}
+.tile .tag b{color:var(--brass-hot);margin-right:3px;font-size:9px}
 .tile .cap{position:absolute;inset:auto 0 0 0;padding:28px 12px 10px;background:linear-gradient(transparent,rgba(10,10,12,.86));text-align:left;opacity:0;transition:opacity .15s}
 .tile:hover .cap,.tile:focus-visible .cap{opacity:1}
 .tile .cap b{display:block;font-size:13px;font-weight:600}
@@ -483,8 +485,8 @@ function tileHtml(g) {
   }
   if (bad || !u) return `<button class="tile failed" type="button" data-open="${g.id}"><b>${g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></button>`;
   const vid = (f.type || '').startsWith('video/');
-  return `<button class="tile" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${esc(g.model)} 크게 보기">${vid ? `<video src="${esc(u)}#t=0.1" muted preload="metadata" playsinline loop data-hover></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
-    ${vid || (g.files || []).length > 1 ? `<span class="kind">${vid ? '<span class="tag">영상</span>' : ''}${(g.files || []).length > 1 ? `<span class="tag">${g.files.length}장</span>` : ''}</span>` : ''}
+  return `<button class="tile" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${esc(g.model)} 크게 보기">${vid ? `<video src="${esc(u)}" style="aspect-ratio:${ratio}" muted preload="metadata" playsinline loop autoplay data-auto></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
+    ${vid || (g.files || []).length > 1 ? `<span class="kind">${vid ? `<span class="tag"><b>▶</b>영상${g.params?.duration ? ' ' + g.params.duration + '초' : ''}</span>` : ''}${(g.files || []).length > 1 ? `<span class="tag">${g.files.length}장</span>` : ''}</span>` : ''}
     <span class="cap"><b>${esc(g.purpose)}</b><span>${esc(g.prompt || g.model)}</span></span></button>`;
 }
 function usageHtml() {
@@ -681,6 +683,8 @@ document.addEventListener('pointerover', e => { const q = e.target.closest?.('.q
 document.addEventListener('focusin', e => { const q = e.target.closest?.('.q'); if (q) placeTip(q); });
 document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$dlg.hidden) closeDlg(true); else if (pop) { pop = null; render(); } });
 document.addEventListener('click', e => { if (pop && !e.target.closest('.dock') && !e.target.closest('.dlg')) { pop = null; render(); } });
+const vio = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(x => { const v = x.target; if (x.isIntersecting) v.play().catch(() => {}); else v.pause(); }), {threshold: .25}) : null;
+new MutationObserver(() => { document.querySelectorAll('video[data-auto]:not([data-seen])').forEach(v => { v.dataset.seen = '1'; if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); return; } vio?.observe(v); }); }).observe(document.getElementById('app'), {childList: true, subtree: true});
 $app.addEventListener('pointerover', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v) v.play().catch(() => {}); });
 $app.addEventListener('pointerout', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v && !e.relatedTarget?.closest?.('.tile')?.contains(v)) v.pause(); });
 
