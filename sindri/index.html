@@ -200,6 +200,20 @@ select,input[type=text],input[type=number],input[type=email],input[type=password
 .login .or{display:flex;align-items:center;gap:10px;color:var(--cinder);font-size:12px}.login .or::before,.login .or::after{content:"";flex:1;height:1px;background:var(--seam)}
 .login .forge{width:100%;margin:0}
 .login .hint{text-align:center;color:var(--ash)}
+.boot{min-height:70vh;display:grid;place-content:center;justify-items:center;gap:10px;text-align:center}
+.boot b{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.boot-step{color:var(--ash);font-size:14px;min-height:21px}
+.boot-bar{width:220px;height:4px;border-radius:99px;background:var(--slag);overflow:hidden;margin-top:6px}
+.boot-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--brass),var(--brass-hot));transition:width .45s ease}
+.forge-anim{width:132px;height:132px;overflow:visible}
+.forge-anim .hammer{transform-origin:87px 63px;animation:strike 1.1s cubic-bezier(.6,0,.4,1) infinite}
+.forge-anim .sparks path{opacity:0;animation:spark 1.1s ease-out infinite}
+.forge-anim .sparks path:nth-child(2){animation-delay:.03s}.forge-anim .sparks path:nth-child(3){animation-delay:.05s}.forge-anim .sparks path:nth-child(4){animation-delay:.02s}
+.forge-anim .heat{opacity:.25;animation:heat 1.1s ease-out infinite}
+@keyframes strike{0%{transform:rotate(22deg)}45%{transform:rotate(27deg)}62%{transform:rotate(-9deg)}70%{transform:rotate(-6deg)}100%{transform:rotate(22deg)}}
+@keyframes spark{0%,60%{opacity:0;transform:translate(0,0)}66%{opacity:1}100%{opacity:0;transform:translate(-4px,-6px)}}
+@keyframes heat{0%,58%{opacity:.18}66%{opacity:.85}100%{opacity:.18}}
+@media (prefers-reduced-motion:reduce){.forge-anim .hammer,.forge-anim .sparks path,.forge-anim .heat{animation:none}.forge-anim .sparks path{opacity:.8}}
 .gate h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.03em}.gate p{margin:0;color:var(--ash)}
 
 @media (max-width:1000px){.viewer{grid-template-columns:minmax(0,1fr)}.viewer .info{max-height:none;border-left:0;border-top:1px solid var(--seam)}}
@@ -233,7 +247,7 @@ select,input[type=text],input[type=number],input[type=email],input[type=password
     <button class="rb" type="button" id="logout" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h11"/></svg>로그아웃</button>
     <a class="rb" href="https://pantheon-map.vercel.app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v9M9.5 10v9M14.5 10v9M19 10v9M3 21h18"/></svg>판테온</a>
   </nav>
-  <main class="work" id="app"><div class="gate"><h1>신드리</h1><p><span class="spin" aria-hidden="true"></span> 불러오는 중…</p></div></main>
+  <main class="work" id="app"><div class="boot" role="status" aria-live="polite"><svg class="forge-anim" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="bb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7D27A"/><stop offset=".55" stop-color="#E3A73B"/><stop offset="1" stop-color="#B8761E"/></linearGradient><radialGradient id="bh" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFE7A8" stop-opacity=".9"/><stop offset="1" stop-color="#FFE7A8" stop-opacity="0"/></radialGradient></defs><ellipse class="heat" cx="52" cy="66" rx="30" ry="12" fill="url(#bh)"/><path d="M20 67.5h57.5c8 0 14-2.5 18.3-7-.8 10.8-8 17-19 18.3h-8l-6 10h10.4V96H36.2v-7.2h9.3l-6-10H28.5C23.2 78.8 20 75 20 67.5z" fill="url(#bb)"/><g class="hammer"><g transform="rotate(-38 67 37)"><rect x="47.5" y="25" width="35" height="18.5" rx="4.5" fill="url(#bb)"/><rect x="62.5" y="42.5" width="7.5" height="27.5" rx="3.75" fill="url(#bb)"/></g></g><g class="sparks" stroke="#FFD98A" stroke-width="3" stroke-linecap="round"><path d="M44 58l-7-5"/><path d="M40 64l-9 .5"/><path d="M51 56l-1.5-8.5"/><path d="M58 57l3-7"/></g></svg><b>신드리</b><span class="boot-step" id="bootstep">로그인 확인하는 중</span><span class="boot-bar" aria-hidden="true"><i id="bootbar" style="width:12%"></i></span></div></main>
 </div>
 <div class="dlg" id="dlg" hidden></div>
 <input type="file" id="file" accept="image/*,video/*,audio/*" multiple hidden>
@@ -708,19 +722,25 @@ function loginScreen(msg) {
 }
 SB.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !me && s) location.replace(location.origin + location.pathname); });
 
+const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = document.getElementById('bootstep'); if (b) b.style.width = pct + '%'; if (s) s.textContent = txt; };
 (async () => {
+  boot(15, '로그인 확인하는 중');
   const { data: { session } } = await SB.auth.getSession();
   if (!session) { loginScreen(); return; }
   me = session.user;
   document.getElementById('logout').hidden = false;
   document.getElementById('logout').onclick = async () => { await SB.auth.signOut(); location.replace(location.origin + location.pathname); };
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
+  boot(35, '권한 확인하는 중');
   const { data: ok } = await SB.rpc('pt_hf_admin');
   if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
   try {
+    boot(55, '쓸 수 있는 모델 불러오는 중');
     const [, lm] = await Promise.all([loadModels(), mcp('hf_models', {}).catch(() => ({}))]);
     limit.limit = Number(lm.limit) || 0;
+    boot(80, '내 아카이브 불러오는 중');
     await Promise.all([loadGens(), loadReqs()]);
+    boot(100, '준비됐습니다');
   } catch (e) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>불러오지 못했습니다: ${esc(e.message)}</p></div>`; return; }
   if (!models.length) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p><span class="spin" aria-hidden="true"></span> 쓸 수 있는 모델 목록을 준비하는 중입니다. 잠시 뒤 새로고침해 주세요.</p></div>`; return; }
   if (kind !== 'archive') pickDefault();
