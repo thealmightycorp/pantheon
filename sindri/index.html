@@ -720,7 +720,7 @@ function loginScreen(msg) {
     if (error) { b.disabled = false; b.lastChild.textContent = '슬랙으로 로그인'; err('슬랙으로 로그인하지 못했습니다. 잠시 뒤 다시 해 주세요.'); }
   };
 }
-SB.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !me && s) location.replace(location.origin + location.pathname); });
+SB.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && s && document.getElementById('lgf')) location.replace(location.origin + location.pathname); });   // 로그인 화면이 떠 있을 때만 (로그인된 채 열면 SIGNED_IN 이 와도 다시 불러오지 않음)
 
 const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = document.getElementById('bootstep'); if (b) b.style.width = pct + '%'; if (s) s.textContent = txt; };
 (async () => {
