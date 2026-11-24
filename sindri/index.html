@@ -736,7 +736,7 @@ const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = d
   document.getElementById('logout').onclick = async () => { await SB.auth.signOut(); location.replace(location.origin + location.pathname); };
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   boot(35, '권한 확인하는 중');
-  const { data: ok } = await SB.rpc('pt_hf_admin');
+  const { data: ok } = await SB.rpc('pt_sindri_can');
   if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
   try {
     boot(55, '쓸 수 있는 모델 불러오는 중');
