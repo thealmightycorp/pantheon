@@ -262,6 +262,7 @@ function resetForm() {
 // ── 그리기
 function fieldHtml(k, p, req) {
   const v = form[k], r = req ? '<em aria-hidden="true">*</em>' : '';
+  if (k === 'seed') return `<div class="f"><label for="f_seed">${lab(k)}${tip(k)}</label><input id="f_seed" type="number" data-k="seed" data-num="1" min="0" step="1" value="${v ?? ''}" placeholder="비워 두면 매번 다른 결과가 나옵니다"></div>`;
   if (k === 'prompt') return `<div class="f"><label for="fp">${lab(k)}${tip(k)}${r}</label><textarea id="fp" data-k="prompt" placeholder="무엇을 만들지 자세히 적어 주세요. 영어로 쓰면 결과가 더 좋습니다.">${esc(v ?? '')}</textarea></div>`;
   if (p.enum) {
     if (p.enum.length <= 8) return `<div class="f"><span class="lab">${lab(k)}${tip(k)}${r}</span><div class="chips" role="group" aria-label="${esc(lab(k))}">${p.enum.map(o => `<button type="button" data-k="${k}" data-v="${esc(o)}" aria-pressed="${String(v) === String(o)}">${esc(o)}</button>`).join('')}</div></div>`;
@@ -504,6 +505,17 @@ $dlg.addEventListener('click', async e => {
     form.prompt = ''; purpose = g.purpose; closeDlg(); render(); window.scrollTo({top: 0, behavior: 'smooth'}); return;
   }
 });
+// 설명 상자는 화면 기준으로 띄움 (설정 칸이 스크롤 상자라 안에 두면 잘림)
+function placeTip(q) {
+  const pop = q?.querySelector('.pop'); if (!pop) return;
+  const r = q.getBoundingClientRect(), w = Math.min(260, innerWidth - 24);
+  pop.style.position = 'fixed'; pop.style.transform = 'none'; pop.style.maxWidth = w + 'px';
+  pop.style.left = Math.max(12, Math.min(r.left - 8, innerWidth - w - 12)) + 'px';
+  pop.style.top = (r.bottom + 8) + 'px'; pop.style.bottom = 'auto';
+  requestAnimationFrame(() => { const h = pop.offsetHeight; if (r.bottom + 8 + h > innerHeight - 8) pop.style.top = Math.max(8, r.top - 8 - h) + 'px'; });
+}
+document.addEventListener('pointerover', e => { const q = e.target.closest?.('.q'); if (q) placeTip(q); });
+document.addEventListener('focusin', e => { const q = e.target.closest?.('.q'); if (q) placeTip(q); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$dlg.hidden) closeDlg(true); });
 
 (async () => {
