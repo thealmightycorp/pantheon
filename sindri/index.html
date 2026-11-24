@@ -84,6 +84,17 @@ button{font:inherit;color:inherit}
 .tile.forging::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 110%,rgba(227,167,59,.42),transparent 70%);animation:ember 2.4s ease-in-out infinite}
 .tile.forging b{position:relative;color:var(--bone);font-size:14px}
 .tile.forging span{position:relative}
+.steps{position:relative;list-style:none;margin:0 auto 6px;padding:0;display:flex;align-items:flex-start;gap:0}
+.steps li{display:grid;justify-items:center;gap:5px;width:58px;position:relative;font-size:11px;color:var(--cinder)}
+.steps li+li::before{content:"";position:absolute;top:5px;right:calc(50% + 9px);width:40px;height:2px;border-radius:2px;background:var(--seam)}
+.steps li.done+li::before,.steps li.done+li.now::before{background:var(--brass)}
+.steps i{width:12px;height:12px;border-radius:50%;border:2px solid var(--seam);background:var(--iron)}
+.steps li.done i{background:var(--brass);border-color:var(--brass)}
+.steps li.done{color:var(--ash)}
+.steps li.now i{border-color:var(--brass-hot);background:var(--brass-hot);box-shadow:0 0 0 4px rgba(242,189,92,.18);animation:beat 1.6s ease-in-out infinite}
+.steps li.now{color:var(--bone);font-weight:600}
+@keyframes beat{0%,100%{box-shadow:0 0 0 3px rgba(242,189,92,.16)}50%{box-shadow:0 0 0 7px rgba(242,189,92,.06)}}
+@media (prefers-reduced-motion:reduce){.steps li.now i{animation:none}}
 @keyframes ember{0%,100%{opacity:.45;transform:translateY(6%)}50%{opacity:1;transform:translateY(0)}}
 .tile.failed{cursor:pointer;display:grid;place-content:center;text-align:center;padding:18px;color:var(--ash);font-size:13px;aspect-ratio:1}
 .tile.failed b{color:var(--negative-ink)}
@@ -439,7 +450,13 @@ function dockHtml() {
 function tileHtml(g) {
   const f = (g.files || [])[0], u = f && urls[f.path], open = ['queued', 'in_progress'].includes(g.status), bad = ['failed', 'nsfw', 'error', 'canceled'].includes(g.status);
   const ar = String(g.params?.aspect_ratio || '1:1').split(':').map(Number), ratio = ar.length === 2 && ar[0] && ar[1] ? `${ar[0]}/${ar[1]}` : '1/1';
-  if (open || (g.status === 'completed' && !u)) return `<div class="tile forging" style="aspect-ratio:${ratio}" role="status"><b>${open ? (g.status === 'queued' ? '차례를 기다리는 중' : '만드는 중') : '보관하는 중'}</b><span>${esc(g.model || '')}${g.kind === 'video' && open ? ' · 영상은 몇 분 걸립니다' : ''}</span></div>`;
+  if (open || (g.status === 'completed' && !u)) {
+    const at = g.status === 'queued' ? 0 : g.status === 'in_progress' ? 1 : 2;
+    const st = ['차례 기다리는 중', '만드는 중', '보관하는 중'];
+    return `<div class="tile forging" style="aspect-ratio:${ratio}" role="status" aria-label="${st[at]} (3단계 중 ${at + 1}단계)">
+      <ol class="steps" aria-hidden="true">${['대기', '만들기', '보관'].map((s, i) => `<li class="${i < at ? 'done' : i === at ? 'now' : ''}"><i></i><span>${s}</span></li>`).join('')}</ol>
+      <b>${st[at]}</b><span>${esc(g.model || '')}${g.kind === 'video' && at < 2 ? ' · 영상은 몇 분 걸립니다' : ''}</span></div>`;
+  }
   if (bad || !u) return `<button class="tile failed" type="button" data-open="${g.id}"><b>${g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></button>`;
   const vid = (f.type || '').startsWith('video/');
   return `<button class="tile" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${esc(g.model)} 크게 보기">${vid ? `<video src="${esc(u)}#t=0.1" muted preload="metadata" playsinline loop data-hover></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
