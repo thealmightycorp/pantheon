@@ -12,7 +12,7 @@
      모델·입력 칸: pt_hf_model(봇이 매일 힉스필드 문서에서 갱신, 회사 키로 견적이 나오는 것만) → 스키마대로 칸을 그림
      만들기: 커넥터 ygg-mcp 의 hf_generate_preview → confirm (견적·한도·용도 필수·결과 보관은 커넥터가) · 진행은 hf_status
      아카이브: pt_hf_gen(본인 것) · 파일은 저장소 pt-hf/<uid>/<id>/ · 사진 올리기는 pt-hf/<uid>/uploads/
-     처음엔 김현우만(pt_hf_admin) — 대표님 보고 뒤 넓힘
+     열람: pt_sindri_can() — 11-24 밤부터 판테온을 쓸 수 있는 임직원 전체(pt_can_use)
      남은 한도: 오른쪽 위 · 한도 추가 요청 pt_hf_limit_request → 봇이 김현우 DM → 현황판 힉스필드 탭에서 승인(pt_hf_limit_decide) -->
 <style>
 /* 신드리 — 대장간: 흑연 모루 바탕 · 달군 황동 한 가지 · 결과물이 주인공 · 아래 떠 있는 프롬프트 독 */
@@ -737,7 +737,7 @@ const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = d
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   boot(35, '권한 확인하는 중');
   const { data: ok } = await SB.rpc('pt_sindri_can');
-  if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
+  if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>이 계정은 아직 판테온을 쓸 수 있도록 승인되지 않았습니다. 헤임달 가입 승인이 끝나면 쓸 수 있으니 AX팀에 문의해 주세요.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
   try {
     boot(55, '쓸 수 있는 모델 불러오는 중');
     const [, lm] = await Promise.all([loadModels(), mcp('hf_models', {}).catch(() => ({}))]);
