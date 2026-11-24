@@ -9,7 +9,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap">
 <link rel="stylesheet" href="../pantheon-tokens.css">
 <!-- AI 구독·사용 현황 (2026-11-23 · 홍석진 대표님 지시 · 김현우) — 원본 pantheon/web/ai/index.html · 배포 thealmightycorp/pantheon ai/
-     데이터: Supabase pt_ai_usage_run · pt_ai_usage_snapshot — 사무실 PC pantheon/server/ai_usage.py 가 1시간마다 관리 화면을 읽어 넣음 · 볼 수 있는 사람 pt_ai_usage_can() -->
+     데이터: Supabase pt_ai_usage_run · pt_ai_usage_snapshot — 사무실 PC pantheon/server/ai_usage.py 가 1시간마다 관리 화면을 읽어 넣음 · 볼 수 있는 사람 pt_ai_usage_can()
+     11-24 「힉스필드 API」 탭(#hf): 회사 MCP 힉스필드 생성 기록 pt_hf_gen · 한도 pt_hf_limit (sql/2026-11-24_hf_gen.sql) — 같은 열람 권한, 권한이 없으면 내 기록만 -->
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--text);font:var(--fs-body)/1.5 var(--font);-webkit-font-smoothing:antialiased}
@@ -64,6 +65,13 @@ ul.plain{margin:0;padding-left:18px;font-size:13px;display:grid;gap:4px}ul.plain
 .gate{max-width:440px;margin:12vh auto;padding:28px;background:var(--surface);border-radius:var(--radius-card);display:grid;gap:12px;text-align:center}
 .gate h1{font:600 22px/1.3 var(--serif);margin:0}.gate p{margin:0;color:var(--muted)}
 footer{color:var(--faint);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 16px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-bottom:-4px}
+.tabs a{padding:8px 14px;border-radius:10px 10px 0 0;color:var(--muted);font-weight:600;font-size:14px;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a:hover{color:var(--text)}.tabs a[aria-current=page]{color:var(--text);border-bottom-color:var(--accent)}
+.tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 @media (max-width:1000px){.sum{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){th,td{padding:8px 8px}.hide-sm{display:none}.sum b{font-size:19px}}
 </style>
@@ -78,7 +86,10 @@ footer{color:var(--faint);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 16p
       <a class="pt-nav-item" href="./" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>AI 구독 현황</a>
     </nav>
   </aside>
-  <main class="pt-canvas"><div class="pt-column ai" id="app"><div class="gate"><h1>AI 구독 현황</h1><p>불러오는 중…</p></div></div></main>
+  <main class="pt-canvas"><div class="pt-column ai">
+    <nav class="tabs" aria-label="보기"><a href="#" id="tab-sub">구독·사용 현황</a><a href="#hf" id="tab-hf">힉스필드 API</a></nav>
+    <div class="ai" id="app"><div class="gate"><h1>AI 구독 현황</h1><p><span class="spin" aria-hidden="true"></span>불러오는 중…</p></div></div>
+  </div></main>
 </div>
 <div class="tip" id="tip" hidden></div>
 <script type="module">
@@ -98,6 +109,140 @@ const n0 = v => v == null ? '—' : Number(v).toLocaleString();
 const kst = s => s ? new Date(s).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}) : '—';
 function ago(ms) { const m = Math.round(ms / 60000); if (m < 60) return m + '분'; const h = Math.floor(m / 60); return h < 48 ? h + '시간' : Math.floor(h / 24) + '일'; }
 const svcRow = s => rows.find(r => r.service === s && r.kind === 'service');
+
+// ───────────── 힉스필드 API 탭 (11-24 · 회사 MCP 힉스필드 생성 시범) — pt_hf_gen · pt_hf_limit
+const SCALE_SEAT = 215, HF_DEF = 30;
+const HF_ST = {queued: '대기 중', in_progress: '만드는 중', completed: '완료', failed: '실패', nsfw: '내용 검사 거절', canceled: '취소', error: '오류'};
+const HF_PERIODS = {month: '이번 달', last: '지난달', d7: '최근 7일', d30: '최근 30일', d90: '최근 90일'};
+let hf = null, hfPeriod = 'month', hfUnit = 'day', hfQ = '', hfTeam = '', hfEdit = '', hfErr = '';
+const kstDay = s => new Date(new Date(s).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+const monthStart = (off = 0) => { const k = new Date(Date.now() + 9 * 3600e3); const d = new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth() + off, 1)); return new Date(d.getTime() - 9 * 3600e3); };
+const hfCost = r => r.status === 'completed' ? Number(r.usd) : ['queued', 'in_progress'].includes(r.status) ? Number(r.est_usd) : 0;
+function hfRange() {
+  if (hfPeriod === 'month') return [monthStart(0), null];
+  if (hfPeriod === 'last') return [monthStart(-1), monthStart(0)];
+  const n = {d7: 7, d30: 30, d90: 90}[hfPeriod]; return [new Date(Date.now() - n * 86400e3), null];
+}
+async function hfLoad() {
+  const [from, to] = hfRange(), m0 = monthStart(0);
+  const qOf = (a, b) => { let x = SB.from('pt_hf_gen').select('id,at,uid,name,team,purpose,model,model_path,kind,mode,prompt,params,est_usd,usd,status,error,files,saved_at,done_at').gte('at', a.toISOString()).order('at', {ascending: false}).limit(5000); return b ? x.lt('at', b.toISOString()) : x; };
+  const [g, cur, lim, adm, can] = await Promise.all([qOf(from, to), hfPeriod === 'month' ? null : qOf(m0, null), SB.from('pt_hf_limit').select('uid,name,grp,monthly_usd'), SB.rpc('pt_hf_admin'), SB.rpc('pt_ai_usage_can')]);
+  const err = g.error || cur?.error || lim.error;
+  if (err) { hfErr = err.message; if (hf) renderHf(); else $app.innerHTML = `<div class="gate"><h1>힉스필드 API 사용</h1><p>읽기 오류: ${esc(hfErr)}</p></div>`; return; }
+  hfErr = '';
+  hf = {rows: g.data || [], month: hfPeriod === 'month' ? (g.data || []) : (cur.data || []), limits: lim.data || [], admin: !!adm.data, all: !!can.data, at: new Date()};
+  renderHf();
+}
+function group(rows, key) {
+  const M = new Map();
+  for (const r of rows) { const k = key(r) || '—', x = M.get(k) || {k, usd: 0, n: 0, img: 0, vid: 0, pend: 0};
+    x.usd += hfCost(r); x.n++; r.kind === 'image' ? x.img++ : x.vid++; if (['queued', 'in_progress'].includes(r.status)) x.pend++; M.set(k, x); }
+  return [...M.values()].sort((a, b) => b.usd - a.usd || b.n - a.n);
+}
+function hfBars(rows) {
+  if (!rows.length) return '<p class="note">이 기간에 만든 것이 없습니다.</p>';
+  const [from] = hfRange(), end = hfPeriod === 'last' ? monthStart(0) : new Date();
+  const keyOf = d => { if (hfUnit === 'day') return d; const t = new Date(d + 'T00:00:00Z'); const dow = (t.getUTCDay() + 6) % 7; return new Date(t.getTime() - dow * 86400e3).toISOString().slice(0, 10); };
+  const B = new Map();
+  for (let t = new Date(kstDay(from) + 'T00:00:00Z'); t <= new Date(kstDay(end) + 'T00:00:00Z'); t = new Date(t.getTime() + 86400e3)) { const k = keyOf(t.toISOString().slice(0, 10)); if (!B.has(k)) B.set(k, {day: k, usd: 0, n: 0}); }
+  for (const r of rows) { const k = keyOf(kstDay(r.at)), b = B.get(k) || {day: k, usd: 0, n: 0}; b.usd += hfCost(r); b.n++; B.set(k, b); }
+  const pts = [...B.values()].sort((a, b) => a.day.localeCompare(b.day));
+  const W = 600, H = 160, P = 4, max = Math.max(...pts.map(p => p.usd)) || 1, bw = (W - 2 * P) / pts.length;
+  const bars = pts.map((p, i) => { const h = p.usd ? Math.max(2, (H - 2 * P) * p.usd / max) : 0, x = P + i * bw;
+    return `<rect x="${(x + 1).toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--accent)"/><rect x="${x.toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}" fill="transparent" data-tip="${esc(p.day.slice(5).replace('-', '/'))}${hfUnit === 'week' ? ' 주' : ''} · ${usd(p.usd, 2)} · ${p.n}건"/>`; }).join('');
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${hfUnit === 'day' ? '일별' : '주별'} 힉스필드 사용액">
+    <line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" stroke="var(--rule)" vector-effect="non-scaling-stroke"/>${bars}</svg>
+    <div class="axis"><span>${pts[0].day.slice(5).replace('-', '/')}</span><span>가장 많은 ${hfUnit === 'day' ? '날' : '주'} ${usd(max, 2)}</span><span>${pts.at(-1).day.slice(5).replace('-', '/')}</span></div></div>`;
+}
+function renderHf() {
+  const R = hf.rows, monthBy = new Map();
+  for (const r of hf.month) monthBy.set(r.uid, (monthBy.get(r.uid) || 0) + hfCost(r));
+  const limOf = uid => { const l = hf.limits.find(x => x.uid === uid); return l ? {usd: Number(l.monthly_usd), grp: l.grp} : {usd: HF_DEF, grp: '기본'}; };
+  // 사람: 기간 사용 + 한도 행(안 쓴 사람도)
+  const P = new Map();
+  for (const r of R) { const p = P.get(r.uid) || {uid: r.uid, name: r.name, team: r.team, usd: 0, n: 0, img: 0, vid: 0}; p.usd += hfCost(r); p.n++; r.kind === 'image' ? p.img++ : p.vid++; P.set(r.uid, p); }
+  for (const l of hf.limits) if (!P.has(l.uid)) P.set(l.uid, {uid: l.uid, name: l.name, team: l.grp, usd: 0, n: 0, img: 0, vid: 0});
+  const people = [...P.values()].map(p => ({...p, lim: limOf(p.uid), month: monthBy.get(p.uid) || 0})).sort((a, b) => b.usd - a.usd || b.month - a.month || a.name.localeCompare(b.name, 'ko'));
+  const total = R.reduce((a, r) => a + hfCost(r), 0), pend = R.filter(r => ['queued', 'in_progress'].includes(r.status));
+  const img = R.filter(r => r.kind === 'image').length, vid = R.length - img;
+  const users = new Set(R.map(r => r.uid)).size, over = people.filter(p => p.month > SCALE_SEAT).length;
+  const teams = group(R, r => r.team), purposes = group(R, r => r.purpose), models = group(R, r => r.model === 'custom' ? r.model_path : r.model), kinds = group(R, r => r.kind === 'image' ? '이미지' : '영상');
+  const teamList = [...new Set(R.map(r => r.team))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const log = R.filter(r => (!hfTeam || r.team === hfTeam) && (!hfQ || [r.name, r.team, r.purpose, r.model, r.model_path, r.prompt].join(' ').toLowerCase().includes(hfQ)));
+  const share = (x, t) => t ? Math.round(x / t * 100) : 0;
+  const small = (title, sub, G) => `<section class="panel"><h2>${title} <small>${sub}</small></h2><div class="tw"><table><thead><tr><th>${title.replace('별', '')}</th><th class="r">사용액</th><th class="r">건수</th><th class="r hide-sm">비중</th></tr></thead><tbody>
+    ${G.slice(0, 12).map(x => `<tr><td>${esc(x.k)}${x.pend ? ` <span class="chip warn">진행 ${x.pend}</span>` : ''}</td><td class="r num">${usd(x.usd, 2)}</td><td class="r num">${x.n}</td><td class="r num hide-sm">${share(x.usd, total)}%</td></tr>`).join('') || '<tr><td colspan="4" class="unk">없음</td></tr>'}
+    ${G.length > 12 ? `<tr><td colspan="4" class="unk">그 밖 ${G.length - 12}개 · ${usd(G.slice(12).reduce((a, x) => a + x.usd, 0), 2)}</td></tr>` : ''}</tbody></table></div></section>`;
+  const limCell = p => {
+    const pct = p.lim.usd ? Math.min(100, p.month / p.lim.usd * 100) : 100, cls = pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : '';
+    const edit = hf.admin && hfEdit === p.uid ? `<span class="tools" style="margin-top:4px"><input id="limv" type="number" min="0" max="5000" step="10" value="${p.lim.usd}" style="flex:0 0 90px" aria-label="${esc(p.name)} 월 한도"><button class="pt-btn primary" data-lim-save="${p.uid}">저장</button><button class="pt-btn quiet" data-lim-cancel>취소</button></span>`
+      : hf.admin ? ` <button class="pt-btn quiet" data-lim-edit="${p.uid}" style="height:22px;padding:0 6px;font-size:12px">한도 바꾸기</button>` : '';
+    return `<div class="bar" title="이번 달 ${usd(p.month, 2)} / ${usd(p.lim.usd)}"><i style="width:${pct}%;${cls === 'bad' ? 'background:var(--negative)' : cls === 'warn' ? 'background:var(--warning)' : ''}"></i></div>
+      <span class="sm">이번 달 ${usd(p.month, 2)} / ${usd(p.lim.usd)} · ${Math.round(pct)}%${p.lim.grp && p.lim.grp !== '기본' ? ` · ${esc(p.lim.grp)}` : ''}</span>${edit}`;
+  };
+  $app.innerHTML = `
+  <header class="head">
+    <div><div class="eyebrow">HIGGSFIELD API · 회사 MCP 시범</div><h1 class="pt-title" style="margin:4px 0 0">힉스필드 API 사용</h1></div>
+    <div class="meta"><span class="live"><i></i>실시간 · ${kst(hf.at.toISOString())} 읽음</span>
+      <span class="tools"><select id="hfp" aria-label="기간">${Object.entries(HF_PERIODS).map(([k, v]) => `<option value="${k}" ${k === hfPeriod ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      <button class="pt-btn" id="hfcsv">CSV 내려받기</button></span></div>
+  </header>
+  ${hfErr ? `<div class="banner" role="alert"><b>새로 읽지 못했습니다</b><span>${esc(hfErr)}</span></div>` : ''}
+  ${hf.all ? '' : '<div class="banner" role="status"><b>내 생성 기록만 보입니다</b><span>전 직원 현황은 열람 권한이 있는 사람에게만 보입니다.</span></div>'}
+  <section class="sum" aria-label="요약">
+    <div><small>${HF_PERIODS[hfPeriod]} 사용액</small><b class="num">${usd(total, 2)}</b><span>${pend.length ? `진행 중 ${pend.length}건 예상액 포함` : '완료된 생성 기준 (실패·거절은 0)'}</span></div>
+    <div><small>생성 건수</small><b class="num">${R.length}<em>건</em></b><span>이미지 ${img} · 영상 ${vid}</span></div>
+    <div><small>쓴 사람</small><b class="num">${users}<em>명</em></b><span>${teams.length}개 팀</span></div>
+    <div><small>Scale 1석($${SCALE_SEAT}/월)보다 많이 쓴 사람</small><b class="num">${over}<em>명</em></b><span>이번 달 기준 · 좌석 결정 참고</span></div>
+  </section>
+
+  <section class="panel" id="hfpeople">
+    <h2>직원별 순위 <small>${HF_PERIODS[hfPeriod]} 사용액 순 · 한도는 이번 달 기준</small></h2>
+    <div class="tw"><table><thead><tr><th class="r">순위</th><th>이름</th><th class="r">사용액</th><th class="r">건수</th><th style="min-width:180px">월 한도 사용률</th><th class="hide-sm">Scale 1석과 비교</th></tr></thead><tbody>
+      ${people.map((p, i) => `<tr><td class="r num">${p.usd > 0 ? i + 1 : '—'}</td><td><b>${esc(p.name || '이름 없음')}</b><span class="sm">${esc(p.team || '')}</span></td>
+        <td class="r num">${usd(p.usd, 2)}</td><td class="r num">${p.n}<span class="sm">이미지 ${p.img} · 영상 ${p.vid}</span></td><td>${limCell(p)}</td>
+        <td class="hide-sm">${p.month > SCALE_SEAT ? `<span class="chip bad">좌석이 더 쌈 (+${usd(p.month - SCALE_SEAT)})</span>` : p.month > SCALE_SEAT * 0.6 ? `<span class="chip warn">좌석의 ${Math.round(p.month / SCALE_SEAT * 100)}%</span>` : `<span class="chip ok">API 가 쌈</span>`}</td></tr>`).join('') || '<tr><td colspan="6" class="unk">기록 없음</td></tr>'}
+    </tbody></table></div>
+    <p class="note">한도: 골포스트 $150 · 제작팀 $120 · 그 외 $30. 80%에 본인과 AX팀에 슬랙 알림, 100%면 생성이 막힙니다.</p>
+  </section>
+
+  <div class="grid2">
+    ${small('팀별', '사용액 · 건수', teams)}
+    <section class="panel"><h2>추이 <small>${hfUnit === 'day' ? '일별' : '주별'} 사용액</small></h2>
+      <div class="tools"><select id="hfu" aria-label="단위"><option value="day" ${hfUnit === 'day' ? 'selected' : ''}>일별</option><option value="week" ${hfUnit === 'week' ? 'selected' : ''}>주별</option></select></div>
+      ${hfBars(R)}</section>
+  </div>
+  <div class="grid2">
+    ${small('용도별', '프로젝트·제안서', purposes)}
+    ${small('모델별', '이미지·영상 모델', models)}
+  </div>
+  ${small('종류별', '이미지·영상', kinds)}
+
+  <section class="panel" id="hflog">
+    <h2>생성 기록 <small>${log.length}건${hfTeam ? ` · ${esc(hfTeam)}` : ''}</small></h2>
+    <div class="tools"><input id="hfq" type="search" placeholder="이름·용도·모델·프롬프트 찾기" value="${esc(hfQ)}" aria-label="생성 기록 찾기">
+      <select id="hft" aria-label="팀 고르기"><option value="">모든 팀</option>${teamList.map(t => `<option ${t === hfTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+    <div class="tw"><table><thead><tr><th>언제</th><th>누가</th><th>모델</th><th>용도·프롬프트</th><th class="r">금액</th><th>결과물</th></tr></thead><tbody>
+      ${log.slice(0, 300).map(r => { const files = r.files || [], st = r.status;
+        return `<tr><td class="num" style="white-space:nowrap">${kst(r.at)}</td><td style="white-space:nowrap">${esc(r.name)}<span class="sm">${esc(r.team)}</span></td>
+          <td>${esc(r.model === 'custom' ? r.model_path : r.model)}<span class="sm">${r.kind === 'image' ? '이미지' : '영상'}${r.mode === 'image' ? ' · 사진으로' : ''}${r.params?.duration ? ` · ${r.params.duration}초` : ''}${r.params?.resolution ? ` · ${esc(r.params.resolution)}` : ''}</span></td>
+          <td><b>${esc(r.purpose)}</b><span class="sm" title="${esc(r.prompt)}">${esc((r.prompt || '').slice(0, 120))}${(r.prompt || '').length > 120 ? '…' : ''}</span></td>
+          <td class="r num">${usd(hfCost(r), 2)}${['queued', 'in_progress'].includes(st) ? '<span class="sm">예상</span>' : ''}</td>
+          <td>${st === 'completed' && files.length ? files.map((f, i) => `<button class="pt-btn" data-open="${esc(f.path)}" style="height:26px;margin:0 4px 4px 0">${String(f.type || '').startsWith('video/') ? '영상' : '이미지'}${files.length > 1 ? ' ' + (i + 1) : ''} 보기</button>`).join('')
+            : `<span class="chip ${st === 'completed' ? 'warn' : ['failed', 'nsfw', 'error', 'canceled'].includes(st) ? 'bad' : ''}">${st === 'completed' ? '보관 중' : esc(HF_ST[st] || st)}</span>`}</td></tr>`; }).join('') || '<tr><td colspan="6" class="unk">기록 없음</td></tr>'}
+      ${log.length > 300 ? `<tr><td colspan="6" class="unk">최근 300건만 보입니다. 전체는 CSV 로 내려받으세요.</td></tr>` : ''}
+    </tbody></table></div>
+  </section>
+  <footer><span>화면은 1분마다 새로 읽습니다.</span><span>금액은 생성 전 힉스필드 견적 기준입니다. 실패·내용 검사 거절은 청구되지 않아 0으로 셉니다.</span></footer>`;
+}
+function hfCsv() {
+  const log = hf.rows.filter(r => (!hfTeam || r.team === hfTeam) && (!hfQ || [r.name, r.team, r.purpose, r.model, r.model_path, r.prompt].join(' ').toLowerCase().includes(hfQ)));
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const head = ['번호', '시각(KST)', '이름', '팀', '용도', '모델', '모델 경로', '종류', '방식', '상태', '예상(USD)', '청구로 본 금액(USD)', '프롬프트'];
+  const lines = log.map(r => [r.id, new Date(new Date(r.at).getTime() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' '), r.name, r.team, r.purpose, r.model, r.model_path, r.kind === 'image' ? '이미지' : '영상', r.mode === 'image' ? '사진으로' : '글로', HF_ST[r.status] || r.status, Number(r.est_usd).toFixed(4), hfCost(r).toFixed(4), r.prompt].map(q).join(','));
+  const blob = new Blob(['﻿' + [head.map(q).join(','), ...lines].join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `higgsfield_${hfPeriod}_${kstDay(new Date().toISOString())}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 
 // 사람 단위로 묶기: 이메일 → 이름·팀, 서비스 좌석, Claude 사용·활용
 function people() {
@@ -279,8 +424,25 @@ function render() {
   <footer><span>사무실 PC가 1시간마다 관리 화면을 읽어 넣고, 이 화면은 1분마다 새로 읽습니다.</span><span>마지막 수집 ${kst(run.run_at)} · ${run.secs ?? '—'}초</span>${lastErr ? `<span style="color:var(--negative)">읽기 오류: ${esc(lastErr)}</span>` : ''}</footer>`;
 }
 
-$app.addEventListener('input', e => { if (e.target.id === 'q') { q = e.target.value.trim().toLowerCase(); const pos = e.target.selectionStart; render(); const el = document.getElementById('q'); el.focus(); el.setSelectionRange(pos, pos); } });
-$app.addEventListener('change', e => { if (e.target.id === 'team') { teamSel = e.target.value; render(); } });
+$app.addEventListener('input', e => { if (e.target.id === 'hfq') { hfQ = e.target.value.trim().toLowerCase(); const pos = e.target.selectionStart; renderHf(); const el = document.getElementById('hfq'); el.focus(); el.setSelectionRange(pos, pos); return; } if (e.target.id === 'q') { q = e.target.value.trim().toLowerCase(); const pos = e.target.selectionStart; render(); const el = document.getElementById('q'); el.focus(); el.setSelectionRange(pos, pos); } });
+$app.addEventListener('change', e => { if (e.target.id === 'team') { teamSel = e.target.value; render(); }
+  if (e.target.id === 'hfp') { hfPeriod = e.target.value; $app.querySelector('.head .meta .live').innerHTML = '<span class="spin" aria-hidden="true"></span>' + HF_PERIODS[hfPeriod] + ' 읽는 중'; hfLoad(); }
+  if (e.target.id === 'hfu') { hfUnit = e.target.value; renderHf(); }
+  if (e.target.id === 'hft') { hfTeam = e.target.value; renderHf(); } });
+$app.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'hfcsv') return hfCsv();
+  if (b.dataset.limEdit) { hfEdit = b.dataset.limEdit; renderHf(); document.getElementById('limv')?.focus(); return; }
+  if (b.hasAttribute('data-lim-cancel')) { hfEdit = ''; renderHf(); return; }
+  if (b.dataset.limSave) { const v = Number(document.getElementById('limv').value); b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span>저장 중';
+    const { error } = await SB.rpc('pt_hf_limit_set', {p_uid: b.dataset.limSave, p_usd: v});
+    if (error) { alert('한도를 바꾸지 못했습니다: ' + error.message); b.disabled = false; b.textContent = '저장'; return; }
+    hfEdit = ''; return hfLoad(); }
+  if (b.dataset.open) { const w = window.open('', '_blank'); const old = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span>여는 중';
+    const { data, error } = await SB.storage.from('pt-hf').createSignedUrl(b.dataset.open, 3600);
+    b.disabled = false; b.innerHTML = old;
+    if (error || !data?.signedUrl) { w?.close(); alert('결과물을 열지 못했습니다: ' + (error?.message || '')); return; }
+    if (w) w.location = data.signedUrl; else location.href = data.signedUrl; } });
 $app.addEventListener('click', e => { const a = e.target.closest('a[data-team]'); if (a) { e.preventDefault(); teamSel = a.dataset.team; q = ''; render(); document.getElementById('people').scrollIntoView({behavior: 'smooth'}); } });
 document.addEventListener('pointermove', e => {
   const tip = document.getElementById('tip'), t = e.target.closest?.('[data-tip]');
@@ -302,12 +464,25 @@ async function load() {
   render(); return true;
 }
 
+let tab = location.hash === '#hf' ? 'hf' : 'sub';
+function setTab() {
+  document.getElementById('tab-sub').toggleAttribute('aria-current', tab === 'sub'); document.getElementById('tab-hf').toggleAttribute('aria-current', tab === 'hf');
+  if (tab === 'sub') document.getElementById('tab-sub').setAttribute('aria-current', 'page'); else document.getElementById('tab-hf').setAttribute('aria-current', 'page');
+  document.title = tab === 'hf' ? '힉스필드 API 사용' : 'AI 구독 현황';
+}
+const loadCur = () => tab === 'hf' ? hfLoad() : load();
+window.addEventListener('hashchange', () => {
+  const t = location.hash === '#hf' ? 'hf' : location.hash === '' || location.hash === '#' ? 'sub' : tab;
+  if (t === tab) return; tab = t; setTab();
+  $app.innerHTML = `<div class="gate"><h1>${tab === 'hf' ? '힉스필드 API 사용' : 'AI 구독 현황'}</h1><p><span class="spin" aria-hidden="true"></span>불러오는 중…</p></div>`; loadCur();
+});
 (async () => {
+  setTab();
   const { data: { session } } = await SB.auth.getSession();
   if (!session) { $app.innerHTML = `<div class="gate"><h1>AI 구독 현황</h1><p>이그드라실(헤임달 계정·슬랙)로 로그인한 뒤 다시 열어 주세요.</p><a class="pt-btn" href="../">이그드라실에서 로그인</a></div>`; return; }
-  if (await load() === false) return;
-  setInterval(() => { if (!document.hidden) load(); }, POLL);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  await loadCur();
+  setInterval(() => { if (!document.hidden && !hfEdit) loadCur(); }, POLL);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !hfEdit) loadCur(); });
 })();
 </script>
 </body>
