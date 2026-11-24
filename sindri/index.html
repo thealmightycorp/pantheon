@@ -6,8 +6,6 @@
 <title>신드리 · AI 생성</title>
 <link rel="icon" type="image/png" href="../brand/pantheon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap">
-<link rel="stylesheet" href="../pantheon-tokens.css">
 <!-- 신드리 Sindri — AI 생성 (11-24 김현우 「이그드라실에 붙이지 말고 판테온 지도에 하나 추가」 · 이름 신드리 = 묠니르를 만든 난쟁이 대장장이)
      처음 만든 날 (2026-11-24 · 김현우 「힉스필드 화면을 우리 규칙으로 · API 로 쓸 수 있는 모델만 · 모델 목록 매일 자동 갱신 · 내가 만든 것은 아카이브로」)
      원본 pantheon/web/sindri/index.html → 배포 thealmightycorp/pantheon sindri/ (빌드 없이 복사 · 옛 주소 studio/ 는 여기로 넘김)
@@ -16,120 +14,202 @@
      아카이브: pt_hf_gen(본인 것) · 파일은 저장소 pt-hf/<uid>/<id>/ · 사진 올리기는 pt-hf/<uid>/uploads/
      처음엔 김현우만(pt_hf_admin) — 대표님 보고 뒤 넓힘
      남은 한도: 오른쪽 위 · 한도 추가 요청 pt_hf_limit_request → 봇이 김현우 DM → 현황판 힉스필드 탭에서 승인(pt_hf_limit_decide) -->
-<style>.left .bar{display:block}</style>
 <style>
+/* 신드리 — 대장간: 흑연 모루 바탕 · 달군 황동 한 가지 · 결과물이 주인공 · 아래 떠 있는 프롬프트 독 */
+:root{
+  --anvil:#16171C; --iron:#1F2128; --slag:#2A2D36; --seam:#363A45; --bone:#ECE8E1; --ash:#9AA0AE; --cinder:#6B7180;
+  --brass:#E3A73B; --brass-hot:#F2BD5C; --brass-ink:#1A1408;
+  /* 대화 상자·안내가 쓰는 공용 이름을 대장간 색으로 */
+  --ground:var(--anvil); --surface:var(--iron); --raised:var(--slag); --text:var(--bone); --muted:var(--ash); --faint:var(--cinder);
+  --border:var(--seam); --control:var(--seam); --rule:var(--seam); --active:var(--slag);
+  --accent:var(--brass); --accent-pale:rgba(227,167,59,.14); --accent-ink:var(--brass-hot);
+  --negative:#E5685C; --negative-pale:rgba(229,104,92,.14); --negative-ink:#F3A097; --warning:#E3A73B; --warning-ink:#F2BD5C;
+  --pill-neutral-bg:var(--slag); --pill-neutral-ink:var(--bone);
+  --r-dock:22px; --r-tile:14px; --r-ctl:10px;
+  --font:"Pretendard Variable",Pretendard,system-ui,sans-serif;
+  color-scheme:dark;
+}
 *{box-sizing:border-box}
 [hidden]{display:none !important}
-body{margin:0;background:var(--ground);color:var(--text);font:var(--fs-body)/1.5 var(--font);-webkit-font-smoothing:antialiased;word-break:keep-all}
-a{color:var(--accent)}
+html,body{height:100%}
+body{margin:0;background:var(--anvil);color:var(--bone);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;word-break:keep-all}
+a{color:var(--brass-hot)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
-.pt-column.wide{max-width:1400px}
-.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
-.head p{margin:4px 0 0;color:var(--muted);font-size:13px}
-.left{display:grid;grid-template-columns:auto auto;align-items:center;gap:2px 10px;min-width:220px;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:8px 14px;font:inherit;color:inherit;cursor:pointer;text-align:left}
-.left:hover{border-color:var(--control)}.left:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.left .lt{font-size:12px;color:var(--muted)}.left b{font-size:20px;font-weight:700;justify-self:end}
-.left .bar{grid-column:1/-1}.left .lt:last-child{grid-column:1/-1}
-.left.warn b{color:var(--warning-ink)}.left.bad b{color:var(--negative-ink)}
-.bar{height:6px;border-radius:99px;background:var(--active);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
-.bar.warn i{background:var(--warning)}.bar.bad i{background:var(--negative)}
-.seg{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:var(--active);flex-wrap:wrap}
-.seg button{border:0;background:transparent;font:inherit;font-size:14px;font-weight:600;color:var(--muted);padding:7px 14px;border-radius:9px;cursor:pointer}
-.seg button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.06)}
-.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.seg.sub button{font-size:13px;padding:6px 12px}
-.bar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
-.work{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;align-items:start}
-.panel{background:var(--surface);border-radius:var(--radius-card);padding:16px;display:grid;gap:14px;min-width:0}
-.panel.sticky{position:sticky;top:16px;max-height:calc(100svh - 32px);overflow-y:auto}
-.f{display:grid;gap:6px}
-.f>label,.f>.lab{font-size:12px;font-weight:600;color:var(--muted)}
-.f>label em,.f>.lab em{color:var(--negative);font-style:normal;margin-left:2px}
-.f .hint{font-size:12px;color:var(--faint)}
-select,input[type=text],input[type=number],textarea{width:100%;border:1px solid var(--control);border-radius:10px;background:var(--raised);color:var(--text);font:inherit;font-size:14px;padding:9px 12px}
-textarea{resize:vertical;min-height:110px;line-height:1.5}
-select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{border:1px solid var(--control);background:var(--raised);color:var(--text);font:inherit;font-size:13px;padding:5px 11px;border-radius:999px;cursor:pointer}
-.chips button[aria-pressed=true]{background:var(--text);color:var(--ground);border-color:var(--text)}
-.toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
-.toggle input{width:18px;height:18px;accent-color:var(--accent)}
-.model{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;border:1px solid var(--control);border-radius:12px;padding:10px 12px;background:var(--raised);cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
-.model b{font-size:15px}.model small{grid-column:1/-1;color:var(--muted);font-size:12px}
-.model .chev{color:var(--muted)}
-.mlist{display:grid;gap:6px;max-height:360px;overflow-y:auto}
-.mlist button{display:grid;gap:2px;text-align:left;border:1px solid transparent;border-radius:10px;padding:8px 10px;background:transparent;font:inherit;color:inherit;cursor:pointer}
-.mlist button:hover{background:var(--raised)}
-.mlist button[aria-pressed=true]{border-color:var(--accent);background:var(--accent-pale)}
-.mlist button small{color:var(--muted);font-size:12px}
-.slots{display:flex;flex-wrap:wrap;gap:8px}
-.slot{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;background:var(--active);display:grid;place-items:center;font-size:11px;color:var(--muted)}
+
+/* 틀: 왼쪽 아이콘 줄 + 작업실 */
+.shell{display:grid;grid-template-columns:76px minmax(0,1fr);min-height:100svh}
+.rail{position:sticky;top:0;height:100svh;display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0;border-right:1px solid var(--seam);background:var(--anvil);z-index:6}
+.mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;margin-bottom:14px;background:linear-gradient(150deg,#2B2418,#15120C);border:1px solid #4A3A1C;color:var(--brass-hot);font-weight:800;font-size:19px;text-decoration:none;letter-spacing:-.04em}
+.rb{width:60px;display:grid;justify-items:center;gap:4px;padding:9px 0 7px;border-radius:12px;border:0;background:transparent;color:var(--ash);font-size:11px;font-weight:600;cursor:pointer;text-decoration:none}
+.rb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rb:hover{color:var(--bone);background:var(--iron)}
+.rb[aria-current=page],.rb[aria-pressed=true]{color:var(--brass-hot);background:var(--accent-pale)}
+.rail .gap{flex:1}
+.work{min-width:0;position:relative;padding:18px 28px 240px}
+
+/* 위쪽 줄: 작업 갈래 · 남은 한도 */
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.top h1{margin:0 8px 0 0;font-size:22px;font-weight:800;letter-spacing:-.03em}
+.modes{display:flex;gap:4px;flex-wrap:wrap}
+.modes button{border:1px solid transparent;background:transparent;color:var(--ash);font-size:14px;font-weight:600;padding:7px 13px;border-radius:999px;cursor:pointer}
+.modes button:hover{color:var(--bone)}
+.modes button[aria-pressed=true]{color:var(--bone);border-color:var(--seam);background:var(--iron)}
+.top .sp{flex:1}
+.left{display:flex;align-items:center;gap:10px;border:1px solid var(--seam);background:var(--iron);border-radius:999px;padding:6px 14px 6px 8px;cursor:pointer}
+.left:hover{border-color:#4A4F5C}
+.left .ring{--p:0;width:28px;height:28px;border-radius:50%;background:conic-gradient(var(--brass) calc(var(--p)*1%),var(--slag) 0);display:grid;place-items:center}
+.left .ring::after{content:"";width:20px;height:20px;border-radius:50%;background:var(--iron)}
+.left.bad .ring{background:conic-gradient(var(--negative) calc(var(--p)*1%),var(--slag) 0)}
+.left span{font-size:12px;color:var(--ash);line-height:1.2}
+.left b{display:block;font-size:15px;color:var(--bone)}
+.left.bad b{color:var(--negative-ink)}
+
+/* 갤러리 — 원래 비율 그대로 쌓기 */
+.wall{column-width:250px;column-gap:10px}
+.tile{display:block;width:100%;break-inside:avoid;margin:0 0 10px;position:relative;border:0;padding:0;border-radius:var(--r-tile);overflow:hidden;background:var(--iron);cursor:zoom-in}
+.tile img,.tile video{display:block;width:100%;height:auto}
+.tile .cap{position:absolute;inset:auto 0 0 0;padding:28px 12px 10px;background:linear-gradient(transparent,rgba(10,10,12,.86));text-align:left;opacity:0;transition:opacity .15s}
+.tile:hover .cap,.tile:focus-visible .cap{opacity:1}
+.tile .cap b{display:block;font-size:13px;font-weight:600}
+.tile .cap span{display:block;font-size:12px;color:var(--ash);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .kind{position:absolute;top:8px;left:8px;display:flex;gap:4px}
+.tag{height:20px;padding:0 7px;border-radius:6px;background:rgba(10,10,12,.62);color:var(--bone);font-size:11px;font-weight:600;display:inline-flex;align-items:center;backdrop-filter:blur(6px)}
+/* 만드는 중 — 달군 쇠 불씨 (이 화면의 유일한 저절로 움직이는 것) */
+.tile.forging{cursor:default;display:grid;place-content:center;gap:8px;text-align:center;color:var(--ash);font-size:13px;background:var(--iron)}
+.tile.forging::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 110%,rgba(227,167,59,.42),transparent 70%);animation:ember 2.4s ease-in-out infinite}
+.tile.forging b{position:relative;color:var(--bone);font-size:14px}
+.tile.forging span{position:relative}
+@keyframes ember{0%,100%{opacity:.45;transform:translateY(6%)}50%{opacity:1;transform:translateY(0)}}
+.tile.failed{cursor:pointer;display:grid;place-content:center;text-align:center;padding:18px;color:var(--ash);font-size:13px;aspect-ratio:1}
+.tile.failed b{color:var(--negative-ink)}
+.blank{max-width:560px;margin:12vh auto 0;text-align:center}
+.blank h2{margin:0 0 6px;font-size:30px;font-weight:800;letter-spacing:-.03em}
+.blank p{margin:0 0 18px;color:var(--ash)}
+.ex{display:grid;gap:8px}
+.ex button{border:1px solid var(--seam);background:var(--iron);border-radius:12px;padding:11px 14px;text-align:left;color:var(--bone);font-size:14px;cursor:pointer}
+.ex button:hover{border-color:var(--brass)}
+.find{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.find input,.find select{height:38px;border:1px solid var(--seam);border-radius:var(--r-ctl);background:var(--iron);color:var(--bone);padding:0 12px;font:inherit;font-size:14px}
+.find input{flex:1 1 240px;min-width:0}
+
+/* 프롬프트 독 — 이 화면의 주인공 */
+.dockwrap{position:fixed;left:76px;right:0;bottom:18px;display:flex;justify-content:center;padding:0 24px;z-index:8;pointer-events:none}
+.dock{pointer-events:auto;position:relative;width:min(980px,100%);background:rgba(31,33,40,.92);backdrop-filter:blur(18px);border:1px solid var(--seam);border-radius:var(--r-dock);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.02) inset;padding:12px}
+.dock-main{display:flex;gap:10px;align-items:flex-start}
+.dock textarea{flex:1;min-height:52px;max-height:200px;resize:none;border:0;background:transparent;color:var(--bone);font:inherit;font-size:16px;line-height:1.5;padding:6px 8px;outline:none}
+.dock textarea::placeholder{color:var(--cinder)}
+.slots{display:flex;gap:6px;flex-wrap:wrap;max-width:46%}
+.slotgrp{display:flex;gap:4px;align-items:center}
+.slot{position:relative;width:52px;height:52px;border-radius:10px;overflow:hidden;background:var(--slag);display:grid;place-items:center;color:var(--ash);font-size:11px;flex:none}
 .slot img,.slot video{width:100%;height:100%;object-fit:cover}
-.slot .x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;cursor:pointer;line-height:22px;padding:0}
-.addslot{display:flex;gap:6px;flex-wrap:wrap}
-details.adv summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
-details.adv[open] summary{margin-bottom:10px}
-details.adv>div{display:grid;gap:12px}
-.q{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;margin-left:5px;border-radius:50%;border:1px solid var(--control);background:var(--raised);color:var(--muted);font:600 11px/1 var(--font);cursor:help;padding:0;vertical-align:1px}
-.q:hover,.q:focus-visible{color:var(--text);border-color:var(--text);outline:none}
-.q .pop{display:none;position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:max-content;max-width:260px;padding:9px 11px;border-radius:10px;background:var(--text);color:var(--ground);font:400 12px/1.5 var(--font);text-align:left;white-space:normal;z-index:40;box-shadow:0 8px 24px rgba(0,0,0,.18);cursor:auto}
+.slot .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:0;background:rgba(0,0,0,.7);color:#fff;font-size:11px;line-height:18px;padding:0;cursor:pointer}
+.slot.add{border:1px dashed #4A4F5C;background:transparent;cursor:pointer;text-align:center;line-height:1.2;padding:2px}
+.slot.add:hover{border-color:var(--brass);color:var(--bone)}
+.slot.add.need{border-color:var(--brass)}
+.dock-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding-top:10px;border-top:1px solid var(--seam)}
+.chip{height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;border:1px solid var(--seam);background:var(--slag);color:var(--bone);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chip small{color:var(--ash);font-weight:500;font-size:12px}
+.chip:hover,.chip[aria-expanded=true]{border-color:#555B68;background:#30333D}
+.chip.model{background:transparent}
+.chip.model b{color:var(--brass-hot);font-weight:700}
+.purpose{height:34px;flex:1 1 200px;min-width:150px;border:1px solid var(--seam);border-radius:999px;background:transparent;color:var(--bone);padding:0 14px;font:inherit;font-size:13px}
+.purpose::placeholder{color:var(--cinder)}
+.purpose.need{border-color:var(--brass)}
+.forge{height:44px;min-width:132px;margin-left:auto;border:0;border-radius:14px;background:linear-gradient(180deg,var(--brass-hot),var(--brass));color:var(--brass-ink);font-size:15px;font-weight:800;letter-spacing:-.01em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;box-shadow:0 6px 18px rgba(227,167,59,.25)}
+.forge:hover{filter:brightness(1.06)}
+.forge:disabled{opacity:.55;cursor:default;filter:none}
+.dock .err{margin-top:8px}
+/* 칩을 누르면 위로 열리는 고르개 */
+.pop-panel{position:absolute;left:12px;bottom:calc(100% + 10px);width:min(420px,calc(100vw - 48px));max-height:min(60vh,520px);overflow-y:auto;background:var(--iron);border:1px solid var(--seam);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:14px;display:grid;gap:12px}
+.pop-panel h3{margin:0;font-size:13px;color:var(--ash);font-weight:600}
+.mfind{height:36px;border:1px solid var(--seam);border-radius:var(--r-ctl);background:var(--slag);color:var(--bone);padding:0 12px;font:inherit;font-size:14px;width:100%}
+.mlist{display:grid;gap:2px}
+.mlist button{display:grid;grid-template-columns:1fr auto;gap:0 8px;text-align:left;border:0;border-radius:10px;padding:8px 10px;background:transparent;cursor:pointer}
+.mlist button:hover{background:var(--slag)}
+.mlist button[aria-pressed=true]{background:var(--accent-pale)}
+.mlist button[aria-pressed=true] b{color:var(--brass-hot)}
+.mlist b{font-size:14px}.mlist small{grid-column:1;color:var(--ash);font-size:12px}
+.mlist i{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;color:var(--cinder);font-size:12px}
+
+/* 칸 — 고르개 안 · 대화 상자 */
+.f{display:grid;gap:6px}
+.f>label,.f>.lab{font-size:12px;font-weight:600;color:var(--ash)}
+.f>label em,.f>.lab em{color:var(--brass-hot);font-style:normal;margin-left:2px}
+.hint{font-size:12px;color:var(--cinder)}
+select,input[type=text],input[type=number],textarea{width:100%;border:1px solid var(--seam);border-radius:var(--r-ctl);background:var(--slag);color:var(--bone);font:inherit;font-size:14px;padding:9px 12px}
+.pop-panel textarea,.sheet textarea{resize:vertical;min-height:70px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--seam);background:var(--slag);color:var(--bone);font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--bone);color:var(--anvil);border-color:var(--bone)}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+.toggle input{width:18px;height:18px;accent-color:var(--brass)}
+.q{position:relative;display:inline-grid;place-items:center;width:17px;height:17px;margin-left:5px;border-radius:50%;border:1px solid #4A4F5C;background:transparent;color:var(--ash);font:600 10px/1 var(--font);cursor:help;padding:0;vertical-align:1px}
+.q:hover,.q:focus-visible{color:var(--bone);border-color:var(--bone);outline:none}
+.q .pop{display:none;position:fixed;width:max-content;max-width:260px;padding:9px 11px;border-radius:10px;background:var(--bone);color:var(--anvil);font:400 12px/1.5 var(--font);text-align:left;white-space:normal;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .q:hover .pop,.q:focus .pop,.q:focus-within .pop{display:block}
-.panel .q .pop{left:0;transform:none}
-.go{display:grid;gap:8px;position:sticky;bottom:-16px;background:var(--surface);padding:12px 0 2px;border-top:1px solid var(--rule)}
-.go .pt-btn{height:44px;font-size:15px;font-weight:600}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}.indet i{animation-duration:4s !important}}
-.err{border-radius:10px;padding:10px 12px;background:var(--negative-pale);color:var(--negative-ink);font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.card{position:relative;border-radius:14px;overflow:hidden;background:var(--active);aspect-ratio:1/1;cursor:pointer;border:0;padding:0;font:inherit;color:inherit;display:block;width:100%}
-.card img,.card video{width:100%;height:100%;object-fit:cover;display:block}
-.card .tag{position:absolute;left:8px;bottom:8px;right:8px;display:flex;gap:4px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:var(--pill-neutral-bg);color:var(--pill-neutral-ink);font-size:11px;font-weight:600;white-space:nowrap}
-.card .chip{background:rgba(0,0,0,.55);color:#fff}
-.chip.bad{background:var(--negative-pale);color:var(--negative-ink)}
-.card .wait{position:absolute;inset:0;display:grid;place-content:center;gap:8px;text-align:center;padding:16px;color:var(--muted);font-size:13px;background:var(--raised)}
-.card .wait b{color:var(--text);font-size:14px}
-.indet{height:4px;width:140px;border-radius:99px;background:var(--active);overflow:hidden;margin:0 auto}.indet i{display:block;width:40%;height:100%;background:var(--accent);border-radius:99px;animation:slide 1.4s ease-in-out infinite}
-.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.empty{padding:48px 16px;text-align:center;color:var(--muted);background:var(--surface);border-radius:var(--radius-card)}
-.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-.tools input{flex:1 1 220px;min-width:0}.tools select{width:auto}
-.dlg{position:fixed;inset:0;z-index:30;background:rgba(10,12,16,.55);display:grid;place-items:center;padding:16px}
-.sheet{background:var(--surface);border-radius:18px;width:min(460px,100%);max-height:calc(100svh - 32px);overflow-y:auto;padding:20px;display:grid;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.sheet h2{margin:0;font-size:18px}
-.sheet .price{font-size:32px;font-weight:700}
-.sheet .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
-.sheet .row b{color:var(--text);font-weight:600;text-align:right}
-.sheet .acts{display:flex;gap:8px;justify-content:flex-end}
-.sheet .acts .pt-btn{height:40px}
-.viewer{width:min(1180px,100%);display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0;padding:0;overflow:hidden}
-.viewer .media{background:#0d0f13;display:grid;place-items:center;min-height:320px;max-height:calc(100svh - 32px)}
+.err{border-radius:10px;padding:9px 12px;background:var(--negative-pale);color:var(--negative-ink);font-size:13px}
+.bar{height:6px;border-radius:99px;background:var(--slag);overflow:hidden}.bar i{display:block;height:100%;background:var(--brass);border-radius:99px}
+.bar.bad i{background:var(--negative)}
+
+/* 대화 상자 */
+.dlg{position:fixed;inset:0;z-index:50;background:rgba(6,7,9,.7);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+.sheet{background:var(--iron);border:1px solid var(--seam);border-radius:20px;width:min(460px,100%);max-height:calc(100svh - 32px);overflow-y:auto;padding:22px;display:grid;gap:14px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.sheet h2{margin:0;font-size:18px;font-weight:700}
+.sheet .price{font-size:36px;font-weight:800;letter-spacing:-.03em;color:var(--brass-hot)}
+.sheet .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--ash)}
+.sheet .row b{color:var(--bone);font-weight:600;text-align:right}
+.sheet .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{height:40px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 16px;border-radius:12px;border:1px solid var(--seam);background:var(--slag);color:var(--bone);font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:#30333D}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--ash)}
+.btn.hot{border:0;background:linear-gradient(180deg,var(--brass-hot),var(--brass));color:var(--brass-ink);font-weight:800}
+.viewer{width:min(1240px,100%);display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0;padding:0;overflow:hidden}
+.viewer .media{background:#0C0D10;display:grid;place-items:center;min-height:320px;max-height:calc(100svh - 32px)}
 .viewer .media img,.viewer .media video{max-width:100%;max-height:calc(100svh - 32px);display:block}
-.viewer .info{padding:18px;display:grid;gap:12px;align-content:start;overflow-y:auto;max-height:calc(100svh - 32px)}
+.viewer .info{padding:20px;display:grid;gap:14px;align-content:start;overflow-y:auto;max-height:calc(100svh - 32px);border-left:1px solid var(--seam)}
 .viewer .info p{margin:0;font-size:14px;white-space:pre-wrap}
-.viewer .info .k{font-size:12px;color:var(--muted);font-weight:600}
+.viewer .info .k{font-size:12px;color:var(--ash);font-weight:600}
 .viewer .acts{display:grid;gap:8px}
-.pick{width:min(760px,100%)}
-.pick .grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
-.gate{max-width:440px;margin:12vh auto;padding:28px;background:var(--surface);border-radius:var(--radius-card);display:grid;gap:12px;text-align:center}
-.gate h1{font:600 22px/1.3 var(--serif);margin:0}.gate p{margin:0;color:var(--muted)}
-@media (max-width:1000px){.work{grid-template-columns:minmax(0,1fr)}.panel.sticky{position:static;max-height:none}.viewer{grid-template-columns:minmax(0,1fr)}.viewer .info{max-height:none}}
-@media (max-width:520px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pick{width:min(820px,100%)}
+.pick .wall{column-width:150px}
+.gate{max-width:440px;margin:18vh auto;padding:28px;background:var(--iron);border:1px solid var(--seam);border-radius:20px;display:grid;gap:12px;text-align:center}
+.gate h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.03em}.gate p{margin:0;color:var(--ash)}
+
+@media (max-width:1000px){.viewer{grid-template-columns:minmax(0,1fr)}.viewer .info{max-height:none;border-left:0;border-top:1px solid var(--seam)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{position:fixed;top:auto;bottom:0;left:0;right:0;height:auto;flex-direction:row;justify-content:space-around;padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--seam)}
+  .mark,.rail .gap{display:none}
+  .rb{width:auto;flex:1}
+  .work{padding:14px 12px 320px}
+  .wall{column-width:150px;column-gap:8px}
+  .tile{margin-bottom:8px}
+  .dockwrap{left:0;bottom:64px;padding:0 8px}
+  .dock{padding:10px;border-radius:18px}
+  .dock textarea{font-size:16px;min-height:44px}
+  .forge{min-width:0;flex:1 1 100%;margin-left:0}
+  .purpose{flex-basis:100%}
+  .top h1{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){.tile.forging::before{animation:none;opacity:.7}.spin{animation-duration:2.4s}.tile .cap{transition:none}}
 </style>
 </head>
 <body>
-<div class="pt-app">
-  <aside class="pt-sidebar">
-    <a class="pt-brand" href="./"><img src="../brand/pantheon.png" alt=""><span><b>신드리</b><small>AI 이미지·영상 생성</small></span></a>
-    <nav class="pt-nav" aria-label="AX 메뉴">
-      <a class="pt-nav-item" href="./" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 5.3L20 9l-4.4 3.8L17 19l-5-3-5 3 1.4-6.2L4 9l5.8-.7z"/></svg>만들기</a>
-      <a class="pt-nav-item" href="../ai/#hf" id="nav-usage" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>사용 현황</a>
-      <a class="pt-nav-item pt-pantheon" href="https://pantheon-map.vercel.app"><img src="../brand/pantheon.png" alt="">판테온 지도</a>
-    </nav>
-  </aside>
-  <main class="pt-canvas"><div class="pt-column wide" id="app"><div class="gate"><h1>신드리</h1><p><span class="spin" aria-hidden="true"></span> 불러오는 중…</p></div></div></main>
+<div class="shell">
+  <nav class="rail" aria-label="신드리 메뉴">
+    <a class="mark" href="./" aria-label="신드리 처음으로">신</a>
+    <button class="rb" type="button" data-kind="image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>이미지</button>
+    <button class="rb" type="button" data-kind="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg>비디오</button>
+    <button class="rb" type="button" data-kind="archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 4h18v3H3zM10 11h4"/></svg>아카이브</button>
+    <span class="gap"></span>
+    <a class="rb" href="../ai/#hf" id="nav-usage" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>사용 현황</a>
+    <a class="rb" href="https://pantheon-map.vercel.app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v9M9.5 10v9M14.5 10v9M19 10v9M3 21h18"/></svg>판테온</a>
+  </nav>
+  <main class="work" id="app"><div class="gate"><h1>신드리</h1><p><span class="spin" aria-hidden="true"></span> 불러오는 중…</p></div></main>
 </div>
 <div class="dlg" id="dlg" hidden></div>
 <input type="file" id="file" accept="image/*,video/*,audio/*" multiple hidden>
@@ -210,7 +290,7 @@ const tip = k => GLOSS[k] ? `<button type="button" class="q" aria-label="${esc(l
 // ── 상태
 let me = null, models = [], gens = [], urls = {}, limit = {spent: 0, limit: 0}, busy = false, err = '', reqs = [];
 let kind = ls.get('kind', 'image'), wf = ls.get('wf', 'create'), sel = null, form = {}, media = {}, purpose = ls.get('purpose', ''), aq = '', akind = '', showList = false;
-let poll = null;
+let poll = null, pop = null, mq = '', needPurpose = false;
 
 async function mcp(name, args) {
   const { data: { session } } = await SB.auth.getSession();
@@ -277,40 +357,6 @@ function fieldHtml(k, p, req) {
   if (p.type === 'integer' || p.type === 'number') return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label><input id="f_${k}" type="number" data-k="${k}" data-num="1" ${p.minimum != null ? `min="${p.minimum}"` : ''} ${p.maximum != null ? `max="${p.maximum}"` : ''} step="${p.type === 'integer' ? 1 : 0.01}" value="${v ?? ''}" placeholder="${k === 'seed' ? '비워 두면 매번 다른 결과가 나옵니다' : (p.default ?? '비우면 기본값')}"></div>`;
   return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label>${/negative|prompt/.test(k) ? `<textarea id="f_${k}" data-k="${k}" style="min-height:60px">${esc(v ?? '')}</textarea>` : `<input id="f_${k}" type="text" data-k="${k}" value="${esc(v ?? '')}">`}</div>`;
 }
-function mediaHtml(k, p, req) {
-  const many = p.type === 'array', max = many ? (p.maxItems || 16) : 1, list = media[k] || [], mk = mediaKind(k);
-  const thumb = x => { const u = x.gen ? (urls[(gens.find(g => g.id === x.gen)?.files || []).find(f => f.type.startsWith(mk))?.path || (gens.find(g => g.id === x.gen)?.files || [])[0]?.path] || '') : x.preview;
-    return `<div class="slot">${u ? (mk === 'video' ? `<video src="${esc(u)}#t=0.1" muted preload="metadata"></video>` : mk === 'image' ? `<img src="${esc(u)}" alt="">` : '음성') : '…'}<button class="x" type="button" data-rm="${k}" data-i="${list.indexOf(x)}" aria-label="빼기">×</button></div>`; };
-  return `<div class="f"><span class="lab">${lab(k)}${tip(k)}${req ? '<em aria-hidden="true">*</em>' : ''} <span class="hint">${many ? `${max}개까지` : '1개'}</span></span>
-    <div class="slots">${list.map(thumb).join('')}${list.length < max ? `<div class="addslot"><button class="pt-btn" type="button" data-up="${k}">올리기</button><button class="pt-btn" type="button" data-arc="${k}">아카이브에서</button></div>` : ''}</div></div>`;
-}
-function formHtml() {
-  if (!sel) return `<p class="hint">이 작업에 쓸 수 있는 모델이 없습니다.</p>`;
-  const P = sel.schema?.properties || {}, R = new Set(sel.schema?.required || []);
-  const keys = Object.keys(P).filter(k => !hidden(k, P[k]) || R.has(k));
-  const med = keys.filter(k => isUrl(k, P[k])), main = keys.filter(k => !isUrl(k, P[k]) && (MAIN.has(k) || R.has(k))), adv = keys.filter(k => !isUrl(k, P[k]) && !MAIN.has(k) && !R.has(k));
-  main.sort((a, b) => (a === 'prompt' ? -1 : b === 'prompt' ? 1 : 0));
-  return `${main.filter(k => k === 'prompt').map(k => fieldHtml(k, P[k], R.has(k))).join('')}
-    ${med.map(k => mediaHtml(k, P[k], R.has(k))).join('')}
-    ${main.filter(k => k !== 'prompt').map(k => fieldHtml(k, P[k], R.has(k))).join('')}
-    ${adv.length ? `<details class="adv"><summary>고급 설정 ${adv.length}개</summary><div>${adv.map(k => fieldHtml(k, P[k], false)).join('')}</div></details>` : ''}`;
-}
-function cardHtml(g) {
-  const f = (g.files || [])[0], u = f && urls[f.path], open = ['queued', 'in_progress'].includes(g.status), bad = ['failed', 'nsfw', 'error', 'canceled'].includes(g.status);
-  const name = esc((g.model || '').slice(0, 24));
-  if (open || (g.status === 'completed' && !u)) return `<button class="card" type="button" data-open="${g.id}" aria-label="만드는 중 · ${name}"><div class="wait"><span class="indet" aria-hidden="true"><i></i></span><b>${open ? (g.status === 'queued' ? '차례 기다리는 중' : '만드는 중') : '보관하는 중'}</b><span>${name}${g.kind === 'video' && open ? ' · 영상은 몇 분 걸립니다' : ''}</span></div></button>`;
-  if (bad || !u) return `<button class="card" type="button" data-open="${g.id}"><div class="wait"><b>${g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></div></button>`;
-  const vid = (f.type || '').startsWith('video/');
-  return `<button class="card" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${name}">${vid ? `<video src="${esc(u)}#t=0.1" muted preload="metadata" playsinline></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
-    <span class="tag">${vid ? '<span class="chip">영상</span>' : ''}${(g.files || []).length > 1 ? `<span class="chip">${g.files.length}장</span>` : ''}<span class="chip">${name}</span></span></button>`;
-}
-function usageHtml() {
-  const pct = limit.limit ? Math.min(100, limit.spent / limit.limit * 100) : 0, left = Math.max(0, limit.limit - limit.spent);
-  const wait = reqs.find(r => r.status === 'wait');
-  return `<button type="button" class="left ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}" id="limbtn" aria-label="남은 한도 ${usd(left)} · 한도 보기와 추가 요청">
-    <span class="lt">남은 한도</span><b class="num">${usd(left)}</b><span class="bar ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}" aria-hidden="true"><i style="width:${pct}%"></i></span>
-    <span class="lt">${wait ? `추가 요청 +$${Number(wait.add_usd)} 기다리는 중` : `이번 달 ${usd(limit.spent)} / ${usd(limit.limit)} · 추가 요청`}</span></button>`;
-}
 function limitSheet() {
   const left = Math.max(0, limit.limit - limit.spent), pct = limit.limit ? Math.min(100, limit.spent / limit.limit * 100) : 0;
   const wait = reqs.find(r => r.status === 'wait'), last = reqs.find(r => r.status !== 'wait');
@@ -321,44 +367,108 @@ function limitSheet() {
     <div class="f"><div class="row"><span>사용 / 한도</span><b class="num">${usd(limit.spent)} / ${usd(limit.limit)}</b></div><div class="bar ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}"><i style="width:${pct}%"></i></div></div>
     ${wait ? `<div class="row"><span>추가 요청</span><b>+$${Number(wait.add_usd)} · 기다리는 중 (${kst(wait.at)})</b></div><p style="margin:0;font-size:13px;color:var(--muted)">AX팀에서 결정하면 슬랙으로 알려 드립니다.</p>
       <div class="err" id="lerr" hidden></div>
-      <div class="acts"><button class="pt-btn quiet" type="button" data-close>닫기</button><button class="pt-btn" type="button" id="lcancel" data-id="${wait.id}">요청 취소</button></div>`
+      <div class="acts"><button class="btn quiet" type="button" data-close>닫기</button><button class="btn" type="button" id="lcancel" data-id="${wait.id}">요청 취소</button></div>`
     : `<div class="f"><span class="lab">늘릴 금액</span><div class="chips" role="group" aria-label="늘릴 금액">${[30, 50, 100, 200].map(v => `<button type="button" data-amt="${v}" aria-pressed="${reqAmt === v}">+$${v}</button>`).join('')}</div>
         <input type="number" id="lamt" min="1" max="1000" step="1" value="${reqAmt}" aria-label="직접 넣기(달러)"></div>
       <div class="f"><label for="lwhy">사유<em aria-hidden="true">*</em></label><textarea id="lwhy" style="min-height:70px" placeholder="어느 프로젝트·제안서에 더 쓰는지 적어 주세요"></textarea></div>
       ${last ? `<p style="margin:0;font-size:12px;color:var(--muted)">지난 요청: +$${Number(last.add_usd)} · ${ST[last.status] || last.status} (${kst(last.at)})</p>` : ''}
       <div class="err" id="lerr" hidden></div>
-      <div class="acts"><button class="pt-btn quiet" type="button" data-close>닫기</button><button class="pt-btn accent" type="button" id="lsend">한도 추가 요청 보내기</button></div>`}
+      <div class="acts"><button class="btn quiet" type="button" data-close>닫기</button><button class="btn hot" type="button" id="lsend">한도 추가 요청 보내기</button></div>`}
   </div>`;
   $dlg.hidden = false;
 }
 let reqAmt = 50;
 async function loadReqs() { const { data } = await SB.from('pt_hf_limit_req').select('id,at,add_usd,status,reason').eq('uid', me.id).order('id', {ascending: false}).limit(5); reqs = data || []; }
+function mediaHtml(k, p, req) {
+  const many = p.type === 'array', max = many ? (p.maxItems || 16) : 1, list = media[k] || [], mk = mediaKind(k);
+  const thumb = x => { const g = x.gen ? gens.find(g => g.id === x.gen) : null; const u = g ? (urls[((g.files || []).find(f => (f.type || '').startsWith(mk)) || (g.files || [])[0] || {}).path] || '') : x.preview;
+    return `<div class="slot" title="${esc(lab(k))}">${u ? (mk === 'video' ? `<video src="${esc(u)}#t=0.1" muted preload="metadata"></video>` : mk === 'image' ? `<img src="${esc(u)}" alt="">` : '음성') : '<span class="spin" aria-hidden="true"></span>'}<button class="x" type="button" data-rm="${k}" data-i="${list.indexOf(x)}" aria-label="${esc(lab(k))} 빼기">×</button></div>`; };
+  return `<div class="slotgrp">${list.map(thumb).join('')}${list.length < max ? `<button class="slot add ${req && !list.length ? 'need' : ''}" type="button" data-pop="media:${k}" aria-label="${esc(lab(k))} 넣기">+<br>${esc(lab(k).replace(/ 사진| 영상| 음성/, m => m))}</button>` : ''}</div>`;
+}
+function parts() {
+  const P = sel?.schema?.properties || {}, R = new Set(sel?.schema?.required || []);
+  const keys = Object.keys(P).filter(k => !hidden(k, P[k]) || R.has(k));
+  return {P, R, med: keys.filter(k => isUrl(k, P[k])), main: keys.filter(k => k !== 'prompt' && !isUrl(k, P[k]) && (MAIN.has(k) || R.has(k))), adv: keys.filter(k => k !== 'prompt' && !isUrl(k, P[k]) && !MAIN.has(k) && !R.has(k))};
+}
+function chipVal(k, p) {
+  const v = form[k];
+  if (p.type === 'boolean') return v ? '켬' : '끔';
+  if (v === undefined || v === '') return '기본';
+  if (k === 'duration') return v + '초';
+  if (k === 'batch_size' || k === 'num_images') return v + '장';
+  return String(v);
+}
+function popHtml() {
+  if (!pop || !sel) return '';
+  const { P, R, adv } = parts();
+  if (pop === 'model') {
+    const xs = famsFor().filter(m => !mq || (m.family_title + ' ' + wfName(m)).toLowerCase().includes(mq));
+    return `<div class="pop-panel" role="dialog" aria-label="모델 고르기"><input class="mfind" id="mq" type="search" placeholder="모델 찾기" value="${esc(mq)}" aria-label="모델 찾기">
+      <div class="mlist" role="group" aria-label="모델 목록">${xs.map(m => `<button type="button" data-model="${esc(m.path)}" aria-pressed="${sel.path === m.path}"><b>${esc(m.family_title)}</b><small>${esc(wfName(m))}</small></button>`).join('') || '<p class="hint">찾는 모델이 없습니다.</p>'}</div></div>`;
+  }
+  if (pop === 'adv') return `<div class="pop-panel" role="dialog" aria-label="고급 설정"><h3>고급 설정</h3>${adv.map(k => fieldHtml(k, P[k], false)).join('')}</div>`;
+  if (pop.startsWith('media:')) {
+    const k = pop.slice(6);
+    return `<div class="pop-panel" role="dialog" aria-label="${esc(lab(k))} 넣기"><h3>${esc(lab(k))}${tip(k)}</h3><div class="chips"><button type="button" data-up="${k}">내 컴퓨터에서 올리기</button><button type="button" data-arc="${k}">내 아카이브에서 고르기</button></div></div>`;
+  }
+  return P[pop] ? `<div class="pop-panel" role="dialog" aria-label="${esc(lab(pop))}">${fieldHtml(pop, P[pop], R.has(pop))}</div>` : '';
+}
+function dockHtml() {
+  if (!sel) return `<div class="dockwrap"><div class="dock"><p class="hint" style="margin:6px">이 작업에 쓸 수 있는 모델이 없습니다. 다른 작업을 골라 주세요.</p></div></div>`;
+  const { P, R, med, main, adv } = parts();
+  return `<div class="dockwrap"><div class="dock" id="dock">
+    ${popHtml()}
+    <div class="dock-main">
+      ${med.length ? `<div class="slots">${med.map(k => mediaHtml(k, P[k], R.has(k))).join('')}</div>` : ''}
+      <textarea id="fp" data-k="prompt" rows="2" aria-label="프롬프트" placeholder="무엇을 만들까요? 누가 · 어디서 · 무엇을 · 분위기 · 카메라 느낌까지 적어 주세요">${esc(form.prompt ?? '')}</textarea>
+      ${tip('prompt')}
+    </div>
+    <div class="dock-bar">
+      <button type="button" class="chip model" data-pop="model" aria-expanded="${pop === 'model'}"><b>${esc(sel.family_title)}</b><small>${esc(wfName(sel))}</small> ▾</button>
+      ${main.map(k => `<button type="button" class="chip" data-pop="${k}" aria-expanded="${pop === k}"><small>${esc(lab(k).replace('(초)', ''))}</small>${esc(chipVal(k, P[k]))}${R.has(k) && (form[k] === undefined || form[k] === '') ? ' <em style="color:var(--brass-hot);font-style:normal">*</em>' : ''}</button>`).join('')}
+      ${adv.length ? `<button type="button" class="chip" data-pop="adv" aria-expanded="${pop === 'adv'}"><small>고급</small>${adv.length}</button>` : ''}
+      <input class="purpose ${needPurpose ? 'need' : ''}" id="fpur" type="text" value="${esc(purpose)}" placeholder="용도 · 어느 프로젝트·제안서에 쓰나요" aria-label="용도 (필수)">
+      <button class="forge" type="button" id="make" ${busy ? 'disabled' : ''}>${busy ? '<span class="spin" aria-hidden="true"></span> 견적 받는 중' : '만들기'}</button>
+    </div>
+    ${err ? `<div class="err" role="alert">${esc(err)}${/한도/.test(err) && !reqs.some(r => r.status === 'wait') ? ` <button class="btn" type="button" id="errlim" style="margin-left:8px;height:30px">한도 추가 요청</button>` : ''}</div>` : ''}
+  </div></div>`;
+}
+function tileHtml(g) {
+  const f = (g.files || [])[0], u = f && urls[f.path], open = ['queued', 'in_progress'].includes(g.status), bad = ['failed', 'nsfw', 'error', 'canceled'].includes(g.status);
+  const ar = String(g.params?.aspect_ratio || '1:1').split(':').map(Number), ratio = ar.length === 2 && ar[0] && ar[1] ? `${ar[0]}/${ar[1]}` : '1/1';
+  if (open || (g.status === 'completed' && !u)) return `<div class="tile forging" style="aspect-ratio:${ratio}" role="status"><b>${open ? (g.status === 'queued' ? '차례를 기다리는 중' : '만드는 중') : '보관하는 중'}</b><span>${esc(g.model || '')}${g.kind === 'video' && open ? ' · 영상은 몇 분 걸립니다' : ''}</span></div>`;
+  if (bad || !u) return `<button class="tile failed" type="button" data-open="${g.id}"><b>${g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></button>`;
+  const vid = (f.type || '').startsWith('video/');
+  return `<button class="tile" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${esc(g.model)} 크게 보기">${vid ? `<video src="${esc(u)}#t=0.1" muted preload="metadata" playsinline loop data-hover></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
+    ${vid || (g.files || []).length > 1 ? `<span class="kind">${vid ? '<span class="tag">영상</span>' : ''}${(g.files || []).length > 1 ? `<span class="tag">${g.files.length}장</span>` : ''}</span>` : ''}
+    <span class="cap"><b>${esc(g.purpose)}</b><span>${esc(g.prompt || g.model)}</span></span></button>`;
+}
+function usageHtml() {
+  const pct = limit.limit ? Math.min(100, limit.spent / limit.limit * 100) : 0, left = Math.max(0, limit.limit - limit.spent), wait = reqs.find(r => r.status === 'wait');
+  return `<button type="button" class="left ${pct >= 100 ? 'bad' : ''}" id="limbtn" aria-label="남은 한도 ${usd(left)} · 한도 보기와 추가 요청"><i class="ring" style="--p:${pct.toFixed(0)}" aria-hidden="true"></i><span>${wait ? '추가 요청 기다리는 중' : '이번 달 남은 한도'}<b class="num">${usd(left)}</b></span></button>`;
+}
+const EX = {image: ['A pastel teddy bear mascot standing on a rainy Seoul street at night, neon reflections, 35mm film look', 'Product shot of a limited-edition sneaker on a marble plinth, soft studio light, minimal background', 'K-pop idol style portrait in a vintage arcade, cinematic lighting, shallow depth of field'],
+  video: ['Slow dolly-in on a pastel bear walking through Seoul at night, neon reflections on wet asphalt', 'A soccer ball flies into the net in slow motion, stadium lights, crowd cheering', 'Camera orbits a glowing collectible figure on a turntable, dark studio, rim light']};
 function render() {
-  const head = `<header class="head"><div><h1 class="pt-title" style="margin:0">신드리</h1><p>회사 힉스필드 계정으로 이미지·영상을 만듭니다. 만든 것은 내 아카이브에 계속 남습니다.</p></div>${usageHtml()}</header>
-    <div class="bar-row"><div class="seg" role="group" aria-label="종류">${[['image', '이미지'], ['video', '비디오'], ['archive', '내 아카이브']].map(([k, v]) => `<button type="button" data-kind="${k}" aria-pressed="${kind === k}">${v}${k === 'archive' && gens.length ? ` <span class="num" style="color:var(--faint)">${gens.length}</span>` : ''}</button>`).join('')}</div>
-    ${kind !== 'archive' ? `<div class="seg sub" role="group" aria-label="작업">${WF.filter(([k]) => models.some(m => m.kind === kind && m.wfk === k)).map(([k, v]) => `<button type="button" data-wf="${k}" aria-pressed="${wf === k}">${v}</button>`).join('')}</div><button type="button" class="q" aria-label="${esc((WF.find(x => x[0] === wf) || [, ''])[1])} 설명"><span aria-hidden="true">?</span><span class="pop" role="tooltip">${esc(WF_TIP[wf] || '')}</span></button>` : ''}</div>`;
+  document.querySelectorAll('.rb[data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
   if (kind === 'archive') {
     const xs = gens.filter(g => (!akind || g.kind === akind) && (!aq || [g.purpose, g.prompt, g.model].join(' ').toLowerCase().includes(aq)));
-    $app.innerHTML = head + `<div class="tools"><input type="search" id="aq" placeholder="용도·프롬프트·모델 찾기" value="${esc(aq)}" aria-label="아카이브 찾기"><select id="ak" aria-label="종류 고르기"><option value="">전체</option><option value="image" ${akind === 'image' ? 'selected' : ''}>이미지</option><option value="video" ${akind === 'video' ? 'selected' : ''}>영상</option></select></div>
-      ${xs.length ? `<div class="grid">${xs.map(cardHtml).join('')}</div>` : `<div class="empty">${gens.length ? '찾는 것이 없습니다.' : '아직 만든 것이 없습니다. 이미지나 비디오에서 만들어 보세요.'}</div>`}`;
+    $app.innerHTML = `<header class="top"><h1>내 아카이브</h1><span class="hint">${gens.length}개</span><span class="sp"></span>${usageHtml()}</header>
+      <div class="find"><input type="search" id="aq" placeholder="용도 · 프롬프트 · 모델로 찾기" value="${esc(aq)}" aria-label="아카이브 찾기"><select id="ak" aria-label="종류"><option value="">이미지와 영상</option><option value="image" ${akind === 'image' ? 'selected' : ''}>이미지</option><option value="video" ${akind === 'video' ? 'selected' : ''}>영상</option></select></div>
+      ${xs.length ? `<div class="wall">${xs.map(tileHtml).join('')}</div>` : `<div class="blank"><h2>${gens.length ? '찾는 것이 없습니다' : '아직 만든 것이 없습니다'}</h2><p>${gens.length ? '다른 낱말로 찾아 주세요.' : '이미지나 비디오에서 처음 하나를 만들어 보세요.'}</p></div>`}`;
     return;
   }
-  const mine = gens.filter(g => g.kind === kind).slice(0, 60);
-  const fams = famsFor();
-  $app.innerHTML = head + `<div class="work">
-    <section class="panel sticky" aria-label="설정">
-      <div class="f"><span class="lab">모델</span>
-        <button class="model" type="button" id="mbtn" aria-expanded="${showList}"><b>${esc(sel ? sel.family_title : '없음')}</b><span class="chev">${showList ? '▴' : '▾'}</span><small>${esc(sel ? wfName(sel) : '')} · 모델 ${fams.length}개 중 고르기</small></button>
-        ${showList ? `<div class="mlist" role="group" aria-label="모델 목록">${fams.map(m => `<button type="button" data-model="${esc(m.path)}" aria-pressed="${sel && sel.path === m.path}"><b>${esc(m.family_title)}</b><small>${esc(wfName(m))}</small></button>`).join('')}</div>` : ''}
-      </div>
-      ${formHtml()}
-      <div class="f"><label for="fpur">용도${tip('purpose')}<em aria-hidden="true">*</em></label><input id="fpur" type="text" value="${esc(purpose)}" placeholder="어느 프로젝트·제안서에 쓰는지 (예: 골포스트 × 리락쿠마 제안서)"></div>
-      ${err ? `<div class="err" role="alert">${esc(err)}${/한도/.test(err) && !reqs.some(r => r.status === 'wait') ? ` <button class="pt-btn" type="button" id="errlim" style="margin-top:8px">한도 추가 요청</button>` : ''}</div>` : ''}
-      <div class="go"><button class="pt-btn accent" type="button" id="make" ${busy || !sel ? 'disabled' : ''}>${busy ? '<span class="spin" aria-hidden="true"></span> 예상 비용 확인 중' : '만들기'}</button></div>
-    </section>
-    <section aria-label="내가 만든 ${kind === 'image' ? '이미지' : '영상'}">
-      ${mine.length ? `<div class="grid">${mine.map(cardHtml).join('')}</div>` : `<div class="empty">왼쪽에서 프롬프트를 쓰고 「만들기」를 눌러 주세요.<br>만든 ${kind === 'image' ? '이미지' : '영상'}가 여기에 쌓입니다.</div>`}
-    </section></div>`;
+  const mine = gens.filter(g => g.kind === kind).slice(0, 80);
+  const modes = WF.filter(([k]) => models.some(m => m.kind === kind && m.wfk === k));
+  $app.innerHTML = `<header class="top"><h1>${kind === 'image' ? '이미지' : '비디오'}</h1>
+      <div class="modes" role="group" aria-label="작업">${modes.map(([k, v]) => `<button type="button" data-wf="${k}" aria-pressed="${wf === k}">${v}</button>`).join('')}</div>
+      <button type="button" class="q" aria-label="${esc((WF.find(x => x[0] === wf) || [, ''])[1])} 설명"><span aria-hidden="true">?</span><span class="pop" role="tooltip">${esc(WF_TIP[wf] || '')}</span></button>
+      <span class="sp"></span>${usageHtml()}</header>
+    ${mine.length ? `<div class="wall">${mine.map(tileHtml).join('')}</div>`
+      : `<div class="blank"><h2>무엇을 만들까요?</h2><p>아래에 장면을 적고 「만들기」를 누르면 예상 비용을 먼저 보여 드립니다. 만든 ${kind === 'image' ? '이미지' : '영상'}는 여기에 쌓이고 아카이브에 계속 남습니다.</p>
+         <div class="ex">${EX[kind].map(x => `<button type="button" data-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`}
+    ${dockHtml()}`;
+  const ta = document.getElementById('fp'); if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(200, ta.scrollHeight) + 'px'; }
 }
 
 // ── 만들기
@@ -371,7 +481,8 @@ function collect() {
 async function make() {
   err = '';
   purpose = (document.getElementById('fpur')?.value || '').trim();
-  if (purpose.length < 2) { err = '용도를 넣어 주세요. 어느 프로젝트·제안서에 쓰는지 적으면 됩니다.'; render(); document.getElementById('fpur')?.focus(); return; }
+  if (purpose.length < 2) { needPurpose = true; err = '용도를 넣어 주세요. 어느 프로젝트·제안서에 쓰는지 적으면 됩니다.'; pop = null; render(); document.getElementById('fpur')?.focus(); return; }
+  needPurpose = false; pop = null;
   ls.set('purpose', purpose); if (form.prompt) ls.set('prompt', form.prompt);
   const { fields, media: med } = collect();
   busy = true; render();
@@ -392,7 +503,7 @@ function confirmSheet(d) {
     <div class="f"><div class="row"><span>이번 달 사용</span><b class="num">${usd(d.spent)} → ${usd(d.after)} / ${usd(d.limit)}</b></div><div class="bar ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}"><i style="width:${pct}%"></i></div></div>
     ${d.note && /token/i.test(d.note) ? `<p class="hint" style="margin:0;font-size:12px;color:var(--muted)">이 모델은 쓴 만큼 나중에 정산되어, 실제 금액은 보통 이보다 적습니다.</p>` : ''}
     <div class="err" id="cerr" hidden></div>
-    <div class="acts"><button class="pt-btn quiet" type="button" data-close>취소</button><button class="pt-btn accent" type="button" id="cgo">${usd(d.est)}로 만들기</button></div></div>`;
+    <div class="acts"><button class="btn quiet" type="button" data-close>취소</button><button class="btn hot" type="button" id="cgo">${usd(d.est)}로 만들기</button></div></div>`;
   $dlg.hidden = false; document.getElementById('cgo').focus();
   document.getElementById('cgo').onclick = async e => {
     const b = e.currentTarget; b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span> 요청하는 중';
@@ -420,19 +531,19 @@ function viewer(id) {
       <div><span class="k">상태 · 비용</span><p>${esc(st)} · ${usd(g.status === 'completed' ? g.usd : ['queued', 'in_progress'].includes(g.status) ? g.est_usd : 0)} · ${kst(g.at)}</p></div>
       ${g.error && g.status !== 'completed' ? `<div class="err">${esc(g.error)}</div>` : ''}
       <div class="acts">
-        ${files.length && urls[files[0].path] ? files.map((f, i) => `<a class="pt-btn accent" href="${esc(urls[f.path])}" download="ai_${g.id}_${i + 1}">다운로드${files.length > 1 ? ' ' + (i + 1) : ''}</a>`).join('') : ''}
-        ${img ? `<button class="pt-btn" type="button" data-tovideo="${g.id}">이 이미지로 영상 만들기</button>` : ''}
-        <button class="pt-btn" type="button" data-again="${g.id}">같은 설정으로 다시 만들기</button>
-        <button class="pt-btn" type="button" data-copy="${g.id}">프롬프트 복사</button>
-        <button class="pt-btn quiet" type="button" data-close>닫기</button>
+        ${files.length && urls[files[0].path] ? files.map((f, i) => `<a class="btn hot" href="${esc(urls[f.path])}" download="ai_${g.id}_${i + 1}">다운로드${files.length > 1 ? ' ' + (i + 1) : ''}</a>`).join('') : ''}
+        ${img ? `<button class="btn" type="button" data-tovideo="${g.id}">이 이미지로 영상 만들기</button>` : ''}
+        <button class="btn" type="button" data-again="${g.id}">같은 설정으로 다시 만들기</button>
+        <button class="btn" type="button" data-copy="${g.id}">프롬프트 복사</button>
+        <button class="btn quiet" type="button" data-close>닫기</button>
       </div></div></div>`;
   $dlg.hidden = false;
 }
 function picker(k) {
   const mk = mediaKind(k), xs = gens.filter(g => g.status === 'completed' && (g.files || []).some(f => (f.type || '').startsWith(mk) && urls[f.path]));
   $dlg.innerHTML = `<div class="sheet pick" role="dialog" aria-modal="true" aria-labelledby="pkt"><h2 id="pkt">아카이브에서 ${mk === 'video' ? '영상' : mk === 'audio' ? '음성' : '사진'} 고르기</h2>
-    ${xs.length ? `<div class="grid">${xs.map(g => { const f = g.files.find(f => (f.type || '').startsWith(mk)); return `<button class="card" type="button" data-pickgen="${g.id}" data-k="${k}" aria-label="${esc(g.purpose)}">${mk === 'video' ? `<video src="${esc(urls[f.path])}#t=0.1" muted preload="metadata"></video>` : `<img src="${esc(urls[f.path])}" alt="" loading="lazy">`}</button>`; }).join('')}</div>` : '<div class="empty">아카이브에 고를 것이 없습니다.</div>'}
-    <div class="acts"><button class="pt-btn quiet" type="button" data-close>닫기</button></div></div>`;
+    ${xs.length ? `<div class="wall">${xs.map(g => { const f = g.files.find(f => (f.type || '').startsWith(mk)); return `<button class="tile" type="button" data-pickgen="${g.id}" data-k="${k}" aria-label="${esc(g.purpose)}">${mk === 'video' ? `<video src="${esc(urls[f.path])}#t=0.1" muted preload="metadata"></video>` : `<img src="${esc(urls[f.path])}" alt="" loading="lazy">`}</button>`; }).join('')}</div>` : '<p class="hint">아카이브에 고를 것이 없습니다.</p>'}
+    <div class="acts"><button class="btn quiet" type="button" data-close>닫기</button></div></div>`;
   $dlg.hidden = false;
 }
 let upKey = '';
@@ -453,16 +564,21 @@ $file.addEventListener('change', async () => {
 });
 
 // ── 이벤트
+document.querySelector('.rail').addEventListener('click', e => {
+  const b = e.target.closest('button[data-kind]'); if (!b || !models.length) return;
+  kind = b.dataset.kind; ls.set('kind', kind); pop = null; err = ''; if (kind !== 'archive') pickDefault(); render(); window.scrollTo({top: 0});
+});
 $app.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.kind) { kind = b.dataset.kind; ls.set('kind', kind); showList = false; if (kind !== 'archive') pickDefault(); render(); return; }
-  if (b.dataset.wf) { wf = b.dataset.wf; ls.set('wf', wf); showList = false; pickDefault(); render(); return; }
+  if (b.dataset.pop) { const v = b.dataset.pop; pop = pop === v ? null : v; if (v === 'model') mq = ''; render(); if (pop === 'model') document.getElementById('mq')?.focus(); return; }
+  if (b.dataset.ex) { form.prompt = b.dataset.ex; render(); const ta = document.getElementById('fp'); ta?.focus(); ta?.setSelectionRange(ta.value.length, ta.value.length); return; }
+  if (b.dataset.wf) { wf = b.dataset.wf; ls.set('wf', wf); pop = null; err = ''; const keepP = form.prompt; pickDefault(); if (keepP) form.prompt = keepP; render(); return; }
   if (b.id === 'mbtn') { showList = !showList; render(); return; }
   if (b.id === 'limbtn' || b.id === 'errlim') { limitSheet(); return; }
-  if (b.dataset.model) { sel = models.find(m => m.path === b.dataset.model); ls.set('model.' + kind + '.' + wf, sel.path); const keepP = form.prompt; resetForm(); if (keepP) form.prompt = keepP; showList = false; render(); return; }
-  if (b.dataset.k && b.dataset.v !== undefined) { const p = sel.schema.properties[b.dataset.k]; const v = p.type === 'integer' || p.type === 'number' ? Number(b.dataset.v) : b.dataset.v; form[b.dataset.k] = v; render(); return; }
-  if (b.dataset.up) { upKey = b.dataset.up; const mk = mediaKind(upKey); $file.accept = mk + '/*'; $file.multiple = (sel.schema.properties[upKey] || {}).type === 'array'; $file.click(); return; }
-  if (b.dataset.arc) { picker(b.dataset.arc); return; }
+  if (b.dataset.model) { sel = models.find(m => m.path === b.dataset.model); ls.set('model.' + kind + '.' + wf, sel.path); const keepP = form.prompt; resetForm(); if (keepP) form.prompt = keepP; pop = null; render(); return; }
+  if (b.dataset.k && b.dataset.v !== undefined) { const p = sel.schema.properties[b.dataset.k]; const v = p.type === 'integer' || p.type === 'number' ? Number(b.dataset.v) : b.dataset.v; form[b.dataset.k] = v; if (pop !== 'adv') pop = null; render(); return; }
+  if (b.dataset.up) { pop = null; render(); upKey = b.dataset.up; const mk = mediaKind(upKey); $file.accept = mk + '/*'; $file.multiple = (sel.schema.properties[upKey] || {}).type === 'array'; $file.click(); return; }
+  if (b.dataset.arc) { pop = null; render(); picker(b.dataset.arc); return; }
   if (b.dataset.rm) { media[b.dataset.rm].splice(Number(b.dataset.i), 1); render(); return; }
   if (b.id === 'make') { make(); return; }
   if (b.dataset.open) { viewer(Number(b.dataset.open)); return; }
@@ -470,7 +586,9 @@ $app.addEventListener('click', e => {
 $app.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'aq') { aq = t.value.trim().toLowerCase(); const pos = t.selectionStart; render(); const el = document.getElementById('aq'); el.focus(); el.setSelectionRange(pos, pos); return; }
-  if (t.id === 'fpur') { purpose = t.value; return; }
+  if (t.id === 'fpur') { purpose = t.value; if (needPurpose && purpose.trim().length >= 2) { needPurpose = false; t.classList.remove('need'); } return; }
+  if (t.id === 'mq') { mq = t.value.trim().toLowerCase(); const pos = t.selectionStart; render(); const el = document.getElementById('mq'); el.focus(); el.setSelectionRange(pos, pos); return; }
+  if (t.id === 'fp') { t.style.height = 'auto'; t.style.height = Math.min(200, t.scrollHeight) + 'px'; }
   if (t.dataset.k) { form[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.dataset.num ? (t.value === '' ? '' : Number(t.value)) : t.value; }
 });
 $app.addEventListener('change', e => {
@@ -496,14 +614,14 @@ $dlg.addEventListener('click', async e => {
     const g = gens.find(x => x.id === Number(b.dataset.again)), m = models.find(x => x.path === g.model_path);
     if (!m) { b.textContent = '이 모델은 지금 쓸 수 없습니다'; return; }
     kind = m.kind; wf = m.wfk; sel = m; resetForm(); form.prompt = g.prompt; for (const [k, v] of Object.entries(g.params || {})) if (sel.schema.properties?.[k] && !isUrl(k, sel.schema.properties[k])) form[k] = v;
-    purpose = g.purpose; closeDlg(); render(); window.scrollTo({top: 0, behavior: 'smooth'}); return;
+    purpose = g.purpose; closeDlg(); render(); document.getElementById('fp')?.focus(); return;
   }
   if (b.dataset.tovideo) {
     const g = gens.find(x => x.id === Number(b.dataset.tovideo));
     kind = 'video'; wf = 'image'; ls.set('kind', kind); pickDefault();
     const P = sel?.schema?.properties || {}, k = ['image_url', 'first_frame_url', 'image_urls'].find(x => P[x]);
     if (k) media[k] = [{gen: g.id}];
-    form.prompt = ''; purpose = g.purpose; closeDlg(); render(); window.scrollTo({top: 0, behavior: 'smooth'}); return;
+    form.prompt = ''; purpose = g.purpose; closeDlg(); render(); document.getElementById('fp')?.focus(); return;
   }
 });
 // 설명 상자는 화면 기준으로 띄움 (설정 칸이 스크롤 상자라 안에 두면 잘림)
@@ -517,15 +635,18 @@ function placeTip(q) {
 }
 document.addEventListener('pointerover', e => { const q = e.target.closest?.('.q'); if (q) placeTip(q); });
 document.addEventListener('focusin', e => { const q = e.target.closest?.('.q'); if (q) placeTip(q); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$dlg.hidden) closeDlg(true); });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$dlg.hidden) closeDlg(true); else if (pop) { pop = null; render(); } });
+document.addEventListener('click', e => { if (pop && !e.target.closest('.dock') && !e.target.closest('.dlg')) { pop = null; render(); } });
+$app.addEventListener('pointerover', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v) v.play().catch(() => {}); });
+$app.addEventListener('pointerout', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v && !e.relatedTarget?.closest?.('.tile')?.contains(v)) v.pause(); });
 
 (async () => {
   const { data: { session } } = await SB.auth.getSession();
-  if (!session) { addEventListener('focus', async () => { const { data: { session: s2 } } = await SB.auth.getSession(); if (s2) location.reload(); }); $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>판테온 계정(헤임달 계정·슬랙)으로 로그인해 주세요. 새 탭에서 로그인을 마치고 돌아오면 이 화면이 저절로 열립니다.</p><a class="pt-btn accent" href="../" target="_blank" rel="noopener">로그인</a></div>`; return; }
+  if (!session) { addEventListener('focus', async () => { const { data: { session: s2 } } = await SB.auth.getSession(); if (s2) location.reload(); }); $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>판테온 계정(헤임달 계정·슬랙)으로 로그인해 주세요. 새 탭에서 로그인을 마치고 돌아오면 이 화면이 저절로 열립니다.</p><a class="btn hot" href="../" target="_blank" rel="noopener">로그인</a></div>`; return; }
   me = session.user;
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   const { data: ok } = await SB.rpc('pt_hf_admin');
-  if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="pt-btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
+  if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
   try {
     const [, lm] = await Promise.all([loadModels(), mcp('hf_models', {}).catch(() => ({}))]);
     limit.limit = Number(lm.limit) || 0;
