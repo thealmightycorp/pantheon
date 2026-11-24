@@ -150,6 +150,15 @@ function wfOf(m) {
   if (/image-to/.test(w)) return 'image';
   return 'create';
 }
+// 작업 이름 — 문서의 영어 작업 이름(workflow)을 우리말로
+function wfName(m) {
+  const w = m.workflow.replace(/^(pro|std|standard|4k|turbo)-/, x => ''), tier = (m.workflow.match(/^(pro|std|standard|4k|turbo)-/) || [])[1];
+  const base = ({'text-to-image': '글로 만들기', 'text-to-video': '글로 만들기', 'image-to-video': '사진으로 만들기', 'reference-to-video': '레퍼런스로 만들기', 'image-reference': '사진 레퍼런스로 만들기',
+    'video-reference': '영상 레퍼런스로 만들기', 'video-edit': '영상 편집', 'video-extend': '영상 늘리기', 'first-last-frame': '처음·끝 장면으로 만들기', 'generate': '만들기', 'generate-and-edit': '만들기·편집',
+    'edit': '사진 편집', 'motion-transfer': '움직임 옮기기', 'object-swap': '물건 바꾸기', 'restyle': '스타일 바꾸기', 'flare': 'Flare', 'sunburst': 'Sunburst', 'pro': 'Pro', 'std': 'Standard'})[w] || m.workflow;
+  const t = ({pro: 'Pro', std: 'Standard', standard: 'Standard', '4k': '4K', turbo: 'Turbo'})[tier];
+  return t ? `${base} · ${t}` : base;
+}
 const LABEL = {prompt: '프롬프트', aspect_ratio: '비율', resolution: '해상도', duration: '길이(초)', generate_audio: '소리도 만들기', sound: '소리', seed: '시드', batch_size: '장수', num_images: '장수',
   quality: '품질', negative_prompt: '빼고 싶은 것', enhance_prompt: '프롬프트 다듬기', cfg_scale: '프롬프트 충실도', bitrate_mode: '화질', output_format: '파일 형식', fps: '초당 프레임',
   camera_movement: '카메라 움직임', moderation: '내용 검사', prompt_extend: '프롬프트 자동 보강', prompt_extend_mode: '보강 방식', enable_thinking: '깊이 생각하기', aigc_watermark: 'AI 워터마크',
@@ -303,8 +312,8 @@ function render() {
   $app.innerHTML = head + `<div class="work">
     <section class="panel sticky" aria-label="설정">
       <div class="f"><span class="lab">모델</span>
-        <button class="model" type="button" id="mbtn" aria-expanded="${showList}"><b>${esc(sel ? sel.family_title : '없음')}</b><span class="chev">${showList ? '▴' : '▾'}</span><small>${esc(sel ? (sel.title.replace(sel.family_title, '').replace(/^\s*[—-]\s*/, '') || sel.workflow) + (sel.family_desc ? ' · ' + sel.family_desc : '') : '')}</small></button>
-        ${showList ? `<div class="mlist" role="group" aria-label="모델 목록">${fams.map(m => `<button type="button" data-model="${esc(m.path)}" aria-pressed="${sel && sel.path === m.path}"><b>${esc(m.family_title)}</b><small>${esc(m.title.replace(m.family_title, '').replace(/^\s*[—-]\s*/, '') || m.workflow)}</small></button>`).join('')}</div>` : ''}
+        <button class="model" type="button" id="mbtn" aria-expanded="${showList}"><b>${esc(sel ? sel.family_title : '없음')}</b><span class="chev">${showList ? '▴' : '▾'}</span><small>${esc(sel ? wfName(sel) : '')} · 모델 ${fams.length}개 중 고르기</small></button>
+        ${showList ? `<div class="mlist" role="group" aria-label="모델 목록">${fams.map(m => `<button type="button" data-model="${esc(m.path)}" aria-pressed="${sel && sel.path === m.path}"><b>${esc(m.family_title)}</b><small>${esc(wfName(m))}</small></button>`).join('')}</div>` : ''}
       </div>
       ${formHtml()}
       <div class="f"><label for="fpur">용도<em aria-hidden="true">*</em></label><input id="fpur" type="text" value="${esc(purpose)}" placeholder="어느 프로젝트·제안서에 쓰는지 (예: 골포스트 × 리락쿠마 제안서)"></div>
@@ -340,7 +349,7 @@ function confirmSheet(d) {
   $dlg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cft">
     <h2 id="cft">이대로 만들까요?</h2>
     <div><div class="price num">${usd(d.est)}</div><div class="hint" style="font-size:12px;color:var(--muted)">힉스필드 예상 비용 · 실패하거나 내용 검사에서 거절되면 청구되지 않습니다</div></div>
-    <div class="row"><span>모델</span><b>${esc(d.label || sel.family_title)}</b></div>
+    <div class="row"><span>모델</span><b>${esc(sel.family_title + ' · ' + wfName(sel))}</b></div>
     <div class="row"><span>용도</span><b>${esc(purpose)}</b></div>
     ${(d.settings || []).length ? `<div class="row"><span>설정</span><b>${esc(d.settings.join(' · '))}</b></div>` : ''}
     <div class="f"><div class="row"><span>이번 달 사용</span><b class="num">${usd(d.spent)} → ${usd(d.after)} / ${usd(d.limit)}</b></div><div class="bar ${pct >= 100 ? 'bad' : pct >= 80 ? 'warn' : ''}"><i style="width:${pct}%"></i></div></div>
