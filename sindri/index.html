@@ -191,6 +191,15 @@ select,input[type=text],input[type=number],textarea{width:100%;border:1px solid 
 .pick{width:min(820px,100%)}
 .pick .wall{column-width:150px}
 .gate{max-width:440px;margin:18vh auto;padding:28px;background:var(--iron);border:1px solid var(--seam);border-radius:20px;display:grid;gap:12px;text-align:center}
+.login{max-width:380px;margin:14vh auto;text-align:left;gap:14px;padding:30px}
+.login h1{text-align:center}.login>p{text-align:center;margin-top:-6px}
+.login-mark{display:block;width:64px;height:64px;margin:0 auto 2px;border-radius:18px;box-shadow:0 10px 30px rgba(227,167,59,.28)}
+.login-mark svg{width:100%;height:100%;display:block}
+.login .slack{width:100%;height:46px;background:var(--bone);color:#1A1D21;border:0;font-weight:700;gap:10px}
+.login .slack:hover{background:#fff}
+.login .or{display:flex;align-items:center;gap:10px;color:var(--cinder);font-size:12px}.login .or::before,.login .or::after{content:"";flex:1;height:1px;background:var(--seam)}
+.login .forge{width:100%;margin:0}
+.login .hint{text-align:center;color:var(--ash)}
 .gate h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.03em}.gate p{margin:0;color:var(--ash)}
 
 @media (max-width:1000px){.viewer{grid-template-columns:minmax(0,1fr)}.viewer .info{max-height:none;border-left:0;border-top:1px solid var(--seam)}}
@@ -221,6 +230,7 @@ select,input[type=text],input[type=number],textarea{width:100%;border:1px solid 
     <button class="rb" type="button" data-kind="archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 4h18v3H3zM10 11h4"/></svg>아카이브</button>
     <span class="gap"></span>
     <a class="rb" href="../ai/#hf" id="nav-usage" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>사용 현황</a>
+    <button class="rb" type="button" id="logout" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h11"/></svg>로그아웃</button>
     <a class="rb" href="https://pantheon-map.vercel.app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v9M9.5 10v9M14.5 10v9M19 10v9M3 21h18"/></svg>판테온</a>
   </nav>
   <main class="work" id="app"><div class="gate"><h1>신드리</h1><p><span class="spin" aria-hidden="true"></span> 불러오는 중…</p></div></main>
@@ -660,10 +670,50 @@ document.addEventListener('click', e => { if (pop && !e.target.closest('.dock') 
 $app.addEventListener('pointerover', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v) v.play().catch(() => {}); });
 $app.addEventListener('pointerout', e => { const v = e.target.closest?.('.tile')?.querySelector('video[data-hover]'); if (v && !e.relatedTarget?.closest?.('.tile')?.contains(v)) v.pause(); });
 
+
+// ── 로그인 (11-24 김현우 「신드리에도 로그인 · 로그인하면 신드리로 바로」) — 이그드라실과 같은 헤임달 계정 · 슬랙(OIDC)
+//    슬랙 로그인은 이 주소로 돌아옴 (Supabase 돌아올 주소 목록 thealmightycorp.github.io/pantheon/** 에 포함)
+const SLACK_SVG = '<svg width="18" height="18" viewBox="0 0 122.8 122.8" aria-hidden="true"><path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9zm6.5 0a12.9 12.9 0 0 1 25.8 0v32.3a12.9 12.9 0 1 1-25.8 0z" fill="#e01e5a"/><path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9zm0 6.5a12.9 12.9 0 0 1 0 25.8H12.9a12.9 12.9 0 0 1 0-25.8z" fill="#36c5f0"/><path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97zm-6.5 0a12.9 12.9 0 0 1-25.8 0V12.9a12.9 12.9 0 1 1 25.8 0z" fill="#2eb67d"/><path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97zm0-6.5a12.9 12.9 0 0 1 0-25.8h32.3a12.9 12.9 0 0 1 0 25.8z" fill="#ecb22e"/></svg>';
+function loginScreen(msg) {
+  const urlErr = /error_description=|error=access_denied/.test(location.hash + location.search) ? '로그인 링크가 만료됐거나 이미 사용했습니다. 다시 로그인해 주세요.' : '';
+  const logo = document.querySelector('.mark svg')?.outerHTML || '';
+  $app.innerHTML = `<form class="gate login" id="lgf" novalidate>
+    <span class="login-mark" aria-hidden="true">${logo}</span>
+    <h1>신드리</h1>
+    <p>판테온 계정(헤임달 계정)으로 로그인해 주세요.</p>
+    <button class="btn slack" type="button" id="lgs">${SLACK_SVG}<span>슬랙으로 로그인</span></button>
+    <div class="or"><span>또는 이메일로</span></div>
+    <label class="f"><span class="lab">이메일</span><input id="lge" type="email" autocomplete="username" required></label>
+    <label class="f"><span class="lab">비밀번호</span><input id="lgp" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="lgerr" role="alert" ${msg || urlErr ? '' : 'hidden'}>${esc(msg || urlErr)}</div>
+    <button class="forge" type="submit" id="lgb">로그인</button>
+    <a class="hint" href="https://axdx-dashboard.vercel.app/forgot-password" target="_blank" rel="noopener">처음이거나 비밀번호를 잊었어요</a>
+  </form>`;
+  document.querySelectorAll('.rail .rb').forEach(b => { if (b.dataset.kind) b.disabled = true; });
+  const err = m => { const e = document.getElementById('lgerr'); e.textContent = m; e.hidden = false; };
+  document.getElementById('lgf').onsubmit = async ev => {
+    ev.preventDefault();
+    const em = document.getElementById('lge').value.trim(), pw = document.getElementById('lgp').value, b = document.getElementById('lgb');
+    if (!em || !pw) return err('이메일과 비밀번호를 넣어 주세요.');
+    b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span> 로그인하는 중';
+    const { error } = await SB.auth.signInWithPassword({email: em, password: pw});
+    if (error) { b.disabled = false; b.textContent = '로그인'; return err('이메일 또는 비밀번호가 맞지 않습니다.'); }
+    location.replace(location.origin + location.pathname);
+  };
+  document.getElementById('lgs').onclick = async e => {
+    const b = e.currentTarget; b.disabled = true; b.lastChild.textContent = '슬랙으로 이동하는 중…';
+    const { error } = await SB.auth.signInWithOAuth({provider: 'slack_oidc', options: {redirectTo: location.origin + location.pathname}});
+    if (error) { b.disabled = false; b.lastChild.textContent = '슬랙으로 로그인'; err('슬랙으로 로그인하지 못했습니다. 잠시 뒤 다시 해 주세요.'); }
+  };
+}
+SB.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !me && s) location.replace(location.origin + location.pathname); });
+
 (async () => {
   const { data: { session } } = await SB.auth.getSession();
-  if (!session) { addEventListener('focus', async () => { const { data: { session: s2 } } = await SB.auth.getSession(); if (s2) location.reload(); }); $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>판테온 계정(헤임달 계정·슬랙)으로 로그인해 주세요. 새 탭에서 로그인을 마치고 돌아오면 이 화면이 저절로 열립니다.</p><a class="btn hot" href="../" target="_blank" rel="noopener">로그인</a></div>`; return; }
+  if (!session) { loginScreen(); return; }
   me = session.user;
+  document.getElementById('logout').hidden = false;
+  document.getElementById('logout').onclick = async () => { await SB.auth.signOut(); location.replace(location.origin + location.pathname); };
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   const { data: ok } = await SB.rpc('pt_hf_admin');
   if (!ok) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>아직 열리지 않은 화면입니다. 지금은 Claude 에서 「이그드라실·궁니르」 커넥터로 힉스필드 이미지·영상을 만들 수 있습니다.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
