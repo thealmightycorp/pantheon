@@ -69,6 +69,11 @@ select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 details.adv summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
 details.adv[open] summary{margin-bottom:10px}
 details.adv>div{display:grid;gap:12px}
+.q{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;margin-left:5px;border-radius:50%;border:1px solid var(--control);background:var(--raised);color:var(--muted);font:600 11px/1 var(--font);cursor:help;padding:0;vertical-align:1px}
+.q:hover,.q:focus-visible{color:var(--text);border-color:var(--text);outline:none}
+.q .pop{display:none;position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:max-content;max-width:260px;padding:9px 11px;border-radius:10px;background:var(--text);color:var(--ground);font:400 12px/1.5 var(--font);text-align:left;white-space:normal;z-index:40;box-shadow:0 8px 24px rgba(0,0,0,.18);cursor:auto}
+.q:hover .pop,.q:focus .pop,.q:focus-within .pop{display:block}
+.panel .q .pop{left:0;transform:none}
 .go{display:grid;gap:8px;position:sticky;bottom:-16px;background:var(--surface);padding:12px 0 2px;border-top:1px solid var(--rule)}
 .go .pt-btn{height:44px;font-size:15px;font-weight:600}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
@@ -159,7 +164,7 @@ function wfName(m) {
   const t = ({pro: 'Pro', std: 'Standard', standard: 'Standard', '4k': '4K', turbo: 'Turbo'})[tier];
   return t ? `${base} · ${t}` : base;
 }
-const LABEL = {prompt: '프롬프트', aspect_ratio: '비율', resolution: '해상도', duration: '길이(초)', generate_audio: '소리도 만들기', sound: '소리', seed: '시드', batch_size: '장수', num_images: '장수',
+const LABEL = {prompt: '프롬프트', aspect_ratio: '비율', resolution: '해상도', duration: '길이(초)', generate_audio: '소리도 만들기', sound: '소리', seed: '시드(같은 결과 다시 내기)', batch_size: '장수', num_images: '장수',
   quality: '품질', negative_prompt: '빼고 싶은 것', enhance_prompt: '프롬프트 다듬기', cfg_scale: '프롬프트 충실도', bitrate_mode: '화질', output_format: '파일 형식', fps: '초당 프레임',
   camera_movement: '카메라 움직임', moderation: '내용 검사', prompt_extend: '프롬프트 자동 보강', prompt_extend_mode: '보강 방식', enable_thinking: '깊이 생각하기', aigc_watermark: 'AI 워터마크',
   keep_original_sound: '원본 소리 유지', character_orientation: '인물 방향', prompt_optimizer: '프롬프트 다듬기', mode: '방식', shot_type: '샷 종류', multi_shots: '여러 컷', era: '시대',
@@ -171,6 +176,35 @@ const isUrl = (k, p) => /url/i.test(k) || p?.format === 'uri' || p?.items?.forma
 const hidden = (k, p) => /(^|_)id$/.test(k) || p?.format === 'uuid' || p?.type === 'object' || (p?.type === 'array' && !isUrl(k, p)) || ['custom_reference_strength', 'style_strength', 'colors', 'elements', 'multi_prompt'].includes(k);
 const mediaKind = k => /video/i.test(k) ? 'video' : /audio/i.test(k) ? 'audio' : 'image';
 const lab = k => LABEL[k] || k.replace(/_/g, ' ');
+// 어려운 말 — 마우스를 올리거나(넓은 화면) 누르면(폰) 설명
+const GLOSS = {
+  prompt: '만들고 싶은 장면을 글로 적는 칸입니다. 누가·어디서·무엇을·어떤 분위기·카메라 느낌까지 자세히 쓸수록 원하는 결과에 가까워집니다. 영어로 쓰면 결과가 더 좋습니다.',
+  seed: 'AI가 그리기 시작하는 출발 번호입니다. 비워 두면 매번 다른 결과가 나옵니다. 마음에 든 결과와 같은 번호를 넣으면 프롬프트를 조금만 바꿔 비슷한 느낌으로 다시 만들 수 있습니다.',
+  aspect_ratio: '가로:세로 비율입니다. 16:9 는 가로 화면(유튜브), 9:16 은 세로 화면(릴스·쇼츠), 1:1 은 정사각형(인스타 피드)입니다.',
+  resolution: '화면 크기(선명도)입니다. 높을수록 선명하지만 비용이 올라갑니다. 시안은 낮게, 최종본은 높게 만드는 것을 권합니다.',
+  duration: '영상 길이(초)입니다. 길수록 비용이 늘어납니다.',
+  batch_size: '한 번에 만들 장수입니다. 장수만큼 비용이 듭니다.', num_images: '한 번에 만들 장수입니다. 장수만큼 비용이 듭니다.',
+  quality: '그림 품질입니다. 높을수록 세밀하지만 비용과 시간이 늘어납니다.',
+  generate_audio: '영상에 어울리는 소리(효과음·배경음)도 함께 만듭니다.', sound: '영상에 어울리는 소리(효과음·배경음)를 함께 만들지 정합니다.',
+  negative_prompt: '결과에 나오지 않았으면 하는 것을 적습니다. 예: 글자, 워터마크, 흐릿함, 손가락 이상.',
+  enhance_prompt: 'AI가 프롬프트를 더 자세하게 다듬어서 만듭니다. 짧게 썼을 때 도움이 됩니다.', prompt_optimizer: 'AI가 프롬프트를 더 자세하게 다듬어서 만듭니다.',
+  prompt_extend: 'AI가 프롬프트에 빠진 묘사를 자동으로 보태서 만듭니다.', prompt_extend_mode: '프롬프트를 보태는 정도입니다.',
+  cfg_scale: '프롬프트를 얼마나 그대로 따를지입니다. 높이면 글에 충실하고, 낮추면 AI가 더 자유롭게 해석합니다.',
+  bitrate_mode: '영상 화질(파일 용량)입니다. high 가 더 깨끗하고 파일이 큽니다.', output_format: '받을 영상 파일 형식입니다. 보통 mp4 를 쓰면 됩니다.',
+  fps: '1초에 몇 장면을 보여 줄지입니다. 높을수록 움직임이 부드럽습니다.',
+  camera_movement: '카메라가 어떻게 움직일지입니다(다가가기·옆으로 돌기 등).', enable_thinking: 'AI가 장면을 더 오래 생각해서 만듭니다. 복잡한 장면에 좋고 시간이 더 걸릴 수 있습니다.',
+  aigc_watermark: '결과에 「AI로 만듦」 표시를 넣을지 정합니다.', moderation: '내용 검사 강도입니다. 보통 기본값으로 두면 됩니다.',
+  keep_original_sound: '원본 영상의 소리를 그대로 남깁니다.', character_orientation: '인물이 원본 사진 방향을 따를지, 원본 영상 방향을 따를지 정합니다.',
+  mode: '품질 단계입니다. pro 가 더 좋고 비쌉니다.', shot_type: '컷을 어떻게 나눌지 정합니다.', multi_shots: '한 영상 안에서 여러 컷으로 나눠 만듭니다.',
+  image_url: '영상의 첫 장면이 될 사진입니다. 이 사진이 움직이기 시작합니다.', end_image_url: '영상의 마지막 장면이 될 사진입니다.', last_image_url: '영상의 마지막 장면이 될 사진입니다.',
+  first_frame_url: '영상의 처음 장면이 될 사진입니다.', last_frame_url: '영상의 마지막 장면이 될 사진입니다.',
+  image_urls: '인물·제품·분위기를 따라 하게 할 참고 사진입니다. 여러 장 넣을 수 있습니다.', video_urls: '움직임·연출을 따라 하게 할 참고 영상입니다.',
+  video_url: '편집하거나 늘릴 원본 영상입니다.', audio_urls: '목소리·음악을 따라 하게 할 참고 음성입니다.', audio_url: '영상에 넣을 음성입니다.',
+  purpose: '어느 프로젝트·제안서에 쓰는지 적습니다. 팀별·프로젝트별 사용액 정리에 쓰입니다.'};
+const WF_TIP = {create: '글(프롬프트)만으로 새로 만듭니다.', image: '사진 한 장을 넣으면 그 사진이 움직이는 영상으로 만듭니다.', frames: '처음 장면과 마지막 장면 사진을 넣으면 그 사이를 이어 주는 영상을 만듭니다.',
+  reference: '참고 사진·영상·음성을 넣으면 인물·제품·움직임을 따라 하는 영상을 만듭니다.', edit: '이미 있는 사진·영상을 프롬프트대로 고칩니다.', extend: '이미 있는 영상을 뒤로 더 이어서 늘립니다.',
+  motion: '영상 속 사람의 움직임을 사진 속 인물이 그대로 따라 하게 만듭니다.'};
+const tip = k => GLOSS[k] ? `<button type="button" class="q" aria-label="${esc(lab(k))} 설명"><span aria-hidden="true">?</span><span class="pop" role="tooltip">${esc(GLOSS[k])}</span></button>` : '';
 
 // ── 상태
 let me = null, models = [], gens = [], urls = {}, limit = {spent: 0, limit: 0}, busy = false, err = '', reqs = [];
@@ -228,24 +262,24 @@ function resetForm() {
 // ── 그리기
 function fieldHtml(k, p, req) {
   const v = form[k], r = req ? '<em aria-hidden="true">*</em>' : '';
-  if (k === 'prompt') return `<div class="f"><label for="fp">${lab(k)}${r}</label><textarea id="fp" data-k="prompt" placeholder="무엇을 만들지 자세히 적어 주세요. 영어로 쓰면 결과가 더 좋습니다.">${esc(v ?? '')}</textarea></div>`;
+  if (k === 'prompt') return `<div class="f"><label for="fp">${lab(k)}${tip(k)}${r}</label><textarea id="fp" data-k="prompt" placeholder="무엇을 만들지 자세히 적어 주세요. 영어로 쓰면 결과가 더 좋습니다.">${esc(v ?? '')}</textarea></div>`;
   if (p.enum) {
-    if (p.enum.length <= 8) return `<div class="f"><span class="lab">${lab(k)}${r}</span><div class="chips" role="group" aria-label="${esc(lab(k))}">${p.enum.map(o => `<button type="button" data-k="${k}" data-v="${esc(o)}" aria-pressed="${String(v) === String(o)}">${esc(o)}</button>`).join('')}</div></div>`;
-    return `<div class="f"><label for="f_${k}">${lab(k)}${r}</label><select id="f_${k}" data-k="${k}">${p.default === undefined ? '<option value="">기본값</option>' : ''}${p.enum.map(o => `<option ${String(v) === String(o) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+    if (p.enum.length <= 8) return `<div class="f"><span class="lab">${lab(k)}${tip(k)}${r}</span><div class="chips" role="group" aria-label="${esc(lab(k))}">${p.enum.map(o => `<button type="button" data-k="${k}" data-v="${esc(o)}" aria-pressed="${String(v) === String(o)}">${esc(o)}</button>`).join('')}</div></div>`;
+    return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label><select id="f_${k}" data-k="${k}">${p.default === undefined ? '<option value="">기본값</option>' : ''}${p.enum.map(o => `<option ${String(v) === String(o) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
   }
-  if (p.type === 'boolean') return `<label class="toggle"><span>${lab(k)}</span><input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}></label>`;
+  if (p.type === 'boolean') return `<label class="toggle"><span>${lab(k)}${tip(k)}</span><input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}></label>`;
   if (p.type === 'integer' && p.minimum != null && p.maximum != null && p.maximum - p.minimum <= 40) {
     const opts = []; for (let i = p.minimum; i <= p.maximum; i++) opts.push(i);
-    return `<div class="f"><label for="f_${k}">${lab(k)}${r}</label><select id="f_${k}" data-k="${k}" data-num="1">${p.default === undefined && !req ? '<option value="">기본값</option>' : ''}${opts.map(o => `<option ${Number(v) === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+    return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label><select id="f_${k}" data-k="${k}" data-num="1">${p.default === undefined && !req ? '<option value="">기본값</option>' : ''}${opts.map(o => `<option ${Number(v) === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
   }
-  if (p.type === 'integer' || p.type === 'number') return `<div class="f"><label for="f_${k}">${lab(k)}${r}</label><input id="f_${k}" type="number" data-k="${k}" data-num="1" ${p.minimum != null ? `min="${p.minimum}"` : ''} ${p.maximum != null ? `max="${p.maximum}"` : ''} step="${p.type === 'integer' ? 1 : 0.01}" value="${v ?? ''}" placeholder="${p.default ?? '비우면 기본값'}"></div>`;
-  return `<div class="f"><label for="f_${k}">${lab(k)}${r}</label>${/negative|prompt/.test(k) ? `<textarea id="f_${k}" data-k="${k}" style="min-height:60px">${esc(v ?? '')}</textarea>` : `<input id="f_${k}" type="text" data-k="${k}" value="${esc(v ?? '')}">`}</div>`;
+  if (p.type === 'integer' || p.type === 'number') return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label><input id="f_${k}" type="number" data-k="${k}" data-num="1" ${p.minimum != null ? `min="${p.minimum}"` : ''} ${p.maximum != null ? `max="${p.maximum}"` : ''} step="${p.type === 'integer' ? 1 : 0.01}" value="${v ?? ''}" placeholder="${k === 'seed' ? '비워 두면 매번 다른 결과가 나옵니다' : (p.default ?? '비우면 기본값')}"></div>`;
+  return `<div class="f"><label for="f_${k}">${lab(k)}${tip(k)}${r}</label>${/negative|prompt/.test(k) ? `<textarea id="f_${k}" data-k="${k}" style="min-height:60px">${esc(v ?? '')}</textarea>` : `<input id="f_${k}" type="text" data-k="${k}" value="${esc(v ?? '')}">`}</div>`;
 }
 function mediaHtml(k, p, req) {
   const many = p.type === 'array', max = many ? (p.maxItems || 16) : 1, list = media[k] || [], mk = mediaKind(k);
   const thumb = x => { const u = x.gen ? (urls[(gens.find(g => g.id === x.gen)?.files || []).find(f => f.type.startsWith(mk))?.path || (gens.find(g => g.id === x.gen)?.files || [])[0]?.path] || '') : x.preview;
     return `<div class="slot">${u ? (mk === 'video' ? `<video src="${esc(u)}#t=0.1" muted preload="metadata"></video>` : mk === 'image' ? `<img src="${esc(u)}" alt="">` : '음성') : '…'}<button class="x" type="button" data-rm="${k}" data-i="${list.indexOf(x)}" aria-label="빼기">×</button></div>`; };
-  return `<div class="f"><span class="lab">${lab(k)}${req ? '<em aria-hidden="true">*</em>' : ''} <span class="hint">${many ? `${max}개까지` : '1개'}</span></span>
+  return `<div class="f"><span class="lab">${lab(k)}${tip(k)}${req ? '<em aria-hidden="true">*</em>' : ''} <span class="hint">${many ? `${max}개까지` : '1개'}</span></span>
     <div class="slots">${list.map(thumb).join('')}${list.length < max ? `<div class="addslot"><button class="pt-btn" type="button" data-up="${k}">올리기</button><button class="pt-btn" type="button" data-arc="${k}">아카이브에서</button></div>` : ''}</div></div>`;
 }
 function formHtml() {
@@ -300,7 +334,7 @@ async function loadReqs() { const { data } = await SB.from('pt_hf_limit_req').se
 function render() {
   const head = `<header class="head"><div><h1 class="pt-title" style="margin:0">AI 생성</h1><p>회사 힉스필드 계정으로 이미지·영상을 만듭니다. 만든 것은 내 아카이브에 계속 남습니다.</p></div>${usageHtml()}</header>
     <div class="bar-row"><div class="seg" role="group" aria-label="종류">${[['image', '이미지'], ['video', '비디오'], ['archive', '내 아카이브']].map(([k, v]) => `<button type="button" data-kind="${k}" aria-pressed="${kind === k}">${v}${k === 'archive' && gens.length ? ` <span class="num" style="color:var(--faint)">${gens.length}</span>` : ''}</button>`).join('')}</div>
-    ${kind !== 'archive' ? `<div class="seg sub" role="group" aria-label="작업">${WF.filter(([k]) => models.some(m => m.kind === kind && m.wfk === k)).map(([k, v]) => `<button type="button" data-wf="${k}" aria-pressed="${wf === k}">${v}</button>`).join('')}</div>` : ''}</div>`;
+    ${kind !== 'archive' ? `<div class="seg sub" role="group" aria-label="작업">${WF.filter(([k]) => models.some(m => m.kind === kind && m.wfk === k)).map(([k, v]) => `<button type="button" data-wf="${k}" aria-pressed="${wf === k}">${v}</button>`).join('')}</div><button type="button" class="q" aria-label="${esc((WF.find(x => x[0] === wf) || [, ''])[1])} 설명"><span aria-hidden="true">?</span><span class="pop" role="tooltip">${esc(WF_TIP[wf] || '')}</span></button>` : ''}</div>`;
   if (kind === 'archive') {
     const xs = gens.filter(g => (!akind || g.kind === akind) && (!aq || [g.purpose, g.prompt, g.model].join(' ').toLowerCase().includes(aq)));
     $app.innerHTML = head + `<div class="tools"><input type="search" id="aq" placeholder="용도·프롬프트·모델 찾기" value="${esc(aq)}" aria-label="아카이브 찾기"><select id="ak" aria-label="종류 고르기"><option value="">전체</option><option value="image" ${akind === 'image' ? 'selected' : ''}>이미지</option><option value="video" ${akind === 'video' ? 'selected' : ''}>영상</option></select></div>
@@ -316,7 +350,7 @@ function render() {
         ${showList ? `<div class="mlist" role="group" aria-label="모델 목록">${fams.map(m => `<button type="button" data-model="${esc(m.path)}" aria-pressed="${sel && sel.path === m.path}"><b>${esc(m.family_title)}</b><small>${esc(wfName(m))}</small></button>`).join('')}</div>` : ''}
       </div>
       ${formHtml()}
-      <div class="f"><label for="fpur">용도<em aria-hidden="true">*</em></label><input id="fpur" type="text" value="${esc(purpose)}" placeholder="어느 프로젝트·제안서에 쓰는지 (예: 골포스트 × 리락쿠마 제안서)"></div>
+      <div class="f"><label for="fpur">용도${tip('purpose')}<em aria-hidden="true">*</em></label><input id="fpur" type="text" value="${esc(purpose)}" placeholder="어느 프로젝트·제안서에 쓰는지 (예: 골포스트 × 리락쿠마 제안서)"></div>
       ${err ? `<div class="err" role="alert">${esc(err)}${/한도/.test(err) && !reqs.some(r => r.status === 'wait') ? ` <button class="pt-btn" type="button" id="errlim" style="margin-top:8px">한도 추가 요청</button>` : ''}</div>` : ''}
       <div class="go"><button class="pt-btn accent" type="button" id="make" ${busy || !sel ? 'disabled' : ''}>${busy ? '<span class="spin" aria-hidden="true"></span> 예상 비용 확인 중' : '만들기'}</button></div>
     </section>
