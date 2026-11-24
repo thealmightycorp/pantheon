@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>신드리 · AI 생성</title>
-<link rel="icon" type="image/png" href="../brand/pantheon.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2048%2048%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sdb%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23F7D27A%22/%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23E3A73B%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23B8761E%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2213%22%20fill%3D%22url%28%23sdb%29%22/%3E%3Cpath%20d%3D%22M8%2027h23c3.2%200%205.6-1%207.3-2.8-.3%204.3-3.2%206.8-7.6%207.3h-3.2l-2.4%204H29v3H14.5v-3h3.7l-2.4-4h-4.4c-2.1%200-3-1.5-3-4.5z%22%20fill%3D%22%231A1408%22/%3E%3Cg%20transform%3D%22rotate%28-38%2027%2015%29%22%3E%3Crect%20x%3D%2219%22%20y%3D%2210%22%20width%3D%2214%22%20height%3D%227.5%22%20rx%3D%221.8%22%20fill%3D%22%231A1408%22/%3E%3Crect%20x%3D%2225%22%20y%3D%2217%22%20width%3D%223%22%20height%3D%2211%22%20rx%3D%221.5%22%20fill%3D%22%231A1408%22/%3E%3C/g%3E%3Cpath%20d%3D%22M17.5%2023.5l-2.8-2M16%2025.6l-3.6.2M20.6%2022.4l-.6-3.4%22%20stroke%3D%22%231A1408%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <!-- 신드리 Sindri — AI 생성 (11-24 김현우 「이그드라실에 붙이지 말고 판테온 지도에 하나 추가」 · 이름 신드리 = 묠니르를 만든 난쟁이 대장장이)
      처음 만든 날 (2026-11-24 · 김현우 「힉스필드 화면을 우리 규칙으로 · API 로 쓸 수 있는 모델만 · 모델 목록 매일 자동 갱신 · 내가 만든 것은 아카이브로」)
@@ -41,7 +41,10 @@ button{font:inherit;color:inherit}
 /* 틀: 왼쪽 아이콘 줄 + 작업실 */
 .shell{display:grid;grid-template-columns:76px minmax(0,1fr);min-height:100svh}
 .rail{position:sticky;top:0;height:100svh;display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0;border-right:1px solid var(--seam);background:var(--anvil);z-index:6}
-.mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;margin-bottom:14px;background:linear-gradient(150deg,#2B2418,#15120C);border:1px solid #4A3A1C;color:var(--brass-hot);font-weight:800;font-size:19px;text-decoration:none;letter-spacing:-.04em}
+.mark{width:46px;height:46px;display:block;margin-bottom:14px;border-radius:13px;box-shadow:0 6px 18px rgba(227,167,59,.22),0 0 0 1px rgba(255,231,168,.18) inset;transition:transform .15s,box-shadow .15s}
+.mark svg{width:100%;height:100%;display:block}
+.mark:hover{transform:translateY(-1px) rotate(-3deg);box-shadow:0 10px 24px rgba(227,167,59,.32)}
+@media (prefers-reduced-motion:reduce){.mark{transition:none}.mark:hover{transform:none}}
 .rb{width:60px;display:grid;justify-items:center;gap:4px;padding:9px 0 7px;border-radius:12px;border:0;background:transparent;color:var(--ash);font-size:11px;font-weight:600;cursor:pointer;text-decoration:none}
 .rb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .rb:hover{color:var(--bone);background:var(--iron)}
@@ -201,7 +204,7 @@ select,input[type=text],input[type=number],textarea{width:100%;border:1px solid 
 <body>
 <div class="shell">
   <nav class="rail" aria-label="신드리 메뉴">
-    <a class="mark" href="./" aria-label="신드리 처음으로">신</a>
+    <a class="mark" href="./" aria-label="신드리 처음으로" title="신드리"><svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="sdb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7D27A"/><stop offset=".55" stop-color="#E3A73B"/><stop offset="1" stop-color="#B8761E"/></linearGradient></defs><rect width="48" height="48" rx="13" fill="url(#sdb)"/><path d="M8 27h23c3.2 0 5.6-1 7.3-2.8-.3 4.3-3.2 6.8-7.6 7.3h-3.2l-2.4 4H29v3H14.5v-3h3.7l-2.4-4h-4.4c-2.1 0-3-1.5-3-4.5z" fill="#1A1408"/><g transform="rotate(-38 27 15)"><rect x="19" y="10" width="14" height="7.5" rx="1.8" fill="#1A1408"/><rect x="25" y="17" width="3" height="11" rx="1.5" fill="#1A1408"/></g><path d="M17.5 23.5l-2.8-2M16 25.6l-3.6.2M20.6 22.4l-.6-3.4" stroke="#1A1408" stroke-width="1.7" stroke-linecap="round"/></svg></a>
     <button class="rb" type="button" data-kind="image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>이미지</button>
     <button class="rb" type="button" data-kind="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg>비디오</button>
     <button class="rb" type="button" data-kind="archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 4h18v3H3zM10 11h4"/></svg>아카이브</button>
