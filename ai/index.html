@@ -127,11 +127,12 @@ function hfRange() {
 async function hfLoad() {
   const [from, to] = hfRange(), m0 = monthStart(0);
   const qOf = (a, b) => { let x = SB.from('pt_hf_gen').select('id,at,uid,name,team,purpose,model,model_path,kind,mode,prompt,params,est_usd,usd,status,error,files,saved_at,done_at').gte('at', a.toISOString()).order('at', {ascending: false}).limit(5000); return b ? x.lt('at', b.toISOString()) : x; };
-  const [g, cur, lim, adm, can] = await Promise.all([qOf(from, to), hfPeriod === 'month' ? null : qOf(m0, null), SB.from('pt_hf_limit').select('uid,name,grp,monthly_usd'), SB.rpc('pt_hf_admin'), SB.rpc('pt_ai_usage_can')]);
+  const [g, cur, lim, adm, can, rq] = await Promise.all([qOf(from, to), hfPeriod === 'month' ? null : qOf(m0, null), SB.from('pt_hf_limit').select('uid,name,grp,monthly_usd'), SB.rpc('pt_hf_admin'), SB.rpc('pt_ai_usage_can'),
+    SB.from('pt_hf_limit_req').select('id,at,uid,name,add_usd,reason,limit_before,spent_before,status,decided_at').order('id', {ascending: false}).limit(30)]);
   const err = g.error || cur?.error || lim.error;
   if (err) { hfErr = err.message; if (hf) renderHf(); else $app.innerHTML = `<div class="gate"><h1>힉스필드 API 사용</h1><p>읽기 오류: ${esc(hfErr)}</p></div>`; return; }
   hfErr = '';
-  hf = {rows: g.data || [], month: hfPeriod === 'month' ? (g.data || []) : (cur.data || []), limits: lim.data || [], admin: !!adm.data, all: !!can.data, at: new Date()};
+  hf = {rows: g.data || [], month: hfPeriod === 'month' ? (g.data || []) : (cur.data || []), limits: lim.data || [], admin: !!adm.data, all: !!can.data, reqs: rq?.data || [], at: new Date()};
   renderHf();
 }
 function group(rows, key) {
@@ -197,6 +198,15 @@ function renderHf() {
     <div><small>Scale 1석($${SCALE_SEAT}/월)보다 많이 쓴 사람</small><b class="num">${over}<em>명</em></b><span>이번 달 기준 · 좌석 결정 참고</span></div>
   </section>
 
+  ${hf.reqs.some(r => r.status === 'wait') ? `<section class="panel" id="hfreq" style="border:1px solid var(--warning-line)">
+    <h2>한도 추가 요청 <small>${hf.reqs.filter(r => r.status === 'wait').length}건 기다리는 중</small></h2>
+    <div class="tw"><table><thead><tr><th>요청한 사람</th><th class="r">추가</th><th class="r hide-sm">지금 한도 · 이번 달 사용</th><th>사유</th>${hf.admin ? '<th></th>' : ''}</tr></thead><tbody>
+      ${hf.reqs.filter(r => r.status === 'wait').map(r => `<tr><td><b>${esc(r.name)}</b><span class="sm">${kst(r.at)}</span></td><td class="r num">+${usd(r.add_usd)}</td>
+        <td class="r num hide-sm">${usd(r.limit_before)} · ${usd(r.spent_before, 2)}</td><td>${esc(r.reason)}</td>
+        ${hf.admin ? `<td class="r" style="white-space:nowrap"><button class="pt-btn quiet" data-req-no="${r.id}">거절</button> <button class="pt-btn primary" data-req-ok="${r.id}">승인 · 한도 +${usd(r.add_usd)}</button></td>` : ''}</tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">승인하면 그 사람의 월 한도가 요청 금액만큼 늘고, 결과가 슬랙으로 전달됩니다.</p>
+  </section>` : ''}
   <section class="panel" id="hfpeople">
     <h2>직원별 순위 <small>${HF_PERIODS[hfPeriod]} 사용액 순 · 한도는 이번 달 기준</small></h2>
     <div class="tw"><table><thead><tr><th class="r">순위</th><th>이름</th><th class="r">사용액</th><th class="r">건수</th><th style="min-width:180px">월 한도 사용률</th><th class="hide-sm">Scale 1석과 비교</th></tr></thead><tbody>
@@ -435,6 +445,10 @@ $app.addEventListener('click', async e => {
   if (b.id === 'hfcsv') return hfCsv();
   if (b.dataset.limEdit) { hfEdit = b.dataset.limEdit; renderHf(); document.getElementById('limv')?.focus(); return; }
   if (b.hasAttribute('data-lim-cancel')) { hfEdit = ''; renderHf(); return; }
+  if (b.dataset.reqOk || b.dataset.reqNo) { const ok = !!b.dataset.reqOk; b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span>' + (ok ? '승인 중' : '거절 중');
+    const { error } = await SB.rpc('pt_hf_limit_decide', {p_id: Number(b.dataset.reqOk || b.dataset.reqNo), p_ok: ok});
+    if (error) { alert('처리하지 못했습니다: ' + error.message); b.disabled = false; b.textContent = ok ? '승인' : '거절'; return; }
+    return hfLoad(); }
   if (b.dataset.limSave) { const v = Number(document.getElementById('limv').value); b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span>저장 중';
     const { error } = await SB.rpc('pt_hf_limit_set', {p_uid: b.dataset.limSave, p_usd: v});
     if (error) { alert('한도를 바꾸지 못했습니다: ' + error.message); b.disabled = false; b.textContent = '저장'; return; }
