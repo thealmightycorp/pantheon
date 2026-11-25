@@ -185,6 +185,7 @@ async function load() {
   const [{ data, error }] = await Promise.all([allRows(() => SB.from('pt_entity').select('*').order('name').order('id')), loadMembers(), loadRel().catch(() => {}), APP === 'ygg' ? loadAcc().catch(() => {}) : null]);
   if (error) throw error;
   all = data.map(fromRow);
+  if (me?.app_metadata?.guest === true) all.forEach(e => { e.hidden = false; });   // 11-25 게스트는 시연용 가상 데이터만 받음 — 가상 행의 숨김 표시는 직원·봇에서 빼려는 것
 }
 
 /* ---------- 화면 조각 ---------- */
