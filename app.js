@@ -2513,6 +2513,42 @@ function openRef(id) {
 const SCORE_KO = {fandom: '팬덤', world: '세계관', asset: '자산 결합', business: '사업성', timing: '타이밍', risk: '리스크'};
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return '출처'; } };
 const srcLinks = urls => (urls || []).map(u => `<a class="src" href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join('');
+// 11-25 새 디자인 엔진(실험) — 김현우만 (DB pt_htmldeck_can · 봇 htmldeck.py). 레퍼런스 페이지를 보고 페이지마다 새로 디자인 · 빈 이미지 자리와 표지 키비주얼은 신드리로
+let hdCanCache = null, hdPoll;
+async function hdRender(p) {
+  const el = $('#hd-block'); if (!el) return;
+  if (hdCanCache === null) { const r = await SB.rpc('pt_htmldeck_can'); hdCanCache = !r.error && !!r.data; }
+  if (!hdCanCache) return;
+  const [pr, jr] = await Promise.all([SB.from('pt_proposal').select('data->html_deck,data->build->slides').eq('id', p.id).single(),
+    SB.from('pt_proposal_job').select('id,proposal_id,kind,status,result,error,at').eq('proposal_id', p.id).eq('kind', 'html_deck').order('id', {ascending: false}).limit(1)]);
+  if (!$('#hd-block') || activeDetail !== 'p:' + p.id) return;
+  const h = pr.data?.html_deck, n = +(pr.data?.slides || 0), j = (jr.data || [])[0], live = j && ['wait', 'work'].includes(j.status);
+  const est = Math.round(n * 0.5 + 4);
+  el.className = 'detail-block';
+  el.innerHTML = `<h3>새 디자인 <small>실험</small></h3><p class="muted-box">레퍼런스 페이지를 보고 페이지마다 새로 디자인합니다. 빈 이미지 자리와 표지 키비주얼은 신드리로 만들어 회사 보관함에 남기고, 원고에 없는 내용은 자동으로 걸러 고칩니다. 지금 초안은 그대로 둡니다. 김현우 계정에서만 보입니다.</p>`
+    + (live ? jobProg(j) : '')
+    + (j && j.status === 'fail' ? `<p class="muted-box">지난 실행이 멈췄습니다. ${esc((j.error || '').slice(0, 160))}</p>` : '')
+    + (h ? `<div class="detail-row"><span>최근 결과</span><b>v${h.version} · ${h.pages}페이지 · 신드리 이미지 ${h.images_new}장</b></div><div class="drawer-actions"><button class="button primary" data-hd="${esc(h.pdf)}">PDF 보기</button><button class="button" data-hd="${esc(h.pdf)}" data-dl="pdf">PDF 다운로드</button><button class="button" data-hd="${esc(h.pptx)}" data-dl="pptx" title="글자를 바로 고칠 수 있습니다. 글꼴이 바뀌어 보이면 궁니르 글꼴 설치를 한 번 해 주세요">PPTX 다운로드</button></div>` : '')
+    + (live ? '' : `<div class="drawer-actions"><button class="button" id="hd-go">${h ? '새 디자인 다시 만들기' : '새 디자인으로 만들기'}</button></div>`);
+  $$('#hd-block [data-hd]').forEach(b => b.onclick = async () => {
+    const fname = `${pTitle(p)} 새 디자인_v${h.version}.${b.dataset.dl === 'pptx' ? 'pptx' : 'pdf'}`.replace(/[\\/:*?"<>|]+/g, ' ');
+    const w = b.dataset.dl ? null : window.open('', '_blank');
+    const { data: u, error } = await SB.storage.from('pt-studio').createSignedUrl(b.dataset.hd, 600, b.dataset.dl ? {download: fname} : undefined);
+    if (error) { w?.close(); return toast('파일을 열지 못했습니다. 잠시 뒤 다시 해 주세요.'); }
+    if (w) { w.location = u.signedUrl; return; }
+    const l = document.createElement('a'); l.href = u.signedUrl; l.download = fname; document.body.appendChild(l); l.click(); l.remove();
+  });
+  $('#hd-go')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: '새 디자인으로 만들까요?', body: `${n}페이지를 새로 디자인합니다. 빈 이미지 자리와 표지 키비주얼은 신드리(내 한도)로 만들어 회사 보관함에 남습니다. 예상 비용은 약 $${est}입니다(Claude 디자인 + 신드리 이미지). 지금 초안은 바뀌지 않습니다.`, ok: '새 디자인으로 만들기'}))) return;
+    ev.target.disabled = true;
+    const r = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'html_deck', input: {}});
+    if (r.error) { ev.target.disabled = false; return toast('요청하지 못했습니다. ' + (r.error.message || '').slice(0, 80)); }
+    toast('새 디자인을 요청했습니다. 진행률은 이 화면에서 볼 수 있습니다.');
+    hdRender(p);
+  });
+  clearTimeout(hdPoll);
+  if (live) hdPoll = setTimeout(() => { if (activeDetail === 'p:' + p.id) hdRender(p); }, 4000);
+}
 // 단계 작업 진행률 — 이그드라실 봇이 job.result 에 3초마다 적는 값을 막대로 (레퍼런스 분석과 같은 모양)
 function jobProg(j) {
   const g = j?.result;
@@ -2522,7 +2558,7 @@ function jobProg(j) {
   return `<div class="ref-prog wide job-prog" data-k="j${j.id}" data-eta="${g.eta}" data-at="${esc(g.at)}" data-step="${esc(g.step || '')}"><span class="row"><span class="bar" role="progressbar" aria-valuenow="${g.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${g.progress}%"></i></span><b>${g.progress}%</b></span><small>${esc(g.step || '진행 중')}</small></div>`;
 }
 // 한 단계에 작업이 둘일 때(리서치 = 공개 웹 + 팬·SNS) 막대를 이름과 함께 나란히 (10-28)
-const JOB_KO = {qa: '자동 검수', partners: '파트너 추천', research: '공개 웹 리서치', concepts: '컨셉 설계', build: '제안서 생성', image_plan: '이미지 수급', finalize: '제안서 다시 생성', generate: 'AI 이미지 생성'};
+const JOB_KO = {html_deck: '새 디자인(실험)', qa: '자동 검수', partners: '파트너 추천', research: '공개 웹 리서치', concepts: '컨셉 설계', build: '제안서 생성', image_plan: '이미지 수급', finalize: '제안서 다시 생성', generate: 'AI 이미지 생성'};
 // 이미지 한두 자리만 다루는 작업은 「26페이지 2번째 이미지 · 무엇」까지 보인다 (10-30 김현우 「몇 페이지 몇 번째 이미지인지」)
 const jobWhere = j => { const keys = j.input?.keys || (j.input?.slots || []).map(x => x.key); if (!keys?.length || keys.length > 3) return '';
   const d = studio.list?.find(x => x.id === j.proposal_id)?.data || {}, S = d.images?.slots || {}, B = d.build?.boxes || {};
@@ -3739,7 +3775,7 @@ async function openProposal(id, keep) {
   else if (p.status === 'done' && d.build) action = `<div class="detail-block pv-decide"><h3>완료 · v${d.build.version} · 수정 버전 생성</h3><p>수신사 피드백을 입력하면 원고를 수정해 다음 버전을 생성합니다. 추가로 필요한 이미지만 다시 수급합니다.</p><textarea id="rev-ins" rows="3" maxlength="1500" placeholder="예: Experience 2개 추가, Business 페이지에 금액 삽입, 심화 제안으로 전환"></textarea><div class="drawer-actions"><button class="button primary" id="rev-go">v${d.build.version + 1} 생성</button></div></div>`;
   if (p.status !== 'working' && d.build) action = action + shortPanel(p);          // 11-13 대표님 개선안 3 — 지금 할 일이 먼저, 내용 보강은 그 아래
   const dlTip = '<p class="muted-box dl-tip">PPTX 파일은 <b>키노트</b>에서 바로 열립니다. <b>Figma</b>는 Figma Slides 파일 목록의 「가져오기」에서 PPTX를 올리면 편집할 수 있습니다. Figma에 Pretendard 글꼴이 없으면 기본 글꼴로 바뀝니다.</p>';
-  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF 보기·다운로드에는 바로 들어가고, PPTX 다운로드나 완료 때 전체 파일에 한 번 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#1b6e66')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#1b6e66')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button><button class="button" data-file="${esc(d.build.pdf)}" data-dl="pdf">PDF 다운로드</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="pptx" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`].filter(Boolean).join('');
+  const done = [d.build && `<div class="detail-block"><h3>제안서 초안 v${d.build.version}</h3>${Object.keys(d.build.patches || {}).length ? `<p class="muted-box">수정한 페이지 ${Object.keys(d.build.patches).map(Number).sort((a, b) => a - b).join('·')}은 화면에 바로 반영되어 있습니다. PDF 보기·다운로드에는 바로 들어가고, PPTX 다운로드나 완료 때 전체 파일에 한 번 반영합니다.</p>` : ''}<div class="detail-row"><span>분량</span><b>${d.build.slides}페이지 · 이미지 ${d.build.images}개</b></div>${d.images ? '' : '<p>이미지 위치는 회색 영역으로 표시해 두었습니다. 이미지 수급 단계에서 채워집니다.</p>'}<div class="detail-row"><span>강조색</span><b class="acc-row"><i class="swatch" style="background:${esc(d.build.deck?.theme?.accent || '#1b6e66')}"></i>${esc(d.build.deck?.theme?.accent || '')} ${d.accent ? '(직접 선택)' : '(클로드 추천)'}${p.status === 'waiting' ? ` <input type="color" id="acc-new" value="${esc(d.build.deck?.theme?.accent || '#1b6e66')}" aria-label="강조색 선택"> <button class="text-btn" id="acc-apply">이 색으로 적용</button>` : ''}</b></div><div class="drawer-actions">${d.build.pdf ? `<button class="button primary" data-file="${esc(d.build.pdf)}">PDF 보기</button><button class="button" data-file="${esc(d.build.pdf)}" data-dl="pdf">PDF 다운로드</button>` : ''}<button class="button" data-file="${esc(d.build.pptx)}" data-dl="pptx" title="파워포인트·키노트에서 바로 열 수 있고, Figma Slides에서 가져오기로 편집할 수 있습니다">PPTX 다운로드</button>${d.build.pdf ? `<button class="button" data-review="1">${p.status === 'waiting' ? '이미지 확인·수정' : '페이지별 보기'}</button>` : ''}${p.status === 'waiting' && !d.build.deck?.redesigned ? '<button class="button" id="redesign">새 디자인 적용</button>' : ''}</div>${dlTip}${p.status === 'waiting' ? `<details class="pv-fold"><summary><b>원고 수정 요청</b> <small>문장·페이지 구성·순서를 수정할 때</small></summary><textarea id="mid-ins" rows="3" maxlength="1500" placeholder="예: 앞부분 팬 반응 페이지 삭제, 콜라보 명분 강화, 상품 페이지 2개 추가"></textarea><div class="drawer-actions"><button class="button" id="mid-go">v${d.build.version + 1} 생성</button></div></details>` : ''}${p.status === 'waiting' && p.stage >= 7 && d.images ? '' : qaBlock(p)}</div>`, d.build && '<div id="hd-block"></div>'].filter(Boolean).join('');
   // 컨셉·리서치·팬·SNS 는 접어 둔 「자료」로 (10-30) — 결정할 것이 먼저 보이게
   const fold = (t, sub, body) => `<details class="pv-fold"><summary><b>${t}</b>${sub ? ` <small>${esc(sub)}</small>` : ''}</summary>${body}</details>`;
   const refs = [d.concept_selected && fold('확정한 컨셉', d.concept_selected.name, conceptCard(d.concept_selected)),
@@ -3912,6 +3948,7 @@ async function openProposal(id, keep) {
   $('#redesign')?.addEventListener('click', async ev => {
     if (!(await confirmBox({title: '새 디자인을 적용할까요?', body: '원고를 원본 제안서 디자인 레이아웃으로 다시 작성합니다. 이미지는 그대로 사용하지만 페이지 구성과 문장 배치가 변경될 수 있습니다. 현재 버전은 이력에 보관됩니다.', ok: '새 디자인 적용'}))) return;
     ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {redesign: true}}, '원본 제안서 디자인 적용을 요청했습니다(이미지는 유지)', '새 디자인을 적용합니다. 진행률은 화면에서 확인할 수 있습니다.'); });
+  hdRender(p);
   // 미확보 한 번에 Aside로 (11-09 대표님 「하나씩 누르는 거 말고 한 번에 넣는 기능」)
   $('#img-aside-all')?.addEventListener('click', async ev => {
     const S = liveSlots(d), miss = Object.keys(S).sort().filter(k => S[k].status === 'missing');
