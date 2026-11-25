@@ -2514,23 +2514,102 @@ function openRef(id) {
 const SCORE_KO = {fandom: '팬덤', world: '세계관', asset: '자산 결합', business: '사업성', timing: '타이밍', risk: '리스크'};
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return '출처'; } };
 const srcLinks = urls => (urls || []).map(u => `<a class="src" href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join('');
+// 11-25 안목 기록(김현우 「1번 — 안목 데이터를 실제로 쓰기」) — 같은 페이지를 세 안(사진 중심·글자 중심·나눔 구성)으로 보고 하나를 고르면
+// pt_design_pref 에 남고, 다음 새 디자인부터 봇(htmldeck.taste_blocks)이 고른 안과 이유를 디자인 지시에 넣는다
+const TASTE_TAG = {A: '사진 중심', B: '글자 중심', C: '나눔 구성'};
+const tastePick = {};            // 고르는 중인 안 {기록 id: tag}
+function tasteHtml(h, open, mine, picked, live, varLive) {
+  if (!h) return '';
+  const card = x => `<div class="tst" data-tst="${x.id}"><div class="tst-h"><b>${x.page}페이지 · ${esc(x.role || '')}</b><small>마음에 드는 안을 하나 고르세요</small></div>
+    <div class="tst-row">${(x.variants || []).map(v => `<button type="button" class="tst-opt${tastePick[x.id] === v.tag ? ' on' : ''}" data-tst-opt="${x.id}" data-tag="${esc(v.tag)}" aria-pressed="${tastePick[x.id] === v.tag}">
+      <img data-tst-img="${esc(v.png || '')}" alt="${esc(TASTE_TAG[v.tag] || v.tag)} 안"><span>${esc(v.tag)} · ${esc(TASTE_TAG[v.tag] || (v.direction || '').split(' — ')[0])}</span></button>`).join('')}</div>
+    <label class="tst-why">고른 이유 (선택)<input data-tst-why="${x.id}" maxlength="200" placeholder="예: 사진이 커야 콜라보가 한눈에 보인다"></label>
+    <div class="drawer-actions"><button class="button primary" data-tst-save="${x.id}" ${tastePick[x.id] ? '' : 'disabled'}>이 안으로 기록</button></div></div>`;
+  const done = mine.filter(x => x.chosen);
+  return `<div class="tst-wrap"><h4>안목 기록</h4><p class="muted-box">같은 페이지를 방향이 다른 세 안으로 보고 하나를 고르면, 다음 새 디자인부터 고른 방향과 이유를 반영합니다. 지금까지 ${picked}건 기록했습니다.</p>`
+    + (varLive ? '' : open.map(card).join(''))
+    + (done.length ? `<ul class="tst-done">${done.map(x => `<li>${x.page}페이지 · ${esc(x.role || '')} — <b>${esc(x.chosen)} ${esc(TASTE_TAG[x.chosen] || '')}</b>${x.why ? ` · ${esc(x.why)}` : ''} <button class="text-btn" data-tst-undo="${x.id}">다시 고르기</button></li>`).join('')}</ul>` : '')
+    + (live ? '' : `<div class="drawer-actions"><button class="button" id="tst-go">${open.length ? '다른 페이지도 세 안 만들기' : '표지·컨셉 페이지 세 안 만들기'}</button></div>`) + '</div>';
+}
+async function tasteBind(p, h, n, open, mine) {
+  const imgs = $$('#hd-block [data-tst-img]').filter(i => i.dataset.tstImg);
+  if (imgs.length) {
+    const { data } = await SB.storage.from('pt-studio').createSignedUrls([...new Set(imgs.map(i => i.dataset.tstImg))], 3600);
+    const u = Object.fromEntries((data || []).filter(x => x.signedUrl).map(x => [x.path, x.signedUrl]));
+    imgs.forEach(i => { if (u[i.dataset.tstImg]) i.src = u[i.dataset.tstImg]; });
+  }
+  $$('#hd-block [data-tst-opt]').forEach(b => b.onclick = () => {
+    const id = b.dataset.tstOpt; tastePick[id] = b.dataset.tag;
+    $$(`#hd-block [data-tst-opt="${id}"]`).forEach(x => { const on = x.dataset.tag === b.dataset.tag; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+    const sv = $(`#hd-block [data-tst-save="${id}"]`); if (sv) sv.disabled = false;
+  });
+  $$('#hd-block [data-tst-img]').forEach(i => i.ondblclick = () => { if (i.src) window.open(i.src, '_blank'); });
+  $$('#hd-block [data-tst-save]').forEach(b => b.onclick = async () => {
+    const id = +b.dataset.tstSave, tag = tastePick[id]; if (!tag) return;
+    b.disabled = true;
+    const why = $(`#hd-block [data-tst-why="${id}"]`)?.value || '';
+    const { error } = await SB.rpc('pt_design_pref_pick', {p_id: id, p_chosen: tag, p_why: why});
+    if (error) { b.disabled = false; return toast('기록하지 못했습니다. ' + (error.message || '').slice(0, 80)); }
+    delete tastePick[id];
+    toast(`${tag} ${TASTE_TAG[tag] || ''} 안으로 기록했습니다. 다음 새 디자인부터 반영합니다.`, {fn: async () => { const r = await SB.rpc('pt_design_pref_pick', {p_id: id, p_chosen: null, p_why: ''}); if (r.error) throw r.error; hdRender(p); toast('실행을 취소했습니다.'); }});
+    hdRender(p);
+  });
+  $$('#hd-block [data-tst-undo]').forEach(b => b.onclick = async () => {
+    const { error } = await SB.rpc('pt_design_pref_pick', {p_id: +b.dataset.tstUndo, p_chosen: null, p_why: ''});
+    if (error) return toast('되돌리지 못했습니다. ' + (error.message || '').slice(0, 80));
+    hdRender(p);
+  });
+  $('#tst-go')?.addEventListener('click', async ev => {
+    const used = new Set(mine.map(x => x.page));
+    const v = await askPages(n, used);
+    if (v === null) return;
+    if (!(await confirmBox({title: '세 안을 만들까요?', body: `${v.length ? v.join(', ') + '페이지를' : '표지와 컨셉 페이지를'} 사진 중심 · 글자 중심 · 나눔 구성 세 안으로 디자인합니다. 최근 새 디자인(v${h.version})의 규칙과 이미지를 그대로 씁니다. 예상 비용은 약 $${Math.max(1, (v.length || 2) * 1.2).toFixed(1)}이고 5~10분 걸립니다.`, ok: '세 안 만들기'}))) return;
+    ev.target.disabled = true;
+    const r = await SB.from('pt_proposal_job').insert({proposal_id: p.id, kind: 'html_deck', input: {task: 'variants', pages: v}});
+    if (r.error) { ev.target.disabled = false; return toast('요청하지 못했습니다. ' + (r.error.message || '').slice(0, 80)); }
+    toast('세 안을 요청했습니다. 다 되면 이 화면에 나옵니다.');
+    hdRender(p);
+  });
+}
+// 세 안을 만들 페이지 — 비우면 봇이 표지·컨셉 페이지를 고름. 최대 3페이지
+function askPages(n, used) {
+  return new Promise(res => {
+    modal(`<form id="tst-form"><h2>세 안을 만들 페이지</h2><p>페이지 번호를 쉼표로 입력해 주세요(최대 3개). 비워 두면 표지와 컨셉 페이지로 만듭니다.${used.size ? ` 이미 만든 페이지: ${[...used].sort((a, b) => a - b).join(', ')}` : ''}</p>
+      <label>페이지 번호<input id="tst-pages" inputmode="numeric" placeholder="예: 1, 7" maxlength="20"></label><div id="tst-err" role="alert" class="form-error"></div>
+      <div class="modal-actions"><button class="button" type="button" data-cancel>취소</button><button class="button primary" type="submit">다음</button></div></form>`);
+    let ok = false;
+    $('#tst-form').onsubmit = ev => {
+      ev.preventDefault();
+      const v = [...new Set(($('#tst-pages').value.match(/\d+/g) || []).map(Number))];
+      if (v.some(x => x < 1 || x > n)) { $('#tst-err').textContent = `1부터 ${n}까지 입력해 주세요.`; return; }
+      if (v.length > 3) { $('#tst-err').textContent = '한 번에 3페이지까지 만들 수 있습니다.'; return; }
+      ok = true; res(v); $('#modal').dataset.dirty = ''; $('#modal').close();
+    };
+    $('#modal').addEventListener('close', () => { if (!ok) res(null); }, {once: true});
+  });
+}
 // 11-25 새 디자인 엔진(실험) — 김현우만 (DB pt_htmldeck_can · 봇 htmldeck.py). 레퍼런스 페이지를 보고 페이지마다 새로 디자인 · 빈 이미지 자리와 표지 키비주얼은 신드리로
 let hdCanCache = null, hdPoll;
 async function hdRender(p) {
   const el = $('#hd-block'); if (!el) return;
   if (hdCanCache === null) { const r = await SB.rpc('pt_htmldeck_can'); hdCanCache = !r.error && !!r.data; }
   if (!hdCanCache) return;
-  const [pr, jr] = await Promise.all([SB.from('pt_proposal').select('data->html_deck,data->build->slides').eq('id', p.id).single(),
-    SB.from('pt_proposal_job').select('id,proposal_id,kind,status,result,error,at').eq('proposal_id', p.id).eq('kind', 'html_deck').order('id', {ascending: false}).limit(1)]);
+  const [pr, jr, tr] = await Promise.all([SB.from('pt_proposal').select('data->html_deck,data->build->slides').eq('id', p.id).single(),
+    SB.from('pt_proposal_job').select('id,proposal_id,kind,status,result,error,at,input').eq('proposal_id', p.id).eq('kind', 'html_deck').order('id', {ascending: false}).limit(1),
+    SB.from('pt_design_pref').select('id,proposal_id,page,role,variants,chosen,why,decided_at').order('id', {ascending: false}).limit(200)]);
   if (!$('#hd-block') || activeDetail !== 'p:' + p.id) return;
   const h = pr.data?.html_deck, n = +(pr.data?.slides || 0), j = (jr.data || [])[0], live = j && ['wait', 'work'].includes(j.status);
+  const prefs = tr.data || [], mine = prefs.filter(x => x.proposal_id === p.id), open = mine.filter(x => !x.chosen), picked = prefs.filter(x => x.chosen).length;
+  const varLive = live && j.input?.task === 'variants';
   const est = Math.round(n * 0.5 + 4);
   el.className = 'detail-block';
   el.innerHTML = `<h3>새 디자인 <small>실험</small></h3><p class="muted-box">레퍼런스 페이지를 보고 페이지마다 새로 디자인합니다. 빈 이미지 자리와 표지 키비주얼은 신드리로 만들어 회사 보관함에 남기고, 원고에 없는 내용은 자동으로 걸러 고칩니다. 지금 초안은 그대로 둡니다. 김현우 계정에서만 보입니다.</p>`
     + (live ? jobProg(j) : '')
     + (j && j.status === 'fail' ? `<p class="muted-box">지난 실행이 멈췄습니다. ${esc((j.error || '').slice(0, 160))}</p>` : '')
     + (h ? `<div class="detail-row"><span>최근 결과</span><b>v${h.version} · ${h.pages}페이지 · 신드리 이미지 ${h.images_new}장</b></div><div class="drawer-actions"><button class="button primary" data-hd="${esc(h.pdf)}">PDF 보기</button><button class="button" data-hd="${esc(h.pdf)}" data-dl="pdf">PDF 다운로드</button><button class="button" data-hd="${esc(h.pptx)}" data-dl="pptx" title="글자를 바로 고칠 수 있습니다. 글꼴이 바뀌어 보이면 궁니르 글꼴 설치를 한 번 해 주세요">PPTX 다운로드</button></div>` : '')
-    + (live ? '' : `<div class="drawer-actions"><button class="button" id="hd-go">${h ? '새 디자인 다시 만들기' : '새 디자인으로 만들기'}</button></div>`);
+    + (live ? '' : `<div class="drawer-actions"><button class="button" id="hd-go">${h ? '새 디자인 다시 만들기' : '새 디자인으로 만들기'}</button></div>`)
+    + tasteHtml(h, open, mine, picked, live, varLive);
+  tasteBind(p, h, n, open, mine);
   $$('#hd-block [data-hd]').forEach(b => b.onclick = async () => {
     const fname = `${pTitle(p)} 새 디자인_v${h.version}.${b.dataset.dl === 'pptx' ? 'pptx' : 'pdf'}`.replace(/[\\/:*?"<>|]+/g, ' ');
     const w = b.dataset.dl ? null : window.open('', '_blank');
