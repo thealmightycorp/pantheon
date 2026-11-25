@@ -5316,6 +5316,20 @@ function recoveryScreen(msg) {
     toast('비밀번호를 변경했습니다. 헤임달에서도 새 비밀번호로 로그인해 주세요.'); start();
   };
 }
+// 11-25 판테온 게스트 계정(관계사 둘러보기 · 홍석진 대표님) — 화면 맨 위 안내 띠. 저장은 DB 가 막고, 여기서는 알려 주기만
+function guestUntilText(u) {
+  const t = new Date(u?.app_metadata?.guest_until || ''); if (isNaN(t)) return '';
+  const p = Object.fromEntries(new Intl.DateTimeFormat('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(t).map(x => [x.type, x.value]));
+  return `${+p.month}월 ${+p.day}일 ${p.hour}:${p.minute}`;
+}
+function guestBanner(u) {
+  if (u?.app_metadata?.guest !== true || document.getElementById('guest-band')) return false;
+  const until = guestUntilText(u), b = document.createElement('div');
+  b.id = 'guest-band'; b.setAttribute('role', 'status');
+  b.style.cssText = 'position:sticky;top:0;z-index:9999;background:#FFF6E5;color:#7A4A00;border-bottom:1px solid #FBDCA0;padding:10px 16px;font-size:14px;line-height:1.5;text-align:center;word-break:keep-all';
+  b.textContent = '게스트 계정이에요. 둘러보기만 할 수 있고, 저장·수정은 되지 않아요.' + (until ? ` ${until}까지 쓸 수 있어요.` : '');
+  document.body.prepend(b); return true;
+}
 async function start() {
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return loginScreen(SLACK_ERR || LINK_ERR);
@@ -5328,7 +5342,7 @@ async function start() {
     const fail = {linked: '슬랙 계정을 연결하지 못했습니다. 관리자에게 문의해 주세요.', other_team: '더올마이티 슬랙 계정으로만 로그인할 수 있습니다. 회사 슬랙 계정으로 다시 시도해 주세요.', ambiguous: '이 슬랙 이메일과 연결된 헤임달 계정이 두 개 이상입니다. 관리자에게 문의해 주세요.', new: '헤임달에 등록되지 않은 계정입니다. 헤임달에서 이름·회사·부서를 입력하고 승인을 받은 후 이용할 수 있습니다.'}[r];
     if (fail) { await SB.auth.signOut({scope: 'local'}); return loginScreen(fail); }
   }
-  me = session.user;
+  me = session.user; guestBanner(me);
   const [can, adm, mem, sc, ic, sv] = await Promise.all([SB.rpc('pt_can_use'), SB.rpc('pt_is_admin'), SB.from('hd_member').select('name,role,status').eq('id', me.id).maybeSingle(), SB.rpc('pt_studio_can'), SB.rpc('pt_ipchart_can'), SB.rpc('pt_server_can')]);
   studioCan = !sc.error && !!sc.data; ipcCan = !ic.error && !!ic.data; serverCan = !sv.error && sv.data === true;            // 제안서 스튜디오 — 시험 기간 3명만 (함수가 없거나 거절이면 숨김)
   if (!can.data) { const left = mem.data?.status === 'left'; await SB.auth.signOut({scope: 'local'}); return loginScreen(left ? '퇴사 처리된 계정입니다. 더 이상 이용하실 수 없습니다.' : '헤임달에서 아직 승인되지 않은 계정입니다. 승인 후 다시 로그인해 주세요.'); }

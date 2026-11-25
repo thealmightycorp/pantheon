@@ -764,6 +764,20 @@ function loginScreen(msg) {
 }
 SB.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && s && document.getElementById('lgf')) location.replace(location.origin + location.pathname); });   // 로그인 화면이 떠 있을 때만 (로그인된 채 열면 SIGNED_IN 이 와도 다시 불러오지 않음)
 
+// 11-25 판테온 게스트 계정(관계사 둘러보기 · 홍석진 대표님) — 화면 맨 위 안내 띠. 저장은 DB 가 막고, 여기서는 알려 주기만
+function guestUntilText(u) {
+  const t = new Date(u?.app_metadata?.guest_until || ''); if (isNaN(t)) return '';
+  const p = Object.fromEntries(new Intl.DateTimeFormat('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(t).map(x => [x.type, x.value]));
+  return `${+p.month}월 ${+p.day}일 ${p.hour}:${p.minute}`;
+}
+function guestBanner(u) {
+  if (u?.app_metadata?.guest !== true || document.getElementById('guest-band')) return false;
+  const until = guestUntilText(u), b = document.createElement('div');
+  b.id = 'guest-band'; b.setAttribute('role', 'status');
+  b.style.cssText = 'position:sticky;top:0;z-index:9999;background:#FFF6E5;color:#7A4A00;border-bottom:1px solid #FBDCA0;padding:10px 16px;font-size:14px;line-height:1.5;text-align:center;word-break:keep-all';
+  b.textContent = '게스트 계정이에요. 둘러보기만 할 수 있고, 저장·수정은 되지 않아요.' + (until ? ` ${until}까지 쓸 수 있어요.` : '');
+  document.body.prepend(b); return true;
+}
 const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = document.getElementById('bootstep'); if (b) b.style.width = pct + '%'; if (s) s.textContent = txt; };
 (async () => {
   boot(15, '로그인 확인하는 중');
@@ -771,6 +785,7 @@ const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = d
   if (!session) { loginScreen(); return; }
   me = session.user;
   document.getElementById('logout').hidden = false;
+  if (guestBanner(me)) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>게스트 계정에서는 신드리로 이미지·영상을 만들 수 없어요.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
   document.getElementById('logout').onclick = async () => { await SB.auth.signOut(); location.replace(location.origin + location.pathname); };
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   boot(35, '권한 확인하는 중');
