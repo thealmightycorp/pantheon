@@ -273,18 +273,21 @@ function wfOf(m) {
   if (/motion/.test(w + p)) return 'motion';
   if (/first-last/.test(w)) return 'frames';
   if (/reference/.test(w)) return 'reference';
-  if (/(^|-)edit$|restyle|object-swap/.test(w) && !/generate-and-edit/.test(w)) return 'edit';
+  if (/(^|-)edit(-series)?$|restyle|object-swap/.test(w) && !/generate-and-edit/.test(w)) return 'edit';
   if (/image-to/.test(w)) return 'image';
   return 'create';
 }
 // 작업 이름 — 문서의 영어 작업 이름(workflow)을 우리말로
 function wfName(m) {
-  const w = m.workflow.replace(/^(pro|std|standard|4k|turbo)-/, x => ''), tier = (m.workflow.match(/^(pro|std|standard|4k|turbo)-/) || [])[1];
+  let w = m.workflow; const tiers = [], series = /-series$/.test(w);
+  if (series) w = w.replace(/-series$/, '');
+  for (let t; (t = w.match(/^(pro|std|standard|4k|turbo|fast|utility)-/)); w = w.slice(t[0].length)) tiers.push(t[1]);
   const base = ({'text-to-image': '글로 만들기', 'text-to-video': '글로 만들기', 'image-to-video': '사진으로 만들기', 'reference-to-video': '레퍼런스로 만들기', 'image-reference': '사진 레퍼런스로 만들기',
     'video-reference': '영상 레퍼런스로 만들기', 'video-edit': '영상 편집', 'video-extend': '영상 늘리기', 'first-last-frame': '처음·끝 장면으로 만들기', 'generate': '만들기', 'generate-and-edit': '만들기·편집',
-    'edit': '사진 편집', 'motion-transfer': '움직임 옮기기', 'object-swap': '물건 바꾸기', 'restyle': '스타일 바꾸기', 'flare': 'Flare', 'sunburst': 'Sunburst', 'pro': 'Pro', 'std': 'Standard'})[w] || m.workflow;
-  const t = ({pro: 'Pro', std: 'Standard', standard: 'Standard', '4k': '4K', turbo: 'Turbo'})[tier];
-  return t ? `${base} · ${t}` : base;
+    'edit': '사진 편집', 'motion-transfer': '움직임 옮기기', 'object-swap': '물건 바꾸기', 'restyle': '스타일 바꾸기', 'flare': 'Flare', 'sunburst': 'Sunburst', 'pro': 'Pro', 'std': 'Standard',
+    'image-to-image': '사진으로 만들기', 'motion-control': '움직임 따라 하기'})[w] || w;
+  const T = {pro: 'Pro', std: 'Standard', standard: 'Standard', '4k': '4K', turbo: 'Turbo', fast: 'Fast', utility: 'Utility'};
+  return [base, ...tiers.map(t => T[t]), ...(series ? ['여러 장'] : [])].join(' · ');
 }
 const LABEL = {prompt: '프롬프트', aspect_ratio: '비율', resolution: '해상도', duration: '길이(초)', generate_audio: '소리도 만들기', sound: '소리', seed: '시드(같은 결과 다시 내기)', batch_size: '장수', num_images: '장수',
   quality: '품질', negative_prompt: '빼고 싶은 것', enhance_prompt: '프롬프트 다듬기', cfg_scale: '프롬프트 충실도', bitrate_mode: '화질', output_format: '파일 형식', fps: '초당 프레임',
@@ -516,7 +519,7 @@ function tileHtml(g) {
       <ol class="steps" aria-hidden="true">${['대기', '만들기', '보관'].map((s, i) => `<li class="${i < at ? 'done' : i === at ? 'now' : ''}"><i></i><span>${s}</span></li>`).join('')}</ol>
       <b>${st[at]}</b><span>${esc(g.model || '')}${g.kind === 'video' && at < 2 ? ' · 영상은 몇 분 걸립니다' : ''}</span></div>`;
   }
-  if (bad || !u) return `<button class="tile failed" type="button" data-open="${g.id}"><b>${g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></button>`;
+  if (bad || !u) return `<button class="tile failed" type="button" data-open="${g.id}"><b>${/저작권|copyright/i.test(g.error || '') ? '저작권 문제로 차단됨' : /실존 인물/.test(g.error || '') ? '실존 인물 문제로 차단됨' : g.status === 'nsfw' ? '내용 검사에서 거절됨' : '만들지 못함'}</b><span>비용은 청구되지 않았습니다</span></button>`;
   const vid = (f.type || '').startsWith('video/');
   return `<button class="tile" type="button" data-open="${g.id}" aria-label="${esc(g.purpose)} · ${esc(g.model)} 크게 보기">${vid ? `<video src="${esc(u)}" style="aspect-ratio:${ratio}" muted preload="metadata" playsinline loop autoplay data-auto></video>` : `<img src="${esc(u)}" alt="" loading="lazy">`}
     ${vid || (g.files || []).length > 1 ? `<span class="kind">${vid ? `<span class="tag"><b>▶</b>영상${g.params?.duration ? ' ' + g.params.duration + '초' : ''}</span>` : ''}${(g.files || []).length > 1 ? `<span class="tag">${g.files.length}장</span>` : ''}</span>` : ''}
@@ -599,7 +602,8 @@ function viewer(id) {
   const files = g.files || [], P = g.params || {};
   const sets = Object.entries(P).filter(([k, v]) => !['workflow', 'media', 'images', 'from_gen', 'uploads'].includes(k) && v !== '' && v != null && typeof v !== 'object').map(([k, v]) => `${lab(k)} ${v === true ? '켬' : v === false ? '끔' : v}`).join(' · ');
   const big = files.map(f => urls[f.path] ? ((f.type || '').startsWith('video/') ? `<video src="${esc(urls[f.path])}" controls playsinline autoplay muted loop></video>` : `<img src="${esc(urls[f.path])}" alt="">`) : '').join('');
-  const st = {queued: '차례 기다리는 중', in_progress: '만드는 중', completed: '완료', failed: '만들지 못함(청구 안 됨)', nsfw: '내용 검사에서 거절됨(청구 안 됨)', canceled: '취소됨', error: '오류'}[g.status] || g.status;
+  const st = /저작권|copyright/i.test(g.error || '') && g.status !== 'completed' ? '저작권 문제로 차단됨(청구 안 됨)'
+    : {queued: '차례 기다리는 중', in_progress: '만드는 중', completed: '완료', failed: '만들지 못함(청구 안 됨)', nsfw: '내용 검사에서 거절됨(청구 안 됨)', canceled: '취소됨', error: '오류'}[g.status] || g.status;
   const img = files.find(f => (f.type || '').startsWith('image/'));
   $dlg.innerHTML = `<div class="sheet viewer" role="dialog" aria-modal="true" aria-label="생성 결과 보기">
     <div class="media">${big || `<div class="wait" style="color:#aab">${esc(st)}</div>`}</div>
