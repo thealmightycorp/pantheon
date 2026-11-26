@@ -786,7 +786,7 @@ const boot = (pct, txt) => { const b = document.getElementById('bootbar'), s = d
   me = session.user;
   document.getElementById('logout').hidden = false;
   if (guestBanner(me)) { $app.innerHTML = `<div class="gate"><h1>신드리</h1><p>게스트 계정에서는 신드리로 이미지·영상을 만들 수 없어요.</p><a class="btn" href="https://pantheon-map.vercel.app">판테온 지도로 돌아가기</a></div>`; return; }
-  document.getElementById('logout').onclick = async () => { await SB.auth.signOut(); location.replace(location.origin + location.pathname); };
+  document.getElementById('logout').onclick = async () => { await SB.auth.signOut({scope: 'local'}); location.replace(location.origin + location.pathname); };
   SB.rpc('pt_ai_usage_can').then(({ data }) => { if (data) document.getElementById('nav-usage').hidden = false; });
   boot(35, '권한 확인하는 중');
   const { data: ok } = await SB.rpc('pt_sindri_can');
