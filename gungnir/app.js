@@ -2053,7 +2053,9 @@ function studioView() {
 // 기안자 = 프로젝트를 연 사람(pt_proposal.created_by) · 기안자로 거르고 열 머리로 정렬 (11-02 홍석진 대표님)
 const pjByOf = p => memberName(p.created_by) || '궁니르 봇';
 const pjText = p => [pTitle(p), propSub(p), p.recipient, p.ip_a_name, p.ip_b_name, p.note, pjByOf(p)].join(' ').toLowerCase();
-const pjSets = () => { const all = studio.list; return {live: ['진행 중', all.filter(p => p.status !== 'done')], wait: ['결정 대기', all.filter(p => p.status === 'waiting')], work: ['궁니르 봇 처리 중', all.filter(p => p.status === 'working')], done: ['완료', all.filter(p => p.status === 'done')]}; };
+const pjSets = () => { const all = studio.list; return {live: ['진행 중', all.filter(p => p.status !== 'done')], wait: ['결정 대기', all.filter(p => p.status === 'waiting')], work: ['궁니르 봇 처리 중', all.filter(p => p.status === 'working')], done: ['완료', all.filter(p => p.status === 'done')], claude: ['Claude에서 저장', all.filter(p => p.data?.source === 'claude')]}; };
+// 11-27 대표 지시 98 — 각자 Claude 에서 만들어 저장한 작업 중 완료하지 않은(채택 안 한) 내 것
+const claudeLeft = () => (studio.list || []).filter(p => p.data?.source === 'claude' && p.status !== 'done' && me && p.created_by === me.id);
 const pjAny = () => !!(pjSets()[studio.filter] || studio.by || studio.stage || studio.q.trim());
 const SORT_KO = {title: '프로젝트 이름순', by: '기안자순', stage: '단계순', created: '기안일순', updated: '업데이트순'};
 function pjFiltered() {
@@ -2066,7 +2068,7 @@ function pjTable(ps) {
   if (!ps.length) return `<div class="empty"><p>${pjAny() ? '조건에 맞는 프로젝트가 없습니다.' : '아직 프로젝트가 없습니다.<br>오른쪽 위 「새 프로젝트」에서 IP를 입력해 시작해 주세요.'}</p></div>`;
   const {k: sk, d: sd} = studio.sort;
   const th = (k, t) => `<th aria-sort="${sk === k ? (sd > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort" data-psort="${k}">${t}${sk === k ? (sd > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
-  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${p.visibility === 'private' ? ` <span class="pill">${visLabel(p)}</span>` : ''}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
+  const rows = ps.map(p => `<tr class="clickable" data-proposal="${p.id}" tabindex="0"><td>${esc(pTitle(p))}${p.visibility === 'private' ? ` <span class="pill">${visLabel(p)}</span>` : ''}${p.data?.source === 'claude' ? ' <span class="pill">Claude에서 저장</span>' : ''}${propSub(p) ? ` <span class="prop-no">${esc(propSub(p))}</span>` : ''}<small class="cell-sub">${esc(p.recipient || '수신사 미정')}</small></td><td data-label="기안자" style="white-space:nowrap">${esc(pjByOf(p))}<small class="cell-sub">${esc(ymd(p.created_at))}</small></td><td data-label="단계">${p.stage}. ${esc(STAGES[p.stage - 1])}</td><td data-label="버전">${p.data?.build ? `<b class="ver">v${p.data.build.version}</b>` : '—'}</td><td data-label="상태">${pPill(p)}${p.status === 'working' ? `<div data-prow="${p.id}">${rowProg(p)}</div>` : ''}</td><td data-label="업데이트" style="white-space:nowrap">${esc(kst(p.updated_at))}</td></tr>`).join('');
   return `<div class="table-wrap"><table class="ct"><thead><tr>${th('title', '프로젝트')}${th('by', '기안자')}${th('stage', '현재 단계')}<th>버전</th><th>상태</th>${th('updated', '업데이트')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 // 내가 할 일 — 내가 기안한 프로젝트 중 내 결정을 기다리거나 멈춘 것. 대기 기간이 긴 순서, 하루가 넘으면 눈에 띄게
@@ -2094,7 +2096,8 @@ function studioProjects() {
     + sel('data-pstage', '단계별 보기', [['', '단계 전체'], ...STAGES.map((s, i) => [i + 1, `${i + 1}. ${s} (${n(p => p.stage === i + 1)})`])], studio.stage || '')
     + sel('data-pstatus', '상태별 보기', [['all', '상태 전체'], ...Object.entries(F).map(([k, [t, xs]]) => [k, `${t} (${xs.length})`])], F[studio.filter] ? studio.filter : 'all')
     + sel('data-pby', '기안자별 보기', [['', '기안자 전체'], ...byNames.map(x => [x, `${x} (${all.filter(p => pjByOf(p) === x).length})`])], studio.by)
-    + `<button class="text-btn" type="button" data-pclear${pjAny() ? '' : ' hidden'}>조건 초기화</button></div>`;
+    + `<button class="text-btn" type="button" data-pclear${pjAny() ? '' : ' hidden'}>조건 초기화</button>`
+    + (studio.filter === 'claude' && claudeLeft().length ? `<button class="button" type="button" id="claude-clean">완료하지 않은 내 저장 ${claudeLeft().length}건 정리</button>` : '') + '</div>';
   const stat = (key, num, bottom, hi) => `<div class="stat${hi ? ' highlight' : ''}${studio.filter === key ? ' on' : ''}" data-pfilter="${key}" role="button" tabindex="0" aria-pressed="${studio.filter === key}" aria-label="${F[key][0]} 프로젝트만 보기"><div class="stat-label">${F[key][0]}</div><div class="stat-value">${num}<small>건</small></div><div class="stat-bottom">${bottom}</div></div>`;
   return `<section class="panel todo-panel"><div class="panel-head"><div class="panel-title">내가 할 일${todo.length ? ` <span class="alert-count">${todo.length}건</span>` : ''}</div>${todo.length > 1 ? '<small class="muted">대기 기간이 긴 순서</small>' : ''}</div>${todo.length ? `<div class="alert-list todo-list">${todo.map(p => todoRow(p, true)).join('')}</div>` : '<p class="panel-caption todo-none">지금 결정하실 프로젝트가 없습니다.</p>'}${mineLive.length ? `<div class="panel-head todo-sub"><div class="panel-title">진행 중 <span class="alert-count">${mineLive.length}건</span></div><small class="muted">끝나면 위 목록으로 올라옵니다</small></div><div class="alert-list todo-list">${mineLive.map(liveRow).join('')}</div>` : ''}</section>
   <div class="stats">${stat('live', F.live[1].length, `전체 ${all.length}건`)}${stat('wait', F.wait[1].length, '담당자 확인이 필요한 단계')}${stat('work', F.work[1].length, '리서치·생성 등 자동 단계')}${stat('done', F.done[1].length, '제안서 전달 완료', true)}</div>
@@ -2464,6 +2467,13 @@ function bindStudioFilters() {
   });
   $$('[data-pstage]').forEach(x => x.onchange = () => { studio.stage = Number(x.value) || 0; render(); });
   $$('[data-pstatus]').forEach(x => x.onchange = () => { studio.filter = x.value; render(); });
+  $('#claude-clean')?.addEventListener('click', async ev => {
+    const L = claudeLeft(); if (!L.length) return;
+    if (!(await confirmBox({title: `Claude에서 저장한 ${L.length}건을 정리할까요?`, danger: true, ok: `${L.length}건 삭제`,
+        body: `완료(채택)하지 않은 내 저장본을 궁니르 목록에서 삭제합니다. 삭제한 프로젝트는 레퍼런스 학습에 들어가지 않습니다. 쓰인 이미지는 이미지 아카이브에 남습니다.<br>${L.slice(0, 8).map(p => '· ' + esc(pTitle(p))).join('<br>')}${L.length > 8 ? `<br>외 ${L.length - 8}건` : ''}`}))) return;
+    ev.target.disabled = true; let ok = 0;
+    for (const p of L) { const { error } = await SB.rpc('pt_proposal_delete', {p_id: p.id}); if (!error) ok++; }
+    studio.list = null; await loadStudio(); toast(ok === L.length ? `${ok}건을 정리했습니다.` : `${ok}건을 정리했습니다. ${L.length - ok}건은 삭제하지 못했습니다.`); render(); });
   $$('[data-pby]').forEach(x => x.onchange = () => { studio.by = x.value; render(); });
   $$('[data-pclear]').forEach(b => b.onclick = () => { Object.assign(studio, {filter: 'all', by: '', stage: 0, q: ''}); render(); });
   liveSearch($('[data-ref-q]'), () => {
