@@ -3750,9 +3750,14 @@ const pvCanEdit = p => !!me && (p.created_by === me.id || isAdmin);
 function pvEnd(p) {
   const d = p.data || {};
   if (p.status === 'done') {
-    const r = d.sent_ref && (studio.refs || []).find(x => x.id === d.sent_ref);
-    return `<div class="detail-block"><h3>레퍼런스</h3>${d.sent_ref ? `<div class="detail-row"><span>등록</span><b>${r ? esc(refName(r)) : '레퍼런스로 등록됨'}${r ? ` <button class="text-btn" type="button" data-ref-view="${r.id}">보기</button>` : ''}</b></div>`
-      : `<p>잘 나온 제안서는 레퍼런스로 등록하면 다음 제안서의 문체·디자인·구성에 반영됩니다.</p><div class="drawer-actions"><button class="button" id="pv-to-ref">레퍼런스로 보내기</button></div>`}</div>`
+    // 11-26 궁니르 자동 학습 — 완료한 공개 제안서는 봇이 레퍼런스로 등록·학습(data.auto_ref), 수신사 제출 표시(data.submitted)는 학습에서 먼저 쓴다
+    const rid = d.sent_ref || d.auto_ref?.ref_id, r = rid && (studio.refs || []).find(x => x.id === rid);
+    const sub = d.submitted ? `<div class="detail-row"><span>제출</span><b>${esc(String(d.submitted.at || '').slice(0, 10))}${d.submitted.by ? ' · ' + esc(d.submitted.by) : ''}${pvCanEdit(p) ? ' <button class="text-btn" type="button" id="pv-unsubmit">표시 취소</button>' : ''}</b></div>`
+      : (pvCanEdit(p) ? `<div class="drawer-actions"><button class="button" id="pv-submit">수신사 제출 완료로 표시</button></div>` : '<p class="muted">아직 제출 표시가 없습니다.</p>');
+    const learn = rid ? `<div class="detail-row"><span>학습</span><b>${r ? esc(r.status === 'ready' ? '레퍼런스 학습 완료' : '레퍼런스 학습 중') : '레퍼런스로 등록됨'}${r ? ` <button class="text-btn" type="button" data-ref-view="${r.id}">보기</button>` : ''}</b></div>`
+      : (p.visibility === 'private' ? '<p class="muted">나만 보기 제안서는 자동 학습에서 제외됩니다.</p>' : '<p class="muted">완료한 제안서는 궁니르가 잠시 뒤 레퍼런스로 등록해 학습합니다.</p>');
+    return `<div class="detail-block"><h3>수신사 제출</h3>${sub}</div><div class="detail-block"><h3>레퍼런스</h3>${learn}`
+      + (d.sent_ref ? '' : `<div class="drawer-actions"><button class="button" id="pv-to-ref">${rid ? '최종 PDF 따로 올리기' : '레퍼런스로 보내기'}</button></div>`) + `</div>`
       + `<div class="detail-block" id="pv-ygg"><h3>이그드라실</h3><p class="kr-wait">불러오는 중입니다<span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p></div>`;
   }
   if ((p.status === 'waiting' || p.status === 'failed') && pvCanEdit(p))
@@ -3954,6 +3959,21 @@ async function openProposal(id, keep) {
     await proposalEvent(p.id, '궁니르 전체에 공유했습니다'); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('궁니르 전체에 공유했습니다.');
   });
   $('#pv-to-ref')?.addEventListener('click', () => pvToRef(p));
+  // 11-26 수신사 제출 완료 표시 — 제출한 제안서는 궁니르 학습에서 먼저 쓴다(봇 autolearn)
+  const setSubmitted = async on => {
+    const { data: row, error: e0 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single();
+    if (e0) return toast('불러오지 못했습니다: ' + e0.message);
+    const prev = row.data.submitted || null, next = on ? {at: new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' '), by: myName || ''} : null;
+    const save = async v => { const { data: r2 } = await SB.from('pt_proposal').select('data').eq('id', p.id).single(); const dd = {...(r2?.data || row.data)}; if (v) dd.submitted = v; else delete dd.submitted;
+      return SB.from('pt_proposal').update({data: dd}).eq('id', p.id); };
+    const { error } = await save(next);
+    if (error) return toast('저장하지 못했습니다: ' + error.message);
+    await proposalEvent(p.id, on ? '수신사 제출 완료로 표시했습니다' : '수신사 제출 표시를 취소했습니다');
+    studio.list = null; await loadStudio(); openProposal(p.id, true);
+    toast(on ? '제출 완료로 표시했습니다. 궁니르가 이 제안서를 먼저 학습합니다.' : '제출 표시를 취소했습니다.', {fn: async () => { await save(prev); studio.list = null; await loadStudio(); openProposal(p.id, true); toast('실행을 취소했습니다.'); }});
+  };
+  $('#pv-submit')?.addEventListener('click', () => setSubmitted(true));
+  $('#pv-unsubmit')?.addEventListener('click', () => setSubmitted(false));
   if ($('#pv-ygg')) pvYgg(p);
   $$('#drawer .pv-side [data-ref-view]').forEach(b => b.onclick = () => openRef(b.dataset.refView));
   $('#pv-close')?.addEventListener('click', async ev => {
