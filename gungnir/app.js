@@ -3181,7 +3181,8 @@ async function replaceSlotImage(p, key, f) {
   return true;
 }
 const qaBlock = p => { const d = p.data || {}, qa = qaOf(d), busy = studio.jobs.some(j => j.proposal_id === p.id && j.kind === 'qa' && ['wait', 'work'].includes(j.status));
-  if (!qa) return busy ? `<div class="qa-line"><b>자동 검수 중</b>${jobsProg(studio.jobs.filter(j => j.proposal_id === p.id && j.kind === 'qa' && ['wait', 'work'].includes(j.status)))}</div>` : '';
+  if (!qa) return busy ? `<div class="qa-line"><b>자동 검수 중</b>${jobsProg(studio.jobs.filter(j => j.proposal_id === p.id && j.kind === 'qa' && ['wait', 'work'].includes(j.status)))}</div>`
+    : d.build?.version && p.status !== 'working' ? `<div class="qa-line"><span>${d.qa ? '마지막 검수 뒤 바뀐 내용이 있습니다.' : '아직 자동 검수 전입니다.'}</span> <button class="button" id="qa-req" type="button">검수 요청</button></div>` : '';
   if (qa.error) return `<p class="qa-line">${esc(qa.error)}</p>`;
   if (!qa.flags.length) return '<p class="qa-line good">자동 검수 · 특이 사항 없음</p>';
   return `<div class="qa-box"><b>자동 검수 · 확인 필요 항목 ${qa.flags.length}곳</b><small>클릭하면 해당 페이지로 이동해 바로 수정할 수 있습니다</small>${qa.flags.map(f => `<button class="qa-flag" data-review="${f.slide}"><span>${f.slide}페이지</span><b>${esc(QA_KO[f.type] || '확인')}</b> ${esc(f.detail)}</button>`).join('')}</div>`; };
@@ -4121,8 +4122,12 @@ async function openProposal(id, keep) {
     go({status: 'working', data: {...d, revise_log: log}}, {kind: 'finalize', input: {instruction: t}}, `원고 수정을 요청했습니다 · ${t.slice(0, 120)}`, '원고를 수정해 다음 버전을 생성합니다. 진행률은 화면에서 확인할 수 있습니다.');
   });
   $('#img-rerender')?.addEventListener('click', async ev => {
-    if (!(await confirmBox({title: '변경 사항을 제안서 전체에 반영할까요?', body: '교체한 이미지와 위치 조정 내용을 적용해 제안서 전체를 다시 생성하고, 자동 검수도 다시 진행합니다. 진행 중에는 수정할 수 없습니다.', ok: '전체에 반영'}))) return;
+    if (!(await confirmBox({title: '변경 사항을 제안서 전체에 반영할까요?', body: '교체한 이미지와 위치 조정 내용을 적용해 제안서 전체를 다시 생성합니다. 자동 검수가 필요하면 「검수 요청」을 눌러 주세요. 진행 중에는 수정할 수 없습니다.', ok: '전체에 반영'}))) return;
     ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {}}, '변경 사항 반영을 요청했습니다'); });
+  // 11-27 대표 지시 98 — 자동 검수는 이미지를 바꿀 때마다 돌지 않고, 처음 이미지가 다 찬 버전과 요청할 때만
+  $('#qa-req')?.addEventListener('click', async ev => {
+    if (!(await confirmBox({title: '지금 버전을 검수할까요?', body: '수정한 내용을 반영해 제안서 전체를 다시 생성한 뒤, 모든 페이지를 자동 검수합니다. 진행 중에는 수정할 수 없습니다.', ok: '검수 요청'}))) return;
+    ev.target.disabled = true; go({status: 'working'}, {kind: 'finalize', input: {qa: true}}, '자동 검수를 요청했습니다'); });
   $('#img-done')?.addEventListener('click', async ev => {
     const empty = Object.values(liveSlots(d)).filter(s => s.status === 'missing' || s.status === 'ai').length;     // 11-13 대표님 개선안 3
     if (!(await confirmBox({title: `v${d.build.version}으로 제안서를 완료할까요?`,
